@@ -29,6 +29,8 @@ import TimetableManagement from "./pages/TimetableManagement";
 import TeacherTimetableView from "./pages/TeacherTimetableView";
 import StaffAttendanceAnalysis from "./pages/StaffAttendanceAnalysis";
 import StaffCredentials from "./pages/StaffCredentials";
+import StaffAttendanceHistory from "./pages/admin/StaffAttendanceHistory";
+import MyAttendance from "./pages/teacher/MyAttendance";
 
 // Protected Route Wrapper
 
@@ -259,7 +261,31 @@ function App() {
               }
             />
 
+            <Route
+              path="/admin/staff/attendance-history"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Layout>
+                    <StaffAttendanceHistory />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/teacher/my-attendance"
+              element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <Layout>
+                    <MyAttendance />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
             {/* Default Redirect */}
+
+            {/* Unauthorized Page */}
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
 

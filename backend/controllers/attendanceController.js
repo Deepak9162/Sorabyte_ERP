@@ -148,6 +148,26 @@ const getTeacherAttendanceAnalysis = async (req, res, next) => {
 };
 
 /**
+ * @desc    Get attendance analysis for the logged-in teacher (My Attendance)
+ * @route   GET /api/attendance/staff/my-analysis
+ */
+const getMyAttendanceAnalysis = async (req, res, next) => {
+  try {
+    const teacherId = req.user._id;
+    if (!teacherId) {
+      return errorResponse(res, 'User not authenticated as teacher', 401);
+    }
+    const analysis = await attendanceService.getTeacherAttendanceAnalysis(teacherId);
+    return successResponse(res, analysis, 'My attendance analysis fetched successfully');
+  } catch (error) {
+    if (error.message === 'Teacher not found') {
+      return errorResponse(res, error.message, 404);
+    }
+    next(error);
+  }
+};
+
+/**
  * @desc    Get overall staff attendance summary (present, absent, leave ratios)
  * @route   GET /api/attendance/staff/summary
  */
@@ -169,4 +189,5 @@ module.exports = {
   getStaffMonthlyReport,
   getStaffAttendanceSummary,
   getTeacherAttendanceAnalysis,
+  getMyAttendanceAnalysis,
 };

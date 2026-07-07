@@ -60,11 +60,25 @@ const Layout = ({ children }) => {
       roles: ["teacher"],
     },
     {
+      id: "my-attendance",
+      path: "/teacher/my-attendance",
+      label: "My Attendance",
+      icon: CalendarCheck,
+      roles: ["teacher"],
+    },
+    {
       id: "teachers",
 
       path: "/teachers",
       label: "Staff List",
       icon: UserSquare2,
+      roles: ["admin"],
+    },
+    {
+      id: "staff-attendance-history",
+      path: "/admin/staff/attendance-history",
+      label: "Staff Attendance History",
+      icon: CalendarCheck,
       roles: ["admin"],
     },
     {

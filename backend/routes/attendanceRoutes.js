@@ -15,6 +15,7 @@ const {
   getStaffMonthlyReport,
   getStaffAttendanceSummary,
   getTeacherAttendanceAnalysis,
+  getMyAttendanceAnalysis,
 } = require('../controllers/attendanceController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -40,5 +41,8 @@ router.get('/staff/summary', authorize('admin'), getStaffAttendanceSummary);
 
 // Staff single-teacher attendance analysis for yearly calendar view
 router.get('/staff/analysis/:teacherId', authorize('admin'), getTeacherAttendanceAnalysis);
+
+// Logged-in teacher's own attendance analysis (teacher only)
+router.get('/staff/my-analysis', authorize('teacher'), getMyAttendanceAnalysis);
 
 module.exports = router;
