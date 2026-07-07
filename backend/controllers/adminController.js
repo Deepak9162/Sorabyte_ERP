@@ -223,6 +223,8 @@ const resetStaffPassword = async (req, res, next) => {
       teacher.user = user._id;
       await teacher.save();
     } else {
+      // ✅ FIX: Re-fetch with +password so isModified() works and pre-save hook hashes it
+      user = await User.findById(teacher.user).select('+password');
       user.password = newPassword;
       await user.save();
     }
