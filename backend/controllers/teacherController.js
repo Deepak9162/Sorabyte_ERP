@@ -29,6 +29,7 @@ const getAllTeachers = async (req, res, next) => {
 
     const [teachers, total] = await Promise.all([
       Teacher.find(filter)
+        .populate('user', 'isOnline lastSeen isActive name email')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),

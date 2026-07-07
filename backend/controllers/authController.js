@@ -1,7 +1,7 @@
 /**
  * Auth Controller
  * 
- * Handles user registration and login.
+ * Handles user registration, login, logout, and online presence tracking.
  * Returns JWT token on successful authentication.
  */
 
@@ -50,7 +50,7 @@ const register = async (req, res, next) => {
 };
 
 /**
- * @desc    Login user & return JWT
+ * @desc    Login user & return JWT — marks user as Online
  * @route   POST /api/auth/login
  * @access  Public
  */
@@ -82,6 +82,12 @@ const login = async (req, res, next) => {
       return errorResponse(res, 'Invalid email or password', 401);
     }
 
+    // ✅ Mark user as Online
+    await User.findByIdAndUpdate(user._id, {
+      isOnline: true,
+      lastSeen: new Date(),
+    });
+
     // Generate JWT
     const token = generateToken(user);
 
@@ -94,6 +100,42 @@ const login = async (req, res, next) => {
       },
       token,
     }, 'Login successful');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Logout user — marks user as Offline
+ * @route   POST /api/auth/logout
+ * @access  Private (requires JWT)
+ */
+const logout = async (req, res, next) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, {
+      isOnline: false,
+      lastSeen: new Date(),
+    });
+
+    return successResponse(res, null, 'Logged out successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Heartbeat — keep user marked as Online (called every 2 min by frontend)
+ * @route   POST /api/auth/heartbeat
+ * @access  Private (requires JWT)
+ */
+const heartbeat = async (req, res, next) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, {
+      isOnline: true,
+      lastSeen: new Date(),
+    });
+
+    return successResponse(res, null, 'Heartbeat received');
   } catch (error) {
     next(error);
   }
@@ -118,4 +160,5 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe };
+module.exports = { register, login, logout, heartbeat, getMe };
+

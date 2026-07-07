@@ -3,32 +3,324 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Printer,
-  Palette,
-  RotateCcw,
-  Sparkles,
-  ShieldAlert,
-  Info,
-  BadgeAlert,
-  Layers,
   FileText,
 } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import api from "../../services/api";
 import { useToast } from "../../context/ToastContext";
-import SchoolLogo from "../../components/ui/SchoolLogo";
 import Button from "../../components/ui/Button";
 import { cn } from "../../utils/cn";
+import schoolLogoImg from "../../assets/schoollogo.png";
 
-// Colors for themes
-const CARD_THEMES = [
-  { id: "sapphire", name: "Sapphire Blue", primary: "bg-indigo-600", text: "text-indigo-600", border: "border-indigo-100", gradient: "from-indigo-600 to-blue-500", light: "bg-indigo-50/50" },
-  { id: "crimson", name: "Crimson Red", primary: "bg-rose-600", text: "text-rose-600", border: "border-rose-100", gradient: "from-rose-600 to-red-500", light: "bg-rose-50/50" },
-  { id: "emerald", name: "Emerald Green", primary: "bg-emerald-600", text: "text-emerald-600", border: "border-emerald-100", gradient: "from-emerald-600 to-teal-500", light: "bg-emerald-50/50" },
-  { id: "golden", name: "Golden Sun", primary: "bg-amber-600", text: "text-amber-600", border: "border-amber-100", gradient: "from-amber-500 to-yellow-400", light: "bg-amber-50/50" },
-  { id: "charcoal", name: "Charcoal", primary: "bg-slate-800", text: "text-slate-800", border: "border-slate-200", gradient: "from-slate-800 to-slate-600", light: "bg-slate-50" },
-];
+// ─── Constants ─────────────────────────────────────────────────────────
+const SCHOOL_NAME = "LITTLE FLOWER";
+const SCHOOL_SUBTITLE = "ENGLISH SCHOOL";
+const SCHOOL_LOCATION = "DINDAYALPUR (SIWAN)";
+const SCHOOL_PHONE = "9123456789";
+const SCHOOL_ADDRESS = "Vill. Dindayalpur, P.O. Dindayalpur,\nSiwan, Bihar - 841226";
+const SCHOOL_WEBSITE = "www.lfes.in/erp";
 
+// ─── Fonts Injection ───────────────────────────────────────────────────
+export const injectFonts = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+    
+    .id-card-container {
+      font-family: 'Poppins', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .photo-blob {
+      border-radius: 41% 59% 46% 54% / 41% 47% 53% 59%;
+    }
+    .bg-blob-1 {
+      border-radius: 54% 46% 38% 62% / 46% 54% 60% 40%;
+    }
+    .bg-blob-2 {
+      border-radius: 35% 65% 57% 43% / 51% 37% 63% 49%;
+    }
+  `}</style>
+);
+
+// ─── Dot Grid SVG Component ────────────────────────────────────────────
+export const DotsGrid = ({ color = "#888", opacity = 0.5, rows = 3, cols = 4, className, style }) => (
+  <svg style={style} className={className} width={cols * 10} height={rows * 10} viewBox={`0 0 ${cols * 10} ${rows * 10}`}>
+    {Array.from({ length: rows }).map((_, r) =>
+      Array.from({ length: cols }).map((_, c) => (
+        <circle key={`${r}-${c}`} cx={5 + c * 10} cy={5 + r * 10} r="1.5" fill={color} opacity={opacity} />
+      ))
+    )}
+  </svg>
+);
+
+// ─── Front Card ────────────────────────────────────────────────────────
+export const IDCardFront = ({ student, photoUrl, logoUrl, id = "idcard-front" }) => {
+  const { personalDetails, academicDetails, contactDetails } = student;
+
+  return (
+    <div
+      id={id}
+      className="id-card-container bg-white relative overflow-hidden flex flex-col shadow-2xl"
+      style={{
+        width: "350px",
+        height: "540px",
+        borderRadius: "20px",
+        boxSizing: "border-box"
+      }}
+    >
+      {/* ── Background Decors ── */}
+      {/* Top Left Blobs */}
+      <svg style={{ position: "absolute", top: -20, left: -20, zIndex: 1 }} width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <path d="M0,0 L160,0 C140,80 80,120 0,180 Z" fill="#EEF2F8" opacity="0.8" />
+        <path d="M0,0 L120,0 C110,60 50,80 0,140 Z" fill="#0D2D63" />
+        <path d="M0,60 C40,50 80,10 90,0" stroke="#D9A441" strokeWidth="2" fill="none" opacity="0.8" />
+      </svg>
+
+      {/* Top Right Gold Wave & Light Blob */}
+      <svg style={{ position: "absolute", top: -10, right: -10, zIndex: 1 }} width="120" height="120" viewBox="0 0 120 120" fill="none">
+        <path d="M120,0 L120,100 C70,110 30,70 0,0 Z" fill="#EEF2F8" opacity="0.6" />
+        <path d="M120,30 C80,40 50,0 40,-10" stroke="#D9A441" strokeWidth="1.5" fill="none" opacity="0.6" />
+      </svg>
+      <DotsGrid style={{ position: "absolute", top: 80, right: 20, zIndex: 1 }} rows={3} cols={4} color="#0D2D63" opacity="0.4" />
+
+      {/* Bottom Left Decors */}
+      <svg style={{ position: "absolute", bottom: -20, left: -20, zIndex: 1 }} width="130" height="130" viewBox="0 0 130 130" fill="none">
+        <path d="M0,130 L130,130 C110,70 60,30 0,0 Z" fill="#EEF2F8" opacity="0.8" />
+      </svg>
+      <DotsGrid style={{ position: "absolute", bottom: 20, left: 20, zIndex: 1 }} rows={4} cols={3} color="#0D2D63" opacity="0.4" />
+
+      {/* Bottom Right Navy/Gold Wave */}
+      <svg style={{ position: "absolute", bottom: -10, right: -10, zIndex: 1 }} width="150" height="130" viewBox="0 0 150 130" fill="none">
+        <path d="M150,130 L0,130 C20,90 80,60 150,0 Z" fill="#0D2D63" />
+        <path d="M150,40 C100,70 50,110 -10,130" stroke="#D9A441" strokeWidth="2" fill="none" opacity="0.8" />
+      </svg>
+
+      {/* ── Header Area ── */}
+      <div style={{ position: "relative", zIndex: 2, padding: "28px 24px 0 24px", display: "flex", alignItems: "center", gap: "12px" }}>
+        {/* Logo Circle */}
+        <div style={{
+          width: "58px", height: "58px", borderRadius: "50%",
+          background: "#fff", border: "2px solid #0D2D63",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden", flexShrink: 0,
+          boxShadow: "0 0 0 1.5px #D9A441, 0 4px 10px rgba(0,0,0,0.1)"
+        }}>
+          {logoUrl || schoolLogoImg ? (
+            <img src={logoUrl || schoolLogoImg} alt="Logo" style={{ width: "85%", height: "85%", objectFit: "contain" }} crossOrigin="anonymous" />
+          ) : (
+            <div style={{ fontSize: "10px", fontWeight: 800, color: "#0D2D63", textAlign: "center", lineHeight: 1.1 }}>LF<br/>ES</div>
+          )}
+        </div>
+        {/* Header Text */}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ fontSize: "20px", fontWeight: 800, color: "#0D2D63", letterSpacing: "0.5px", lineHeight: 1.1 }}>
+            {SCHOOL_NAME}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+            <span style={{ flex: 1, height: "1.5px", background: "#D9A441" }} />
+            <span style={{ fontSize: "9px", fontWeight: 700, color: "#0D2D63", letterSpacing: "2.5px" }}>{SCHOOL_SUBTITLE}</span>
+            <span style={{ flex: 1, height: "1.5px", background: "#D9A441" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "5px", alignSelf: "center" }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="#D9A441"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            <span style={{ fontSize: "9px", color: "#0D2D63", fontWeight: 700, letterSpacing: "0.5px" }}>{SCHOOL_LOCATION}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Photo Section ── */}
+      <div style={{ position: "relative", zIndex: 2, height: "200px", marginTop: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        
+        {/* Abstract shapes behind photo */}
+        <div className="bg-blob-1" style={{ position: "absolute", width: "260px", height: "230px", background: "#EEF2F8", zIndex: 0, opacity: 0.7, top: -10, left: 40 }} />
+        <div className="bg-blob-2" style={{ position: "absolute", width: "100px", height: "120px", background: "#D9A441", zIndex: 0, bottom: -10, right: 30, opacity: 0.8 }} />
+        
+        {/* Striped circle */}
+        <svg style={{ position: "absolute", bottom: 10, left: 30, zIndex: 0 }} width="70" height="70" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="45" fill="url(#stripes-front)" />
+          <defs>
+            <pattern id="stripes-front" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="0" x2="0" y2="8" stroke="#0D2D63" strokeWidth="2.5" opacity="0.3"/>
+            </pattern>
+          </defs>
+        </svg>
+
+        {/* The Photo Blob */}
+        <div className="photo-blob" style={{ 
+          position: "relative", zIndex: 2, width: "175px", height: "185px", 
+          background: "#E2F0F9", overflow: "hidden",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          {photoUrl ? (
+            <img src={photoUrl} alt="Student" style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
+          ) : (
+            <div style={{ fontSize: "52px", fontWeight: 900, color: "#143B73", letterSpacing: "2px" }}>
+              {(personalDetails?.name || "?").split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase()}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Student Name ── */}
+      <div style={{ zIndex: 2, textAlign: "center", marginTop: "12px", padding: "0 20px" }}>
+        <div style={{ fontSize: "24px", fontWeight: 800, color: "#0D2D63", letterSpacing: "1px", textTransform: "uppercase", lineHeight: 1.1 }}>
+          {personalDetails?.name}
+        </div>
+        <div style={{ width: "40px", height: "3px", background: "#D9A441", margin: "6px auto 0", borderRadius: "2px" }} />
+      </div>
+
+      {/* ── Info Grid ── */}
+      <div style={{ zIndex: 2, padding: "16px 36px 0 36px", flex: 1 }}>
+        {[
+          { label: "Class", value: `${academicDetails?.className || ""}${academicDetails?.section ? ` (${academicDetails.section})` : ""}` },
+          { label: "Father's Name", value: contactDetails?.parentName || "N/A" },
+          { label: "Phone No.", value: contactDetails?.parentMobile || contactDetails?.phone || "N/A" },
+          { label: "Address", value: contactDetails?.address || SCHOOL_ADDRESS },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ display: "flex", gap: "10px", marginBottom: "8px", alignItems: "flex-start" }}>
+            <div style={{ width: "3px", height: "14px", background: "#D9A441", flexShrink: 0, marginTop: "3px" }} />
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "#0D2D63", width: "85px", flexShrink: 0 }}>{label}</div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#0D2D63", lineHeight: 1.3, flex: 1 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Principal Signature ── */}
+      <div style={{ zIndex: 2, padding: "0 36px 16px 36px", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+        <div style={{ fontFamily: "'Dancing Script', 'Georgia', cursive", fontSize: "28px", color: "#0D2D63", marginBottom: "-6px", paddingLeft: "10px" }}>
+          Pannul
+        </div>
+        <div style={{ borderTop: "1px solid #0D2D63", paddingTop: "4px", width: "120px", display: "flex", justifyContent: "center" }}>
+          <span style={{ fontSize: "9px", color: "#0D2D63", fontWeight: 700 }}>Principal Signature</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Back Card ─────────────────────────────────────────────────────────
+export const IDCardBack = ({ student, qrUrl, id = "idcard-back" }) => {
+  const { personalDetails, contactDetails } = student;
+
+  return (
+    <div
+      id={id}
+      className="id-card-container bg-white relative overflow-hidden flex flex-col shadow-2xl items-center"
+      style={{
+        width: "350px",
+        height: "540px",
+        borderRadius: "20px",
+        boxSizing: "border-box"
+      }}
+    >
+      {/* ── Background Decors ── */}
+      <svg style={{ position: "absolute", top: -20, left: -20, zIndex: 1 }} width="160" height="160" viewBox="0 0 160 160" fill="none">
+        <path d="M0,0 L160,0 C120,60 80,80 0,160 Z" fill="#0D2D63" />
+        <path d="M0,60 C40,40 80,10 90,-10" stroke="#D9A441" strokeWidth="2" fill="none" opacity="0.8" />
+      </svg>
+
+      <svg style={{ position: "absolute", top: -10, right: -10, zIndex: 1 }} width="130" height="130" viewBox="0 0 130 130" fill="none">
+        <path d="M130,0 L130,120 C80,100 40,70 0,0 Z" fill="#F7F2EA" />
+      </svg>
+      <DotsGrid style={{ position: "absolute", top: 20, right: 20, zIndex: 1 }} rows={3} cols={3} color="#0D2D63" opacity="0.5" />
+
+      <svg style={{ position: "absolute", bottom: -20, right: -20, zIndex: 1 }} width="180" height="160" viewBox="0 0 180 160" fill="none">
+        <path d="M180,160 L0,160 C40,90 90,60 180,0 Z" fill="#0D2D63" />
+        <path d="M180,30 C120,60 60,110 -10,130" stroke="#D9A441" strokeWidth="1.5" fill="none" opacity="0.8" />
+      </svg>
+
+      <svg style={{ position: "absolute", bottom: -10, left: -10, zIndex: 1 }} width="120" height="120" viewBox="0 0 120 120" fill="none">
+        <path d="M0,120 L120,120 C100,70 60,30 0,0 Z" fill="#F7F2EA" />
+      </svg>
+      <DotsGrid style={{ position: "absolute", bottom: 20, left: 20, zIndex: 1 }} rows={3} cols={3} color="#0D2D63" opacity="0.5" />
+
+      {/* ── IF FOUND Header ── */}
+      <div style={{ position: "relative", zIndex: 2, textAlign: "center", marginTop: "24px", width: "100%", padding: "0 24px" }}>
+        <div style={{
+          width: "48px", height: "48px", borderRadius: "50%",
+          border: "2px solid #D9A441", display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 12px", background: "#fff"
+        }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="#D9A441">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+          </svg>
+        </div>
+        <div style={{ fontSize: "12px", fontWeight: 700, color: "#0D2D63", letterSpacing: "1px" }}>
+          IF FOUND, PLEASE CONTACT
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", margin: "6px 0 10px" }}>
+          <div style={{ width: "35px", height: "1.5px", background: "#D9A441", opacity: 0.5 }} />
+          <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#D9A441" }} />
+          <div style={{ width: "35px", height: "1.5px", background: "#D9A441", opacity: 0.5 }} />
+        </div>
+      </div>
+
+      {/* ── Contact Details ── */}
+      <div style={{ position: "relative", zIndex: 2, width: "100%", padding: "0 40px", display: "flex", flexDirection: "column", gap: "12px" }}>
+        {[
+          { icon: "M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z", text: SCHOOL_PHONE, sub: "(School Office)" },
+          { icon: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z", text: SCHOOL_ADDRESS, sub: null },
+          { icon: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z", text: SCHOOL_WEBSITE, sub: "(School ERP)" },
+        ].map(({ icon, text, sub }, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{
+              width: "32px", height: "32px", borderRadius: "50%",
+              border: "1.5px solid #0D2D63", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#0D2D63"><path d={icon}/></svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ fontSize: "11px", fontWeight: 600, color: "#0D2D63", lineHeight: 1.4 }}>{text}</div>
+              {sub && <div style={{ fontSize: "10px", color: "#666", fontWeight: 500 }}>{sub}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ position: "relative", zIndex: 2, width: "65%", borderTop: "2px dotted #D9A441", margin: "14px 0", opacity: 0.6 }} />
+
+      {/* ── QR Section ── */}
+      <div style={{ position: "relative", zIndex: 2, textAlign: "center", width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{
+          border: "2px solid #D9A441", borderRadius: "12px", padding: "6px",
+          background: "#fff", display: "inline-block",
+          boxShadow: "0 4px 14px rgba(217, 164, 65, 0.15)"
+        }}>
+          <img src={qrUrl} alt="QR Code" style={{ width: "85px", height: "85px", display: "block" }} crossOrigin="anonymous"/>
+        </div>
+        <div style={{ fontSize: "10px", color: "#0D2D63", fontWeight: 600, letterSpacing: "0.5px", marginTop: "6px" }}>SCAN TO VIEW</div>
+        <div style={{ fontSize: "14px", fontWeight: 800, color: "#0D2D63", letterSpacing: "0.5px" }}>STUDENT PROFILE</div>
+        <div style={{ fontSize: "10px", color: "#666", fontWeight: 500 }}>(School ERP)</div>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 2, width: "65%", borderTop: "2px dotted #D9A441", margin: "10px 0", opacity: 0.6 }} />
+
+      {/* ── Emergency Contact ── */}
+      <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", gap: "10px", padding: "0 24px" }}>
+        <svg width="24" height="24" viewBox="0 0 24 24">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" fill="#0D2D63"/>
+          <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="#D9A441"/>
+        </svg>
+        <div>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#D9A441", letterSpacing: "0.5px" }}>EMERGENCY CONTACT</div>
+          <div style={{ fontSize: "16px", fontWeight: 800, color: "#0D2D63" }}>+91 {contactDetails?.parentMobile || contactDetails?.phone || SCHOOL_PHONE}</div>
+        </div>
+      </div>
+
+      {/* ── Principal ── */}
+      <div style={{ position: "relative", zIndex: 2, textAlign: "center", marginTop: "auto", marginBottom: "16px" }}>
+        <div style={{ fontFamily: "'Dancing Script', 'Georgia', cursive", fontSize: "28px", color: "#0D2D63", marginBottom: "-4px" }}>Binnul</div>
+        <div style={{ borderTop: "1px solid #0D2D63", paddingTop: "2px", width: "120px", display: "flex", justifyContent: "center", margin: "0 auto" }}>
+          <span style={{ fontSize: "10px", color: "#0D2D63", fontWeight: 700 }}>Principal</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Component ────────────────────────────────────────────────────
 const StudentIDCard = () => {
   const { studentId } = useParams();
   const navigate = useNavigate();
@@ -36,674 +328,167 @@ const StudentIDCard = () => {
 
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState(CARD_THEMES[0]);
-  const [orientation, setOrientation] = useState("portrait"); // 'portrait' or 'landscape'
-  const [downloading, setDownloading] = useState(false);
-  const [qrImageError, setQrImageError] = useState(false);
+  const [activeTab, setActiveTab] = useState("front");
+  
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState(null);
 
-  // Reset QR error if student changes
-  useEffect(() => {
-    setQrImageError(false);
-  }, [studentId]);
+  // Dynamic host URL resolution for photo serving
+  const apiHost = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : "";
 
   useEffect(() => {
     const fetchStudent = async () => {
       try {
-        setLoading(true);
-        // Load the profile endpoints to gather everything
         const res = await api.get(`/students/${studentId}/profile`);
         if (res.data.success) {
-          setStudent(res.data.data);
+          const st = res.data.data;
+          setStudent(st);
+
+          // Resolve photo URL
+          const pUrl = st.personalDetails?.studentPhoto;
+          if (pUrl) {
+            setPhotoUrl(pUrl.startsWith("http") || pUrl.startsWith("data:") ? pUrl : `${apiHost}${pUrl}`);
+          }
+          
+          // Generate dynamic QR code matching requested payload
+          const qrPayload = `STUDENT PROFILE\nName: ${st.personalDetails?.name}\nID: ${st.personalDetails?.studentId}\nClass: ${st.academicDetails?.className || ""}${st.academicDetails?.section ? ` (${st.academicDetails.section})` : ""}\nPhone: ${st.contactDetails?.parentMobile || st.contactDetails?.phone || "N/A"}\nSchool: Little Flower English School`;
+          setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrPayload)}`);
         }
       } catch (error) {
-        console.error("Error loading student for ID card:", error);
+        console.error(error);
+        addToast("Failed to load student record", "error");
       } finally {
         setLoading(false);
       }
     };
     fetchStudent();
-  }, [studentId]);
+  }, [studentId, apiHost]);
+
+  const handleExportPDF = async () => {
+    if (!student) return;
+    try {
+      const frontEl = document.getElementById("idcard-front");
+      const backEl = document.getElementById("idcard-back");
+      
+      // Temporarily render both if hidden
+      const prevTab = activeTab;
+      if (activeTab === "back") setActiveTab("front");
+      
+      const options = { scale: 3, useCORS: true, backgroundColor: null, logging: false };
+      
+      const frontCanvas = await html2canvas(frontEl, options);
+      
+      // Switch to back to capture
+      setActiveTab("back");
+      // Small timeout to allow render
+      await new Promise(r => setTimeout(r, 100));
+      const backCanvas = await html2canvas(document.getElementById("idcard-back"), options);
+      
+      // Restore tab
+      setActiveTab(prevTab);
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      
+      const cardW = 54 * 1.3;
+      const cardH = 86 * 1.3;
+
+      pdf.addImage(frontCanvas.toDataURL("image/png"), "PNG", 30, 40, cardW, cardH);
+      pdf.addImage(backCanvas.toDataURL("image/png"), "PNG", 110, 40, cardW, cardH);
+      
+      // Add cutting lines
+      pdf.setDrawColor(200, 200, 200);
+      pdf.setLineDash([2, 2], 0);
+      pdf.rect(30, 40, cardW, cardH, "D");
+      pdf.rect(110, 40, cardW, cardH, "D");
+
+      pdf.save(`ID-Card-${student.personalDetails?.studentId}.pdf`);
+      addToast("ID Card Exported successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to export PDF", "error");
+    }
+  };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleDownloadPDF = async () => {
-    try {
-      setDownloading(true);
-      addToast("Capturing high-resolution card canvases...", "info");
-
-      const frontElement = document.getElementById("idcard-front");
-      const backElement = document.getElementById("idcard-back");
-
-      if (!frontElement || !backElement) {
-        throw new Error("Front or back card elements could not be found.");
-      }
-
-      // Render high-DPI canvases for crystal-clear prints (avoiding blur)
-      const canvasOptions = {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: null,
-        logging: false,
-      };
-
-      const [frontCanvas, backCanvas] = await Promise.all([
-        html2canvas(frontElement, canvasOptions),
-        html2canvas(backElement, canvasOptions),
-      ]);
-
-      const frontImgData = frontCanvas.toDataURL("image/png");
-      const backImgData = backCanvas.toDataURL("image/png");
-
-      // Instantiate PDF document: A4 size in millimeters
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      // Add school letterhead details
-      pdf.setFont("Helvetica", "bold");
-      pdf.setFontSize(14);
-      pdf.setTextColor(30, 41, 59); // Slate 800
-      pdf.text("LITTLE FLOWER ENGLISH SCHOOL — STUDENT IDENTITY CREDENTIALS", 105, 20, { align: "center" });
-
-      pdf.setFont("Helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.setTextColor(148, 163, 184); // Slate 400
-      pdf.text(
-        `GEN TIME: ${new Date().toLocaleString()}  |  STUDENT: ${personalDetails?.name.toUpperCase()} (${personalDetails?.studentId})`,
-        105,
-        25,
-        { align: "center" }
-      );
-
-      // Add line divider
-      pdf.setDrawColor(226, 232, 240); // Slate 200
-      pdf.setLineWidth(0.4);
-      pdf.line(20, 28, 190, 28);
-
-      // Render card layout dynamically inside A4 sheet
-      if (orientation === "portrait") {
-        const cardW = 60; // 60mm
-        const cardH = 90; // 90mm
-        const yCoord = 45;
-
-        pdf.addImage(frontImgData, "PNG", 30, yCoord, cardW, cardH);
-        pdf.addImage(backImgData, "PNG", 120, yCoord, cardW, cardH);
-
-        // Add visual cut outlines
-        pdf.setDrawColor(203, 213, 225); // Slate 300
-        pdf.setLineDash([1.5, 1.5], 0);
-        pdf.rect(30, yCoord, cardW, cardH, "D");
-        pdf.rect(120, yCoord, cardW, cardH, "D");
-      } else {
-        const cardW = 90; // 90mm
-        const cardH = 60; // 60mm
-        const yCoord1 = 45;
-        const yCoord2 = 120;
-
-        pdf.addImage(frontImgData, "PNG", 60, yCoord1, cardW, cardH);
-        pdf.addImage(backImgData, "PNG", 60, yCoord2, cardW, cardH);
-
-        // Add visual cut outlines
-        pdf.setDrawColor(203, 213, 225); // Slate 300
-        pdf.setLineDash([1.5, 1.5], 0);
-        pdf.rect(60, yCoord1, cardW, cardH, "D");
-        pdf.rect(60, yCoord2, cardW, cardH, "D");
-      }
-
-      // Add print instructions footer
-      pdf.setDrawColor(0);
-      pdf.setLineDash([], 0); // Reset dash style
-      pdf.setFont("Helvetica", "bold");
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(71, 85, 105); // Slate 600
-      pdf.text("OFFICIAL ASSEMBLY INSTRUCTIONS:", 20, 200);
-
-      pdf.setFont("Helvetica", "normal");
-      pdf.setFontSize(7.5);
-      pdf.setTextColor(100, 116, 139); // Slate 500
-      pdf.text("1. Print this record sheet on premium card stock (220 GSM or higher) at 100% scale.", 20, 207);
-      pdf.text("2. Carefully trim the front and back card pieces along the dotted grey guidelines.", 20, 212);
-      pdf.text("3. Place both pieces back-to-back, glue securely, and laminate for maximum protection.", 20, 217);
-
-      pdf.save(`student-idcard-${personalDetails?.studentId || studentId}.pdf`);
-      addToast("High-quality Student ID Card PDF downloaded successfully!", "success");
-    } catch (err) {
-      console.error("PDF download failed:", err);
-      addToast("Failed to compile card canvas. Please try again.", "error");
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  if (loading) {
+  if (loading || !student) {
     return (
-      <div className="space-y-8 animate-pulse p-4">
-        <div className="h-10 w-48 bg-gray-200 rounded-lg" />
-        <div className="max-w-md mx-auto h-[500px] bg-gray-100 rounded-[2.5rem]" />
+      <div className="flex justify-center items-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
-
-  if (!student) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <BadgeAlert size={48} className="text-gray-300 animate-bounce" />
-        <h2 className="text-2xl font-black text-gray-900">Student Record Not Found</h2>
-        <Button onClick={() => navigate("/students")} icon={ArrowLeft} className="rounded-2xl">
-          Back to Directory
-        </Button>
-      </div>
-    );
-  }
-
-  const { personalDetails, academicDetails, contactDetails } = student;
-  const currentYear = new Date().getFullYear();
-  const validityYear = currentYear + 1; // 1-year validity
-
-  // Dynamic photo URL resolution (prepending host to serve static uploaded files)
-  const apiHost = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : "";
-  const photoUrl = personalDetails?.studentPhoto
-    ? (personalDetails.studentPhoto.startsWith("http") || personalDetails.studentPhoto.startsWith("data:")
-      ? personalDetails.studentPhoto
-      : `${apiHost}${personalDetails.studentPhoto}`)
-    : null;
-
-  // Dynamic QR Code URL resolution
-  const qrCodeUrl = personalDetails?.qrCode
-    ? (personalDetails.qrCode.startsWith("http") || personalDetails.qrCode.startsWith("data:")
-      ? personalDetails.qrCode
-      : `${apiHost}${personalDetails.qrCode}`)
-    : null;
-
-  const qrPayload = JSON.stringify({
-    studentId: personalDetails?.studentId || studentId,
-    fullName: personalDetails?.name,
-    class: `${academicDetails?.className || ""} - ${academicDetails?.section || ""}`,
-    schoolName: 'Little Flower English School'
-  });
-  
-  const dynamicQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`;
-  const finalQrCodeUrl = qrImageError 
-    ? (qrCodeUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 29 29'><path d='M0 0h7v7H0zm1 1v5h5V1zm1 1h3v3H2zm6-2h1v1H8zm1 1h1v1H9zm-1 1h1v1H8zm2 0h1v1h-1zm-2 2h1v1H8zm1 1h2v1H9zm1-5h1v1h-1zm11 0h7v7h-7zm1 1v5h5V1zm1 1h3v3h-3zM8 8h1v1H8zm2 0h1v1h-1zm1 1h1v1h-1zm-3 1h1v1H9zm2 0h1v1h-1zm-3 2h1v1H8zm1 1h1v1H9zm2-2h1v1h-1zm10-3h1v1h-1zm1 1h1v1h-1zm-2 1h1v1h-1zm2 1h1v1h-1zm-2 2h1v1h-1zm3-5h1v1h-1zm1 2h1v1h-1zm1 1h1v1h-1zm-2 2h1v1h-1zm-13 6h7v7H0zm1 1v5h5v-5zm1 1h3v3H2zm11-1h1v1h-1zm1 1h1v1h-1zm-2 1h1v1h-1zm2 1h1v1h-1zm-2 2h2v1h-2zm3-5h1v1h-1zm1 2h1v1h-1zm1 1h1v1h-1zm-2 2h1v1h-1zm2-5h1v1h-1zm1 1h1v1h-1zm1 1h1v1h-1zm2 1h1v1h-1zm-2 2h1v1h-1zm-3 1h1v1h-1zm4 0h1v1h-1zm1 1h1v1h-1zm-2 1h1v1h-1zm2 1h1v1h-1z' fill='%231e293b'/></svg>") 
-    : dynamicQrUrl;
-
-  // Dynamic mathematically correct Code 39 barcode generator
-  const renderBarcode = (barcodeText) => {
-    const CODE39_MAP = {
-      '0': '101001101101', '1': '110100101011', '2': '101100101011', '3': '110110010101',
-      '4': '101001101011', '5': '110100110101', '6': '101100110101', '7': '101001011011',
-      '8': '110100101101', '9': '101100101101', 'A': '110101001011', 'B': '101101001011',
-      'C': '110110100101', 'D': '101011001011', 'E': '110101100101', 'F': '101101100101',
-      'G': '101010011011', 'H': '110101001101', 'I': '101101001101', 'J': '101011001101',
-      'K': '110101010011', 'L': '101101010011', 'M': '110110101001', 'N': '101011010011',
-      'O': '110101101001', 'P': '101101101001', 'Q': '101010110011', 'R': '110101011001',
-      'S': '101101011001', 'T': '101011011001', 'U': '110010101011', 'V': '100110101011',
-      'W': '110011010101', 'X': '100101101011', 'Y': '110010110101', 'Z': '100110110101',
-      '-': '100101011011', '.': '110010101101', ' ': '100110101101', '*': '100101101101'
-    };
-
-    const cleanText = `*${(barcodeText || "STU-XXXX").toUpperCase()}*`;
-    let fullPattern = "";
-    
-    for (let i = 0; i < cleanText.length; i++) {
-      const char = cleanText[i];
-      const pattern = CODE39_MAP[char] || CODE39_MAP['-'];
-      fullPattern += pattern + "0"; // narrow space between characters
-    }
-    
-    const rects = [];
-    let x = 0;
-    const barWidth = 1.0;
-    const height = 40;
-    
-    for (let i = 0; i < fullPattern.length; i++) {
-      const bit = fullPattern[i];
-      if (bit === '1') {
-        rects.push(
-          <rect key={i} x={x} y={0} width={barWidth} height={height} fill="black" />
-        );
-      }
-      x += barWidth;
-    }
-    
-    return (
-      <svg className="w-full h-8 shrink-0" viewBox={`0 0 ${x} ${height}`} preserveAspectRatio="none">
-        {rects}
-      </svg>
-    );
-  };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20 print:bg-white print:p-0">
+    <div className="space-y-6 max-w-5xl mx-auto pb-20 print:bg-white print:m-0 print:p-0 print:block">
+      {injectFonts()}
       
-      {/* 1. Header (hidden during print) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 print:hidden">
-        <div className="flex items-center gap-3">
+      {/* ── Toolbar ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate(`/students/${personalDetails.studentId || studentId}`)}
-            className="p-3 text-gray-400 hover:text-gray-900 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl transition-all shadow-sm active:scale-95"
+            onClick={() => navigate("/students")}
+            className="p-2 text-gray-400 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={20} />
           </button>
           <div>
-            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none">
-              Credential Management
-            </span>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tight mt-1">
-              Print Student ID Card
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900">Student ID Card</h2>
+            <p className="text-sm text-gray-500">{student.personalDetails?.name}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            disabled={downloading}
-            onClick={handleDownloadPDF}
-            className={cn(
-              "flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-2xl text-sm font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50",
-              downloading && "cursor-wait"
-            )}
-          >
-            <FileText size={18} className={cn(downloading && "animate-pulse")} />
-            <span>{downloading ? "Generating PDF..." : "Download PDF"}</span>
-          </button>
 
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 active:scale-95"
-          >
-            <Printer size={18} />
-            <span>Print ID Card</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Customizers Toolbar (hidden during print) */}
-      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
-        {/* Orientation Selector */}
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-            <Layers size={14} /> Layout:
-          </span>
-          <div className="flex border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+          <div className="flex bg-gray-100 p-1 rounded-xl">
             <button
-              onClick={() => setOrientation("portrait")}
-              className={cn(
-                "px-4 py-2 text-xs font-bold transition-all",
-                orientation === "portrait" ? "bg-indigo-50 text-indigo-700 font-extrabold" : "bg-white text-gray-500 hover:bg-gray-50"
-              )}
+              onClick={() => setActiveTab("front")}
+              className={cn("px-4 py-1.5 rounded-lg text-sm font-bold transition-all", activeTab === "front" ? "bg-white text-indigo-700 shadow-sm" : "text-gray-500 hover:text-gray-700")}
             >
-              Portrait Card
+              Front Side
             </button>
             <button
-              onClick={() => setOrientation("landscape")}
-              className={cn(
-                "px-4 py-2 text-xs font-bold transition-all",
-                orientation === "landscape" ? "bg-indigo-50 text-indigo-700 font-extrabold" : "bg-white text-gray-500 hover:bg-gray-50"
-              )}
+              onClick={() => setActiveTab("back")}
+              className={cn("px-4 py-1.5 rounded-lg text-sm font-bold transition-all", activeTab === "back" ? "bg-white text-indigo-700 shadow-sm" : "text-gray-500 hover:text-gray-700")}
             >
-              Landscape Card
+              Back Side
             </button>
           </div>
-        </div>
-
-        {/* Theme Picker */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Palette size={14} /> Card Theme:
-          </span>
-          {CARD_THEMES.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTheme(t)}
-              className={cn(
-                "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 shadow-sm active:scale-95",
-                theme.id === t.id
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-700"
-                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-              )}
-            >
-              <span className={cn("w-3 h-3 rounded-full", t.primary)} />
-              {t.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 3. The ID Card Visual Sandbox */}
-      <div className="flex flex-col items-center justify-center p-8 bg-gray-50 border border-dashed border-gray-200 rounded-[2.5rem] min-h-[500px] print:bg-white print:p-0 print:border-none">
-        
-        <div
-          className={cn(
-            "flex gap-10 flex-col items-center justify-center print:flex-row print:gap-10",
-            orientation === "landscape" ? "lg:flex-row lg:gap-8" : "md:flex-row md:gap-12"
-          )}
-        >
           
-          {/* ============================================================== */}
-          {/* FRONT OF THE ID CARD                                            */}
-          {/* ============================================================== */}
-          <div
-            id="idcard-front"
-            className={cn(
-              "bg-white border border-gray-200 rounded-[2.25rem] shadow-2xl relative overflow-hidden flex flex-col justify-between shrink-0 font-sans print:shadow-none print:border print:border-gray-300 print:page-break-inside-avoid",
-              orientation === "portrait" ? "w-[300px] h-[450px]" : "w-[450px] h-[300px]"
-            )}
-          >
-            {/* Elegant Background Watermark Pattern */}
-            <div className="absolute inset-0 opacity-[0.015] pointer-events-none select-none flex flex-col justify-around items-center overflow-hidden rotate-12 scale-150">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="text-[9px] font-black tracking-[0.25em] whitespace-nowrap">
-                  LITTLE FLOWER ENGLISH SCHOOL • SECURITY CREDENTIAL
-                </div>
-              ))}
-            </div>
-
-            {/* Elegant Header Wave */}
-            <div className={cn(
-              "bg-gradient-to-r shrink-0 flex items-center gap-3 justify-between relative shadow-sm",
-              orientation === "portrait" ? "p-5" : "py-2.5 px-4",
-              theme.gradient
-            )}>
-              <div className="flex items-center gap-2">
-                <SchoolLogo className="w-8 h-8 flex-shrink-0 bg-white/10 p-0.5 rounded-lg border border-white/20 text-white" showText={false} />
-                <div className="text-left leading-tight">
-                  <h4 className="text-[12px] font-black text-white uppercase tracking-wider leading-none">
-                    Little Flower English School
-                  </h4>
-                  <p className="text-[7px] font-bold text-white/80 uppercase tracking-widest leading-none mt-0.5">
-                    Educating for Excellence
-                  </p>
-                </div>
-              </div>
-              <div className="text-right leading-none">
-                <span className="text-[8px] font-black bg-white/20 text-white border border-white/10 px-2 py-0.5 rounded-full uppercase tracking-widest">
-                  Student
-                </span>
-              </div>
-            </div>
-
-            {/* Content area */}
-            <div className={cn(
-              "flex-1 flex relative z-10",
-              orientation === "portrait" ? "p-5 flex-col items-center justify-between text-center" : "py-3 px-4 flex-row items-center justify-between text-left gap-4"
-            )}>
-              
-              {/* Photo Area */}
-              <div className={cn("shrink-0 relative flex items-center justify-center", orientation === "portrait" ? "mt-2" : "ml-0")}>
-                <div className={cn(
-                  "bg-white flex items-center justify-center p-1 shadow-md ring-4 overflow-hidden transition-all duration-300", 
-                  orientation === "portrait" ? "w-24 h-24 rounded-[1.75rem]" : "w-20 h-20 rounded-2xl",
-                  theme.id === "sapphire" ? "ring-indigo-100 border-indigo-200" :
-                  theme.id === "crimson" ? "ring-rose-100 border-rose-200" :
-                  theme.id === "emerald" ? "ring-emerald-100 border-emerald-200" :
-                  theme.id === "golden" ? "ring-amber-100 border-amber-200" :
-                  "ring-slate-100 border-slate-200"
-                )}>
-                  <div className={cn(
-                    "w-full h-full overflow-hidden bg-gray-50 flex items-center justify-center border border-gray-100",
-                    orientation === "portrait" ? "rounded-[1.25rem]" : "rounded-xl"
-                  )}>
-                    {photoUrl ? (
-                      <img
-                        src={photoUrl}
-                        alt="Student Portrait"
-                        className="w-full h-full object-cover"
-                        crossOrigin="anonymous"
-                      />
-                    ) : (
-                      <span className="text-3xl font-black text-gray-300 tracking-tighter uppercase shrink-0">
-                        {(personalDetails?.name || "??")
-                          .split(" ")
-                          .slice(0, 2)
-                          .map((n) => n[0])
-                          .join("")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className={cn("absolute -bottom-2 px-2.5 py-0.5 rounded-full text-[8px] font-black text-white uppercase tracking-widest shadow-sm", theme.primary)}>
-                  ACTIVE
-                </div>
-              </div>
-
-              {/* Text Fields */}
-              <div className={cn(
-                "flex-1", 
-                orientation === "portrait" ? "w-full mt-4 space-y-3.5" : "space-y-1.5"
-              )}>
-                <div>
-                  <h3 className={cn(
-                    "font-black uppercase tracking-tight leading-tight", 
-                    orientation === "portrait" ? "text-xl" : "text-lg",
-                    theme.text
-                  )}>
-                    {personalDetails?.name}
-                  </h3>
-                  <div className={cn(
-                    "inline-block bg-gray-100/70 border border-gray-200/50 rounded-full shadow-sm",
-                    orientation === "portrait" ? "px-3 py-1 mt-1.5" : "px-2.5 py-0.5 mt-1"
-                  )}>
-                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-wider leading-none">
-                      Class: {academicDetails?.className} - {academicDetails?.section}
-                    </p>
-                  </div>
-                </div>
-
-                <div className={cn(
-                  "grid grid-cols-2 text-left bg-gray-50/60 border border-gray-100/70",
-                  orientation === "portrait" ? "gap-x-3 gap-y-2 p-2.5 rounded-2xl" : "gap-x-3 gap-y-1 p-2 rounded-xl"
-                )}>
-                  <div className="border-r border-gray-200/60 pr-1">
-                    <span className="text-[7.5px] font-black text-gray-400 uppercase tracking-wider block">Student ID</span>
-                    <span className="text-[10px] font-black font-mono text-gray-800 mt-0.5 block tracking-wide truncate">{personalDetails?.studentId || "N/A"}</span>
-                  </div>
-                  <div className="pl-1">
-                    <span className="text-[7.5px] font-black text-gray-400 uppercase tracking-wider block">Roll Number</span>
-                    <span className="text-[10px] font-black font-mono text-gray-800 mt-0.5 block tracking-wide truncate">{personalDetails?.rollNumber || "N/A"}</span>
-                  </div>
-                  <div className="border-t border-r border-gray-200/60 pt-2 pr-1">
-                    <span className="text-[7.5px] font-black text-gray-400 uppercase tracking-wider block">D.O.B</span>
-                    <span className="text-[10px] font-black font-mono text-gray-800 mt-0.5 block tracking-wide truncate">
-                      {personalDetails?.dob
-                        ? new Date(personalDetails.dob).toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "N/A"}
-                    </span>
-                  </div>
-                  <div className="border-t border-gray-200/60 pt-2 pl-1">
-                    <span className="text-[7.5px] font-black text-gray-400 uppercase tracking-wider block">Blood Group</span>
-                    <span className="text-[10px] font-black font-mono text-gray-800 mt-0.5 block tracking-wide truncate">{personalDetails?.bloodGroup || "N/A"}</span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Footer card */}
-            <div className={cn(
-              "border-t border-gray-50 bg-gray-50/40 shrink-0 flex items-center justify-between relative z-10",
-              orientation === "portrait" ? "px-5 py-4" : "px-4 py-2.5"
-            )}>
-              <div className="text-left">
-                <span className="text-[7.5px] font-black text-gray-400 uppercase tracking-wider block">Validity</span>
-                <span className="text-[10px] font-black text-gray-755 block mt-0.5">{currentYear} - {validityYear}</span>
-              </div>
-
-              {/* Dynamic scannable Barcode */}
-              <div className="w-28 opacity-90">
-                {renderBarcode(personalDetails?.studentId || studentId)}
-              </div>
-            </div>
-
-          </div>
-
-          {/* ============================================================== */}
-          {/* BACK OF THE ID CARD                                             */}
-          {/* ============================================================== */}
-          <div
-            id="idcard-back"
-            className={cn(
-              "bg-white border border-gray-200 rounded-[2.25rem] shadow-2xl relative overflow-hidden flex flex-col justify-between shrink-0 font-sans print:shadow-none print:border print:border-gray-300 print:page-break-inside-avoid",
-              orientation === "portrait" ? "w-[300px] h-[450px]" : "w-[450px] h-[300px]"
-            )}
-          >
-            {/* Elegant Background Watermark Pattern */}
-            <div className="absolute inset-0 opacity-[0.015] pointer-events-none select-none flex flex-col justify-around items-center overflow-hidden rotate-12 scale-150">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="text-[9px] font-black tracking-[0.25em] whitespace-nowrap">
-                  LITTLE FLOWER ENGLISH SCHOOL • SECURITY CREDENTIAL
-                </div>
-              ))}
-            </div>
-
-            {/* Top Back Header */}
-            <div className={cn(
-              "border-b border-gray-50 bg-gray-50/40 flex items-center gap-2 shrink-0",
-              orientation === "portrait" ? "px-5 py-4.5" : "px-4 py-2.5"
-            )}>
-              <ShieldAlert className={cn("w-5 h-5", theme.text)} />
-              <div>
-                <h4 className="text-[10px] font-black text-gray-850 uppercase tracking-wider leading-none">
-                  Emergency Information
-                </h4>
-                <p className="text-[7px] font-bold text-gray-400 uppercase mt-0.5 leading-none">
-                  If found, please notify the school administration
-                </p>
-              </div>
-            </div>
-
-            {/* Critical Fields */}
-            <div className={cn(
-              "flex-1 flex relative z-10 text-xs font-semibold text-gray-600",
-              orientation === "portrait" ? "p-5 flex-col justify-between gap-4" : "py-3 px-4 flex-row justify-between gap-6"
-            )}>
-              
-              <div className={cn("w-full", orientation === "portrait" ? "space-y-2" : "flex-1 space-y-1.5")}>
-                <div className="flex justify-between items-start gap-2 border-b border-gray-50 pb-1.5">
-                  <span className="text-[8px] font-black text-gray-400 uppercase block shrink-0 w-20">Guardian</span>
-                  <span className="text-[9.5px] font-bold text-gray-800 text-right truncate">{contactDetails?.parentName}</span>
-                </div>
-                
-                <div className="flex justify-between items-start gap-2 border-b border-gray-50 pb-1.5">
-                  <span className="text-[8px] font-black text-gray-400 uppercase block shrink-0 w-20">Emergency Call</span>
-                  <span className="text-[9.5px] font-bold text-gray-800 font-mono text-right">{contactDetails?.parentMobile}</span>
-                </div>
-
-                <div className="flex justify-between items-start gap-2 border-b border-gray-50 pb-1.5">
-                  <span className="text-[8px] font-black text-gray-400 uppercase block shrink-0 w-20">Student Phone</span>
-                  <span className="text-[9.5px] font-bold text-gray-800 font-mono text-right">{contactDetails?.phone || "N/A"}</span>
-                </div>
-
-                {personalDetails?.aadhar && (
-                  <div className="flex justify-between items-start gap-2 border-b border-gray-50 pb-1.5">
-                    <span className="text-[8px] font-black text-gray-400 uppercase block shrink-0 w-20">Aadhar No.</span>
-                    <span className="text-[9.5px] font-bold text-gray-800 font-mono text-right">{personalDetails.aadhar}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className={cn("flex flex-col justify-between", orientation === "portrait" ? "w-full gap-3" : "w-[170px] shrink-0")}>
-                <div className="flex justify-between items-start gap-2 pb-1 text-left">
-                  <span className="text-[8px] font-black text-gray-400 uppercase block shrink-0 w-12">Address</span>
-                  <span className="text-[9px] font-semibold text-gray-600 text-right leading-tight max-w-[150px] truncate-3-lines">
-                    {contactDetails?.address || "Meerut Road, Little Flower Campus, Siwan, Bihar - 841506"}
-                  </span>
-                </div>
-
-                {/* Disclaimer Terms */}
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[7px] font-semibold text-slate-500 leading-normal text-left">
-                  This card is the property of Little Flower English School. Cardholders must carry it while on school premises.
-                </div>
-              </div>
-
-            </div>
-
-            {/* Bottom Footer signature & QR code */}
-            <div className={cn(
-              "border-t border-gray-50 bg-gray-50/50 shrink-0 flex items-center justify-between relative z-10",
-              orientation === "portrait" ? "px-5 py-4.5" : "px-4 py-2.5"
-            )}>
-              
-              <div className="flex items-center gap-2.5">
-                <img
-                  src={finalQrCodeUrl}
-                  alt="Student ID QR Code"
-                  className={cn(
-                    "shrink-0 border border-gray-100 p-0.5 rounded-lg bg-white object-contain",
-                    orientation === "portrait" ? "w-14 h-14" : "w-12 h-12"
-                  )}
-                  crossOrigin="anonymous"
-                  onError={() => setQrImageError(true)}
-                />
-                <div className="text-left">
-                  <span className="text-[7.5px] font-black text-gray-400 uppercase tracking-wider block">Authorized Signatory</span>
-                  <p className="text-[11px] font-black text-indigo-950 italic font-serif mt-1">Principal</p>
-                </div>
-              </div>
-
-              <div className="text-right flex flex-col items-end">
-                <span className="text-[7px] font-bold text-gray-400 uppercase block leading-none">Administration Phone</span>
-                <span className="text-[9px] font-black text-gray-800 mt-1 block leading-none">+91-9876543210</span>
-              </div>
-
-            </div>
-
-          </div>
-
+          <Button variant="outline" onClick={handleExportPDF} className="gap-2">
+            <FileText size={16} /> Export PDF
+          </Button>
+          <Button onClick={handlePrint} className="gap-2 bg-[#0D2D63] hover:bg-[#143B73] text-white">
+            <Printer size={16} /> Print Card
+          </Button>
         </div>
-
       </div>
 
-      {/* Print Specific CSS */}
+      {/* ── Card Display (Web) ── */}
+      <div className="flex justify-center items-center py-10 print:hidden bg-gray-50 rounded-3xl border border-gray-100 shadow-inner">
+        {activeTab === "front" ? (
+          <IDCardFront student={student} photoUrl={photoUrl} />
+        ) : (
+          <IDCardBack student={student} qrUrl={qrCodeUrl} />
+        )}
+      </div>
+
+      {/* ── Print Layout (Hidden on Web) ── */}
+      <div className="hidden print:flex flex-row justify-center items-start gap-10 mt-10">
+        <IDCardFront student={student} photoUrl={photoUrl} />
+        <IDCardBack student={student} qrUrl={qrCodeUrl} />
+      </div>
+
       <style>{`
         @media print {
-          /* Hide all chrome headers/customizers */
-          header, 
-          aside,
-          .print\\:hidden,
-          nav,
-          div.print\\:hidden {
-            display: none !important;
-          }
-          
-          /* Full page display overrides */
-          body, html, main, #root, div.flex-1 {
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            overflow: visible !important;
-          }
-
-          /* Positioning the ID cards exactly on the print sheet */
-          div.flex-col.items-center.justify-center.p-8 {
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: none !important;
-            min-h-0 !important;
-            display: block !important;
-          }
-
-          div.flex.gap-10 {
-            display: flex !important;
-            flex-direction: row !important;
-            justify-content: center !important;
-            align-items: center !important;
-            gap: 40px !important;
-            margin-top: 3cm !important;
-          }
-
+          body * { visibility: hidden; }
+          .print\\:hidden { display: none !important; }
+          .print\\:flex { display: flex !important; visibility: visible !important; }
+          .print\\:flex * { visibility: visible; }
+          .print\\:flex { position: absolute; left: 0; top: 0; width: 100%; justify-content: center; padding-top: 2cm; }
           #idcard-front, #idcard-back {
-            border: 1px solid #d1d5db !important;
+            border: 1px dashed #ccc !important;
             box-shadow: none !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;

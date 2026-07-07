@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   KeyRound,
   Search,
@@ -11,6 +11,9 @@ import {
   UserCheck,
   UserX,
   Lock,
+  Wifi,
+  WifiOff,
+  Clock,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -28,30 +31,35 @@ const StaffCredentials = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
   
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    fetchStaffCredentials();
-  }, []);
-
-  const fetchStaffCredentials = async () => {
-    setLoading(true);
+  const fetchStaffCredentials = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await api.get("/admin/staff-credentials");
       if (res.data.success) {
         setStaff(res.data.data || []);
+        setLastRefreshed(new Date());
       }
     } catch (error) {
       console.error("Failed to fetch staff credentials:", error);
-      addToast("Failed to load staff credentials data", "error");
+      if (!silent) addToast("Failed to load staff credentials data", "error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [addToast]);
+
+  useEffect(() => {
+    fetchStaffCredentials();
+    // ── Auto-refresh every 30 seconds for live online status
+    const interval = setInterval(() => fetchStaffCredentials(true), 30_000);
+    return () => clearInterval(interval);
+  }, [fetchStaffCredentials]);
 
   // Mixed password generator (letters, numbers, special characters)
   const handleGeneratePassword = () => {
@@ -121,6 +129,34 @@ const StaffCredentials = () => {
     }
   };
 
+  // ── Helper: determine if teacher is truly online
+  // Consider online if isOnline=true AND lastSeen within last 3 minutes
+  const getOnlineStatus = (userObj) => {
+    if (!userObj) return { online: false, label: "No Account", lastSeenText: null };
+    if (!userObj.isOnline) {
+      const lastSeenText = userObj.lastSeen
+        ? getLastSeenText(userObj.lastSeen)
+        : null;
+      return { online: false, label: "Offline", lastSeenText };
+    }
+    // isOnline=true — verify lastSeen is recent (within 5 minutes)
+    const threshold = 5 * 60 * 1000; // 5 minutes
+    const diff = userObj.lastSeen ? Date.now() - new Date(userObj.lastSeen).getTime() : Infinity;
+    if (diff > threshold) {
+      return { online: false, label: "Offline", lastSeenText: getLastSeenText(userObj.lastSeen) };
+    }
+    return { online: true, label: "Online", lastSeenText: "Active now" };
+  };
+
+  const getLastSeenText = (lastSeen) => {
+    if (!lastSeen) return null;
+    const diff = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Date(lastSeen).toLocaleDateString();
+  };
+
   const filteredStaff = staff.filter((s) => {
     const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
     const email = (s.email || "").toLowerCase();
@@ -138,8 +174,23 @@ const StaffCredentials = () => {
             Credentials Manager
           </h2>
           <p className="text-gray-500 font-medium italic mt-1">
-            Manage teacher system logins. Generate secure random passwords and reset credentials as required.
+            Manage teacher system logins. Live online status updates every 30 seconds.
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {lastRefreshed && (
+            <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
+              <Clock size={11} />
+              Refreshed {getLastSeenText(lastRefreshed)}
+            </span>
+          )}
+          <button
+            onClick={() => fetchStaffCredentials()}
+            className="p-2.5 bg-gray-50 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 border border-gray-100 rounded-xl transition-all"
+            title="Refresh now"
+          >
+            <RefreshCw size={16} />
+          </button>
         </div>
       </div>
 
@@ -195,6 +246,9 @@ const StaffCredentials = () => {
                     <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-wider">
                       Account Status
                     </th>
+                    <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                      Online Presence
+                    </th>
                     <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-wider text-right">
                       Credentials Action
                     </th>
@@ -204,6 +258,7 @@ const StaffCredentials = () => {
                   {filteredStaff.map((teacher) => {
                     const isLinked = !!teacher.user;
                     const isActive = isLinked ? teacher.user.isActive : false;
+                    const presence = getOnlineStatus(teacher.user);
 
                     return (
                       <tr
@@ -212,9 +267,24 @@ const StaffCredentials = () => {
                       >
                         <td className="px-8 py-4.5">
                           <div className="flex items-center gap-4">
-                            <div className="w-11 h-11 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center font-black shadow-inner uppercase shrink-0">
-                              {teacher.firstName ? teacher.firstName.charAt(0) : "T"}
-                              {teacher.lastName ? teacher.lastName.charAt(0) : "S"}
+                            {/* Avatar with online indicator dot */}
+                            <div className="relative shrink-0">
+                              <div className="w-11 h-11 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center font-black shadow-inner uppercase">
+                                {teacher.firstName ? teacher.firstName.charAt(0) : "T"}
+                                {teacher.lastName ? teacher.lastName.charAt(0) : "S"}
+                              </div>
+                              {/* Online indicator dot on avatar */}
+                              <span
+                                className={cn(
+                                  "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white",
+                                  presence.online
+                                    ? "bg-emerald-500"
+                                    : "bg-gray-300"
+                                )}
+                              />
+                              {presence.online && (
+                                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 animate-ping opacity-75" />
+                              )}
                             </div>
                             <div>
                               <p className="font-bold text-gray-900 capitalize">
@@ -261,6 +331,48 @@ const StaffCredentials = () => {
                             </span>
                           )}
                         </td>
+
+                        {/* ── Real-time Online Presence Column */}
+                        <td className="px-8 py-4.5">
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border w-fit",
+                                presence.online
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-100/80"
+                                  : isLinked
+                                  ? "bg-gray-50 text-gray-500 border-gray-100"
+                                  : "bg-gray-50 text-gray-400 border-gray-100"
+                              )}
+                            >
+                              {presence.online ? (
+                                <>
+                                  <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                                  </span>
+                                  <Wifi size={11} />
+                                  Online
+                                </>
+                              ) : (
+                                <>
+                                  <span className="relative flex h-2 w-2">
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-400" />
+                                  </span>
+                                  <WifiOff size={11} />
+                                  {isLinked ? "Offline" : "—"}
+                                </>
+                              )}
+                            </span>
+                            {presence.lastSeenText && (
+                              <span className="text-[9px] text-gray-400 font-semibold flex items-center gap-1 ml-1">
+                                <Clock size={9} />
+                                {presence.lastSeenText}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
                         <td className="px-8 py-4.5 text-right">
                           <Button
                             variant="secondary"

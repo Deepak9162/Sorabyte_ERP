@@ -1,19 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   Search,
   Edit2,
-  Trash2,
   UserCheck,
   UserMinus,
-  BookOpen,
   Mail,
   Phone,
   CheckCircle,
   AlertCircle,
-  Loader2,
-  ChevronDown,
-  X,
+  Wifi,
+  WifiOff,
+  Clock,
   UserSquare2,
 } from "lucide-react";
 import Button from "../components/ui/Button";
@@ -44,13 +42,8 @@ const TeacherManagement = () => {
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    fetchTeachers();
-    fetchClasses();
-  }, []);
-
-  const fetchTeachers = async () => {
-    setLoading(true);
+  const fetchTeachers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await api.get("/teachers");
       if (res.data.success) {
@@ -58,11 +51,19 @@ const TeacherManagement = () => {
       }
     } catch (error) {
       console.error("Failed to fetch teachers:", error);
-      showToast("Could not load staff members", "error");
+      if (!silent) showToast("Could not load staff members", "error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTeachers();
+    fetchClasses();
+    // Auto-refresh every 30 seconds for live online status
+    const interval = setInterval(() => fetchTeachers(true), 30_000);
+    return () => clearInterval(interval);
+  }, [fetchTeachers]);
 
   const fetchClasses = async () => {
     try {
@@ -186,6 +187,29 @@ const TeacherManagement = () => {
     }
   };
 
+  // ── Online presence helpers
+  const getOnlineStatus = (userObj) => {
+    if (!userObj) return { online: false, lastSeenText: null };
+    if (!userObj.isOnline) {
+      return { online: false, lastSeenText: userObj.lastSeen ? getLastSeenText(userObj.lastSeen) : null };
+    }
+    // isOnline=true — verify lastSeen is recent (within 5 minutes)
+    const diff = userObj.lastSeen ? Date.now() - new Date(userObj.lastSeen).getTime() : Infinity;
+    if (diff > 5 * 60 * 1000) {
+      return { online: false, lastSeenText: getLastSeenText(userObj.lastSeen) };
+    }
+    return { online: true, lastSeenText: "Active now" };
+  };
+
+  const getLastSeenText = (lastSeen) => {
+    if (!lastSeen) return null;
+    const diff = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Date(lastSeen).toLocaleDateString();
+  };
+
   const filteredTeachers = teachers.filter(
     (t) =>
       `${t.firstName} ${t.lastName}`
@@ -287,28 +311,44 @@ const TeacherManagement = () => {
                   <th className="px-8 py-4">Teacher</th>
                   <th className="px-8 py-4">Expertise</th>
                   <th className="px-8 py-4">Assigned Classes</th>
-                  <th className="px-8 py-4">Status</th>
+                  <th className="px-8 py-4">Account</th>
+                  <th className="px-8 py-4">Online Status</th>
                   <th className="px-8 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filteredTeachers.map((t) => (
+                {filteredTeachers.map((t) => {
+                  const presence = getOnlineStatus(t.user);
+                  return (
                   <tr
                     key={t._id}
                     className="hover:bg-gray-50/50 transition-colors group"
                   >
+                    {/* Teacher Info with online dot on avatar */}
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
-                        <div
-                          className={cn(
-                            "w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm group-hover:scale-110 transition-transform",
-                            t.isActive
-                              ? "bg-indigo-50 text-indigo-700"
-                              : "bg-gray-100 text-gray-500",
+                        <div className="relative shrink-0">
+                          <div
+                            className={cn(
+                              "w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm group-hover:scale-110 transition-transform",
+                              t.isActive
+                                ? "bg-indigo-50 text-indigo-700"
+                                : "bg-gray-100 text-gray-500",
+                            )}
+                          >
+                            {t.firstName?.charAt(0)}
+                            {t.lastName?.charAt(0)}
+                          </div>
+                          {/* Online indicator dot */}
+                          <span
+                            className={cn(
+                              "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white",
+                              presence.online ? "bg-emerald-500" : "bg-gray-300"
+                            )}
+                          />
+                          {presence.online && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 animate-ping opacity-75" />
                           )}
-                        >
-                          {t.firstName?.charAt(0)}
-                          {t.lastName?.charAt(0)}
                         </div>
                         <div className="flex flex-col">
                           <span className="font-bold text-gray-900">
@@ -325,11 +365,15 @@ const TeacherManagement = () => {
                         </div>
                       </div>
                     </td>
+
+                    {/* Expertise */}
                     <td className="px-8 py-5">
                       <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-black uppercase tracking-wider">
                         {t.subject}
                       </span>
                     </td>
+
+                    {/* Assigned Classes */}
                     <td className="px-8 py-5">
                       <div className="flex flex-wrap gap-1 max-w-[200px]">
                         {t.assignedClasses?.map((c) => (
@@ -342,6 +386,8 @@ const TeacherManagement = () => {
                         ))}
                       </div>
                     </td>
+
+                    {/* Account Status (enable/disable toggle) */}
                     <td className="px-8 py-5">
                       <button
                         onClick={() => toggleStatus(t)}
@@ -352,14 +398,49 @@ const TeacherManagement = () => {
                             : "bg-red-50 text-red-600 border border-red-100",
                         )}
                       >
-                        {t.isActive ? (
-                          <UserCheck size={14} />
-                        ) : (
-                          <UserMinus size={14} />
-                        )}
-                        {t.isActive ? "Active" : "Inactive"}
+                        {t.isActive ? <UserCheck size={14} /> : <UserMinus size={14} />}
+                        {t.isActive ? "Enabled" : "Disabled"}
                       </button>
                     </td>
+
+                    {/* ── Real-time Online Presence */}
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col gap-1">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border w-fit",
+                            presence.online
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                              : "bg-gray-50 text-gray-500 border-gray-100"
+                          )}
+                        >
+                          {presence.online ? (
+                            <>
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                              </span>
+                              <Wifi size={11} />
+                              Online
+                            </>
+                          ) : (
+                            <>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-300" />
+                              <WifiOff size={11} />
+                              Offline
+                            </>
+                          )}
+                        </span>
+                        {presence.lastSeenText && (
+                          <span className="text-[9px] text-gray-400 font-semibold flex items-center gap-1 ml-1">
+                            <Clock size={9} />
+                            {presence.lastSeenText}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Actions */}
                     <td className="px-8 py-5 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <button
@@ -371,7 +452,8 @@ const TeacherManagement = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           )}

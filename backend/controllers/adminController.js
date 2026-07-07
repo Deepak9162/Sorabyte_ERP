@@ -179,7 +179,7 @@ const getStaffCredentials = async (req, res, next) => {
   try {
     const Teacher = require('../models/Teacher');
     const teachers = await Teacher.find()
-      .populate('user', 'name email role isActive')
+      .populate('user', 'name email role isActive isOnline lastSeen')
       .sort({ firstName: 1 });
     
     return successResponse(res, teachers, 'Staff credentials fetched successfully');
