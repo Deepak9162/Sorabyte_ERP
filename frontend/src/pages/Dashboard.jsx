@@ -10,11 +10,6 @@ import {
   Search,
   MoreVertical,
   Megaphone,
-  BellRing,
-  UserX,
-  ChevronRight,
-  Clock,
-  AlertCircle,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import { cn } from "../utils/cn";
@@ -129,6 +124,8 @@ const AdminDashboard = () => {
       icon: Users,
       color: "indigo",
       change: "+4.5%",
+      route: "/students",
+      hint: "View Student Directory",
     },
     {
       label: "Total Teachers",
@@ -136,6 +133,8 @@ const AdminDashboard = () => {
       icon: UserSquare2,
       color: "emerald",
       change: "+2",
+      route: "/teachers",
+      hint: "View Staff List",
     },
     {
       label: "Total Classes",
@@ -143,6 +142,8 @@ const AdminDashboard = () => {
       icon: BookOpen,
       color: "amber",
       change: "0",
+      route: "/classes",
+      hint: "View Class Groups",
     },
     {
       label: "Fees Collected",
@@ -150,6 +151,8 @@ const AdminDashboard = () => {
       icon: CreditCard,
       color: "rose",
       change: "+12.2%",
+      route: "/fees",
+      hint: "View Fee Console",
     },
   ]);
   const [loading, setLoading] = useState(true);
@@ -170,6 +173,8 @@ const AdminDashboard = () => {
             icon: Users,
             color: "indigo",
             change: "Live",
+            route: "/students",
+            hint: "View Student Directory",
           },
           {
             label: "Total Teachers",
@@ -177,6 +182,8 @@ const AdminDashboard = () => {
             icon: UserSquare2,
             color: "emerald",
             change: "Live",
+            route: "/teachers",
+            hint: "View Staff List",
           },
           {
             label: "Total Classes",
@@ -184,6 +191,8 @@ const AdminDashboard = () => {
             icon: BookOpen,
             color: "amber",
             change: "Live",
+            route: "/classes",
+            hint: "View Class Groups",
           },
           {
             label: "Fees Collected",
@@ -191,6 +200,8 @@ const AdminDashboard = () => {
             icon: CreditCard,
             color: "rose",
             change: "Live",
+            route: "/fees",
+            hint: "View Fee Console",
           },
         ]);
       } catch (error) {
@@ -245,8 +256,10 @@ const AdminDashboard = () => {
           return (
             <div
               key={index}
+              onClick={() => navigate(stat.route)}
+              title={stat.hint}
               className={cn(
-                "group bg-gradient-to-br p-6 rounded-[2rem] border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden relative",
+                "group bg-gradient-to-br p-6 rounded-[2rem] border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden relative active:scale-[0.97]",
                 cardBgClass,
                 hoverShadowClass
               )}
@@ -276,7 +289,9 @@ const AdminDashboard = () => {
                     <span
                       className={cn(
                         "text-xs font-bold px-2.5 py-1 rounded-full",
-                        stat.change.startsWith("+")
+                        stat.change === "Live"
+                          ? "text-emerald-700 bg-emerald-50"
+                          : stat.change.startsWith("+")
                           ? "text-emerald-700 bg-emerald-50"
                           : "text-gray-500 bg-gray-50",
                       )}
@@ -304,9 +319,19 @@ const AdminDashboard = () => {
                     </h3>
                     <ArrowUpRight
                       size={16}
-                      className="text-gray-300 group-hover:text-indigo-400 transition-colors"
+                      className={cn(
+                        "transition-colors",
+                        stat.color === "indigo" && "text-gray-300 group-hover:text-indigo-500",
+                        stat.color === "emerald" && "text-gray-300 group-hover:text-emerald-500",
+                        stat.color === "amber" && "text-gray-300 group-hover:text-amber-500",
+                        stat.color === "rose" && "text-gray-300 group-hover:text-indigo-500",
+                      )}
                     />
                   </div>
+                  {/* Clickable hint text */}
+                  <p className="text-[10px] font-bold text-gray-300 group-hover:text-indigo-400 transition-colors uppercase tracking-widest mt-1">
+                    {stat.hint} →
+                  </p>
                 </div>
               </div>
             </div>
@@ -700,79 +725,6 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-white to-gray-50/70 rounded-[2.5rem] border border-gray-200/60 shadow-sm p-8 hover:shadow-md transition-all duration-300">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-rose-50/80 text-rose-600 rounded-2xl flex items-center justify-center shadow-sm">
-                  <BellRing size={20} className="animate-pulse text-rose-500" />
-                </div>
-                <h4 className="text-xl font-black text-gray-900 tracking-tight">
-                  Critical Alerts
-                </h4>
-              </div>
-              <span className="px-2.5 py-1 bg-red-500 text-white rounded-full text-xs font-black shadow-sm shadow-red-200">
-                {([
-                  { active: true },
-                  { active: pendingStudents.length > 0 }
-                ].filter(a => a.active).length)}
-              </span>
-            </div>
-            
-            <div className="space-y-4">
-              {[
-                {
-                  title: "Teacher Absence",
-                  desc: "Grade 10-A Math period empty",
-                  time: "10 mins ago",
-                  type: "urgent",
-                  icon: UserX,
-                  iconColor: "text-red-650 bg-red-50/60",
-                  borderColor: "border-l-red-500",
-                  action: () => navigate("/academic/timetable"),
-                  show: true
-                },
-                {
-                  title: "Fee Overdue",
-                  desc: `${pendingStudents.length} student${pendingStudents.length > 1 ? 's' : ''} ${pendingStudents.length === 1 ? 'has' : 'have'} pending fees`,
-                  time: "Just updated",
-                  type: "notice",
-                  icon: CreditCard,
-                  iconColor: "text-amber-600 bg-amber-50/70",
-                  borderColor: "border-l-amber-500",
-                  action: () => setIsPendingStudentsModalOpen(true),
-                  show: pendingStudents.length > 0
-                },
-              ].filter(alert => alert.show).map((alert, i) => (
-                <div
-                  key={i}
-                  onClick={alert.action}
-                  className={cn(
-                    "group flex items-center justify-between p-4 bg-white hover:bg-gray-50/50 rounded-2xl border border-gray-150/70 hover:border-gray-200 cursor-pointer shadow-sm hover:shadow transition-all duration-300 transform hover:translate-x-1 border-l-4",
-                    alert.borderColor
-                  )}
-                >
-                  <div className="flex gap-4 items-center">
-                    <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-inner", alert.iconColor)}>
-                      <alert.icon size={20} />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-black text-gray-950 tracking-tight leading-none uppercase">
-                        {alert.title}
-                      </p>
-                      <p className="text-xs text-gray-500 leading-tight font-medium">
-                        {alert.desc}
-                      </p>
-                      <p className="text-[10px] text-gray-400 font-bold mt-1 flex items-center gap-1">
-                        <Clock size={11} className="opacity-80" />
-                        {alert.time}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight size={16} className="text-gray-300 group-hover:text-indigo-600 transition-colors transform group-hover:translate-x-0.5 duration-205" />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
