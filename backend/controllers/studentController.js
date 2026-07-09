@@ -22,12 +22,9 @@ const getOrCreateClass = async (className, section) => {
   }
   
   if (!targetClass) {
-    console.log(`Class "${className}" not found in DB. Automatically creating it...`);
-    
     // Find a teacher to assign
     let teacher = await Teacher.findOne({});
     if (!teacher) {
-      console.log("No teacher found in database. Creating a default teacher first...");
       teacher = await Teacher.create({
         fullName: "Primary Class Teacher",
         email: `teacher-${className.replace(/\s+/g, '-').toLowerCase()}@lfes.com`,
@@ -46,7 +43,6 @@ const getOrCreateClass = async (className, section) => {
       tuitionFee: 1500, // Default tuition fee
       isActive: true
     });
-    console.log(`✅ Created Class: "${className}" with ID: ${targetClass._id}`);
   }
   
   return targetClass;
@@ -337,6 +333,38 @@ const getStudentProfile = async (req, res, next) => {
   }
 };
 
+const getLatestAdmissionStats = async (req, res, next) => {
+  try {
+    const totalStudents = await Student.countDocuments();
+    // Sort by createdAt descending to find the last added student
+    const lastStudent = await Student.findOne().sort({ createdAt: -1 });
+    
+    let nextAdmissionNumber = "1001";
+    let lastAdmissionNumber = null;
+    
+    if (lastStudent && lastStudent.admissionNumber) {
+      lastAdmissionNumber = lastStudent.admissionNumber;
+      const numMatch = lastAdmissionNumber.match(/\d+$/);
+      if (numMatch) {
+        const numPart = numMatch[0];
+        const nextNum = parseInt(numPart, 10) + 1;
+        const nextNumStr = nextNum.toString().padStart(numPart.length, '0');
+        nextAdmissionNumber = lastAdmissionNumber.replace(new RegExp(numPart + '$'), nextNumStr);
+      } else {
+        nextAdmissionNumber = lastAdmissionNumber + "-1";
+      }
+    }
+    
+    return successResponse(res, {
+      totalStudents,
+      lastAdmissionNumber,
+      nextAdmissionNumber
+    }, 'Latest admission stats fetched');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllStudents,
   getStudentById,
@@ -344,4 +372,5 @@ module.exports = {
   createStudent,
   updateStudent,
   deleteStudent,
+  getLatestAdmissionStats,
 };

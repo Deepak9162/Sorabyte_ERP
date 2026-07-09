@@ -9,6 +9,9 @@ const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
 const path = require('path');
 
 // Utilities
@@ -51,7 +54,21 @@ app.set('trust proxy', 1);
 // Security Middleware
 // ──────────────────────────────────────────────
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https://api.qrserver.com", "https://res.cloudinary.com"],
+      connectSrc: ["'self'", "http://localhost:5000", "http://localhost:5173", "https://school-management-system-tan-three.vercel.app", "https://erp-taupe-zeta-35.vercel.app"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  xssFilter: true, // Prevent Cross-site scripting (XSS) attacks
+  noSniff: true, // Prevent MIME-sniffing
 }));
 
 // CORS configuration
@@ -95,10 +112,17 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // ──────────────────────────────────────────────
-// Body Parsers & Logging
+// Body Parsers & Logging & Compression
 // ──────────────────────────────────────────────
+app.use(compression()); // Compress all responses
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS
+app.use(xss());
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));

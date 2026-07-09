@@ -13,6 +13,7 @@ const {
   createStudent,
   updateStudent,
   deleteStudent,
+  getLatestAdmissionStats,
 } = require('../controllers/studentController');
 
 const { studentPhotoUpload } = require('../middleware/upload');
@@ -21,6 +22,9 @@ const { studentPhotoUpload } = require('../middleware/upload');
 // POST   /api/students        → Create a new student
 router.route('/').get(getAllStudents).post(studentPhotoUpload, createStudent);
 router.post('/create', studentPhotoUpload, createStudent);
+
+// GET    /api/students/stats/latest-admission
+router.get('/stats/latest-admission', getLatestAdmissionStats);
 
 // GET    /api/students/:studentId/profile → Comprehensive profile + fees
 router.get('/:studentId/profile', getStudentProfile);

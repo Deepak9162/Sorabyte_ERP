@@ -350,8 +350,8 @@ const StudentIDCard = () => {
             setPhotoUrl(pUrl.startsWith("http") || pUrl.startsWith("data:") ? pUrl : `${apiHost}${pUrl}`);
           }
           
-          // Generate dynamic QR code matching requested payload
-          const qrPayload = `STUDENT PROFILE\nName: ${st.personalDetails?.name}\nID: ${st.personalDetails?.studentId}\nClass: ${st.academicDetails?.className || ""}${st.academicDetails?.section ? ` (${st.academicDetails.section})` : ""}\nPhone: ${st.contactDetails?.parentMobile || st.contactDetails?.phone || "N/A"}\nSchool: Little Flower English School`;
+          // Generate dynamic QR code with plain text details (No URL link)
+          const qrPayload = `Name: ${st.personalDetails?.name || 'N/A'}\nID: ${st.personalDetails?.studentId || 'N/A'}\nClass: ${st.academicDetails?.className || ""}${st.academicDetails?.section ? ` (${st.academicDetails.section})` : ""}\nPhone: ${st.contactDetails?.parentMobile || st.contactDetails?.phone || "N/A"}\nSchool: Little Flower English School`;
           setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrPayload)}`);
         }
       } catch (error) {

@@ -52,14 +52,12 @@ const deleteClass = async (req, res, next) => {
  */
 const createTeacher = async (req, res, next) => {
   try {
-    console.log('AdminController: Create Teacher received:', JSON.stringify(req.body, null, 2));
     const { user: userData, teacher: teacherData } = req.body;
     if (!userData || !teacherData) {
         console.error('Missing user or teacher data in request');
         return res.status(400).json({ success: false, message: 'Missing user or teacher data' });
     }
     const result = await adminService.createTeacher(userData, teacherData);
-    console.log('Teacher created successfully:', result.teacher._id);
     return successResponse(res, result, 'Teacher created successfully', 201);
   } catch (error) {
     console.error('AdminController: Error creating teacher:', error);

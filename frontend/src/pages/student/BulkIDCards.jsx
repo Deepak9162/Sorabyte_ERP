@@ -306,7 +306,7 @@ const BulkIDCards = () => {
               : `${apiHost}${personalDetails.studentPhoto}`)
             : null;
 
-          const qrPayload = `STUDENT PROFILE\nName: ${personalDetails?.name}\nID: ${personalDetails?.studentId}\nClass: ${academicDetails?.className || ""}${academicDetails?.section ? ` (${academicDetails.section})` : ""}\nPhone: ${contactDetails?.parentMobile || contactDetails?.phone || "N/A"}\nSchool: Little Flower English School`;
+          const qrPayload = `Name: ${personalDetails?.name || 'N/A'}\nID: ${personalDetails?.studentId || 'N/A'}\nClass: ${academicDetails?.className || ""}${academicDetails?.section ? ` (${academicDetails.section})` : ""}\nPhone: ${contactDetails?.parentMobile || contactDetails?.phone || "N/A"}\nSchool: Little Flower English School`;
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrPayload)}`;
 
           return (

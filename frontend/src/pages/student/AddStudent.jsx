@@ -43,6 +43,8 @@ const AddStudent = () => {
   const [photoError, setPhotoError] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
   const [classes, setClasses] = useState([]);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [lastAdmissionNumber, setLastAdmissionNumber] = useState(null);
   
   // Custom dynamic fields state
   const [customFields, setCustomFields] = useState([]);
@@ -107,6 +109,27 @@ const AddStudent = () => {
     };
     fetchClasses();
   }, []);
+
+  // Fetch latest admission stats for new student
+  useEffect(() => {
+    if (isEditMode) return;
+    const fetchLatestAdmission = async () => {
+      try {
+        const res = await api.get("/students/stats/latest-admission");
+        if (res.data.success) {
+          const { totalStudents, lastAdmissionNumber, nextAdmissionNumber } = res.data.data;
+          setTotalStudents(totalStudents);
+          setLastAdmissionNumber(lastAdmissionNumber);
+          if (nextAdmissionNumber) {
+            setValue("admissionNumber", nextAdmissionNumber, { shouldValidate: true, shouldDirty: true });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching latest admission stats:", error);
+      }
+    };
+    fetchLatestAdmission();
+  }, [isEditMode, setValue]);
 
   // Fetch student details for edit mode
   useEffect(() => {
@@ -638,7 +661,14 @@ const AddStudent = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Admission Number */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Admission Number *</label>
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Admission Number *</label>
+                      {!isEditMode && (
+                        <span className="text-[10px] font-bold text-indigo-500">
+                          {lastAdmissionNumber ? `(Last: ${lastAdmissionNumber} | Total: ${totalStudents})` : `(Total: ${totalStudents})`}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       placeholder="e.g. ADM-2026-0044"

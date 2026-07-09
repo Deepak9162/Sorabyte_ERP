@@ -242,5 +242,7 @@ studentSchema.pre('save', async function () {
 
 // Performance optimization: Compound index for unique roll number within a class in the active session
 studentSchema.index({ className: 1, session: 1, rollNumber: 1 }, { unique: true });
+studentSchema.index({ className: 1, section: 1, status: 1 }); // Frequently queried
+studentSchema.index({ admissionNumber: 1 }); // Frequently queried for uniqueness/search
 
 module.exports = mongoose.model('Student', studentSchema);
