@@ -66,6 +66,56 @@ const MyAttendance = () => {
     );
   };
 
+  const getAttendanceAction = () => {
+    if (!data) return null;
+    
+    const now = new Date();
+    // Check if attendance already exists for today
+    const todayRecord = data.records?.find(r => {
+      const recordDate = new Date(r.date);
+      return recordDate.getFullYear() === now.getFullYear() && 
+             recordDate.getMonth() === now.getMonth() && 
+             recordDate.getDate() === now.getDate();
+    });
+
+    if (todayRecord) {
+      const colorClass = todayRecord.status === 'Present' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                         todayRecord.status === 'Late' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                         todayRecord.status === 'Absent' ? 'bg-red-100 text-red-800 border-red-200' :
+                         'bg-yellow-100 text-yellow-800 border-yellow-200';
+                         
+      return (
+        <div className={`px-5 py-3 rounded-xl shadow-sm border text-sm font-bold flex items-center gap-2 ${colorClass}`}>
+          Today: {todayRecord.status}
+        </div>
+      );
+    }
+
+    if (now.getHours() >= 12) {
+      return (
+        <div className="px-5 py-3 rounded-xl shadow-sm border border-red-200 bg-red-100 text-red-800 text-sm font-bold flex items-center gap-2">
+          You are absent today
+        </div>
+      );
+    }
+
+    return (
+      <button 
+        onClick={handleMarkAttendance}
+        disabled={markingState !== 'idle'}
+        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl shadow-sm text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+      >
+        {markingState === 'locating' ? (
+          <><Loader2 className="w-4 h-4 animate-spin" /> Locating...</>
+        ) : markingState === 'marking' ? (
+          <><Loader2 className="w-4 h-4 animate-spin" /> Marking...</>
+        ) : (
+          'Mark Present (GPS)'
+        )}
+      </button>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -89,19 +139,7 @@ const MyAttendance = () => {
         
         {data && data.overallAttendance && (
           <div className="flex items-center gap-4">
-            <button 
-              onClick={handleMarkAttendance}
-              disabled={markingState !== 'idle'}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl shadow-sm text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {markingState === 'locating' ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Locating...</>
-              ) : markingState === 'marking' ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Marking...</>
-              ) : (
-                'Mark Present (GPS)'
-              )}
-            </button>
+            {getAttendanceAction()}
             <div className="bg-white px-5 py-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
               <div>
                 <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Overall Rate</div>
