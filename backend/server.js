@@ -17,6 +17,7 @@ const path = require('path');
 // Utilities
 const connectDB = require('./utils/db');
 const logger = require('./utils/logger');
+const startCronJobs = require('./utils/cronJobs');
 
 // Middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -118,11 +119,33 @@ app.use(compression()); // Compress all responses
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Data sanitization against NoSQL query injection
-app.use(mongoSanitize());
+// Custom Data sanitization against NoSQL query injection & XSS (Express 5 compatibility fix)
+const { clean: xssClean } = require('xss-clean/lib/xss');
 
-// Data sanitization against XSS
-app.use(xss());
+const sanitizeObj = (obj) => {
+  if (obj && typeof obj === 'object') {
+    for (let key in obj) {
+      if (typeof key === 'string' && key.startsWith('$')) {
+        delete obj[key];
+        continue;
+      }
+      if (typeof obj[key] === 'string') {
+        obj[key] = xssClean(obj[key]);
+      } else if (typeof obj[key] === 'object') {
+        sanitizeObj(obj[key]);
+      }
+    }
+  }
+};
+
+app.use((req, res, next) => {
+  sanitizeObj(req.body);
+  sanitizeObj(req.query);
+  sanitizeObj(req.params);
+  next();
+});
+
+// Removed global app.use(xss()) to prevent Express 5.x property assignment crash
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
@@ -190,6 +213,7 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
+    startCronJobs(); // Initialize background cron jobs
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
     });

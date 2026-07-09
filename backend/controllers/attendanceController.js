@@ -153,11 +153,19 @@ const getTeacherAttendanceAnalysis = async (req, res, next) => {
  */
 const getMyAttendanceAnalysis = async (req, res, next) => {
   try {
-    const teacherId = req.user._id;
-    if (!teacherId) {
-      return errorResponse(res, 'User not authenticated as teacher', 401);
+    const userId = req.user._id;
+    if (!userId) {
+      return errorResponse(res, 'User not authenticated', 401);
     }
-    const analysis = await attendanceService.getTeacherAttendanceAnalysis(teacherId);
+    
+    const Teacher = require('../models/Teacher');
+    const teacher = await Teacher.findOne({ user: userId });
+    
+    if (!teacher) {
+      return errorResponse(res, 'Teacher profile not found', 404);
+    }
+
+    const analysis = await attendanceService.getTeacherAttendanceAnalysis(teacher._id);
     return successResponse(res, analysis, 'My attendance analysis fetched successfully');
   } catch (error) {
     if (error.message === 'Teacher not found') {
@@ -180,6 +188,89 @@ const getStaffAttendanceSummary = async (req, res, next) => {
   }
 };
 
+// Haversine formula to calculate distance in meters
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const R = 6371e3; // Earth radius in meters
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+/**
+ * @desc    Mark self attendance for teacher via Geofencing
+ * @route   POST /api/attendance/staff/self-mark
+ */
+const markSelfAttendance = async (req, res, next) => {
+  try {
+    const { latitude, longitude } = req.body;
+    if (!latitude || !longitude) {
+      return errorResponse(res, 'Location coordinates are required', 400);
+    }
+
+    // Configured School Location
+    const schoolLat = 26.227863;
+    const schoolLon = 84.477859;
+    const maxRadius = 50; // meters
+
+    const distance = calculateDistance(latitude, longitude, schoolLat, schoolLon);
+    if (distance > maxRadius) {
+      return errorResponse(res, `You are ${Math.round(distance)} meters away from school. You must be within ${maxRadius} meters.`, 403);
+    }
+
+    // Time constraints
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+
+    if (hours >= 12) {
+      return errorResponse(res, 'Attendance marking is closed after 12:00 PM.', 403);
+    }
+
+    let status = 'Present';
+    if (hours > 9 || (hours === 9 && minutes > 30)) {
+      status = 'Late';
+    }
+
+    const Teacher = require('../models/Teacher');
+    const StaffAttendance = require('../models/StaffAttendance');
+
+    const teacher = await Teacher.findOne({ user: req.user._id });
+    if (!teacher) {
+      return errorResponse(res, 'Teacher profile not found', 404);
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const existing = await StaffAttendance.findOne({
+      teacher: teacher._id,
+      date: { $gte: today, $lt: tomorrow }
+    });
+
+    if (existing) {
+      return errorResponse(res, `Attendance already marked as ${existing.status} for today.`, 409);
+    }
+
+    const record = await StaffAttendance.create({
+      teacher: teacher._id,
+      date: new Date(),
+      status: status,
+      remarks: 'Self marked via Geofencing'
+    });
+
+    return successResponse(res, record, `Attendance successfully marked as ${status}`, 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   markAttendance,
   getAttendanceReport,
@@ -190,4 +281,5 @@ module.exports = {
   getStaffAttendanceSummary,
   getTeacherAttendanceAnalysis,
   getMyAttendanceAnalysis,
+  markSelfAttendance,
 };

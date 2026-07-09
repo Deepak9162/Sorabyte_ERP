@@ -45,4 +45,8 @@ router.get('/staff/analysis/:teacherId', authorize('admin'), getTeacherAttendanc
 // Logged-in teacher's own attendance analysis (teacher only)
 router.get('/staff/my-analysis', authorize('teacher'), getMyAttendanceAnalysis);
 
+// Logged-in teacher marks self attendance (teacher only)
+const { markSelfAttendance } = require('../controllers/attendanceController');
+router.post('/staff/self-mark', authorize('teacher'), markSelfAttendance);
+
 module.exports = router;

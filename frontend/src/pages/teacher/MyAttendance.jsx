@@ -7,6 +7,7 @@ import AttendanceCalendar from '../../components/AttendanceCalendar';
 const MyAttendance = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [markingState, setMarkingState] = useState('idle'); // idle, locating, marking
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -26,6 +27,43 @@ const MyAttendance = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMarkAttendance = () => {
+    if (!navigator.geolocation) {
+      addToast('Geolocation is not supported by your browser', 'error');
+      return;
+    }
+
+    setMarkingState('locating');
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          setMarkingState('marking');
+          const payload = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          };
+          
+          const response = await api.post('/attendance/staff/self-mark', payload);
+          if (response.data.success) {
+            addToast(response.data.message, 'success');
+            fetchMyAttendance(); // Refresh calendar
+          }
+        } catch (error) {
+          const msg = error.response?.data?.message || 'Failed to mark attendance';
+          addToast(msg, 'error');
+        } finally {
+          setMarkingState('idle');
+        }
+      },
+      (error) => {
+        setMarkingState('idle');
+        addToast('Location access denied or unavailable. Please enable GPS.', 'error');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   if (loading) {
@@ -50,10 +88,25 @@ const MyAttendance = () => {
         </div>
         
         {data && data.overallAttendance && (
-          <div className="bg-white px-5 py-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div>
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Overall Rate</div>
-              <div className="text-xl font-black text-indigo-700">{data.overallAttendance.percentage}%</div>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={handleMarkAttendance}
+              disabled={markingState !== 'idle'}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl shadow-sm text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {markingState === 'locating' ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Locating...</>
+              ) : markingState === 'marking' ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Marking...</>
+              ) : (
+                'Mark Present (GPS)'
+              )}
+            </button>
+            <div className="bg-white px-5 py-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+              <div>
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Overall Rate</div>
+                <div className="text-xl font-black text-indigo-700">{data.overallAttendance.percentage}%</div>
+              </div>
             </div>
           </div>
         )}
