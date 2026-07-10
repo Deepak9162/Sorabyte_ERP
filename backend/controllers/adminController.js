@@ -221,10 +221,12 @@ const resetStaffPassword = async (req, res, next) => {
       teacher.user = user._id;
       await teacher.save();
     } else {
-      // ✅ FIX: Re-fetch with +password so isModified() works and pre-save hook hashes it
-      user = await User.findById(teacher.user).select('+password');
-      user.password = newPassword;
-      await user.save();
+      // Hash password manually before saving to ensure consistency across all environments
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(12);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+      await User.findByIdAndUpdate(user._id, { password: hashedPassword });
     }
 
     return successResponse(res, null, `Password reset successfully for ${teacher.firstName} ${teacher.lastName}`);
