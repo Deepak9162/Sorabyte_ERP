@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://erp-bydo.onrender.com/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://api.lfessiwan.in/api',
   headers: {
     'Content-Type': 'application/json',
   },

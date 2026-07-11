@@ -54,6 +54,30 @@ app.set('trust proxy', 1);
 // ──────────────────────────────────────────────
 // Security Middleware
 // ──────────────────────────────────────────────
+// Dynamic CORS & CSP whitelisting from Environment variables
+const allowedOrigins = [
+  'http://localhost:5000',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+if (process.env.ALLOWED_ORIGINS) {
+  const customOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+  allowedOrigins.push(...customOrigins);
+}
+
+// Build CSP connect-src dynamically
+const cspConnectSrc = ["'self'", "http://localhost:5000", "http://localhost:5173"];
+if (process.env.BACKEND_URL) {
+  cspConnectSrc.push(process.env.BACKEND_URL);
+}
+// Add all allowed origins to CSP connect-src to permit client-server handshakes
+allowedOrigins.forEach(origin => {
+  if (!cspConnectSrc.includes(origin)) {
+    cspConnectSrc.push(origin);
+  }
+});
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: {
@@ -62,7 +86,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "https://api.qrserver.com", "https://res.cloudinary.com"],
-      connectSrc: ["'self'", "http://localhost:5000", "http://localhost:5173", "https://school-management-system-tan-three.vercel.app", "https://erp-taupe-zeta-35.vercel.app"],
+      connectSrc: cspConnectSrc,
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
@@ -71,20 +95,6 @@ app.use(helmet({
   xssFilter: true, // Prevent Cross-site scripting (XSS) attacks
   noSniff: true, // Prevent MIME-sniffing
 }));
-
-// CORS configuration
-const allowedOrigins = [
-  'http://localhost:5000',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'https://school-management-system-tan-three.vercel.app',
-  'https://erp-taupe-zeta-35.vercel.app'
-];
-
-if (process.env.ALLOWED_ORIGINS) {
-  const customOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
-  allowedOrigins.push(...customOrigins);
-}
 
 app.use(cors({
   origin: function (origin, callback) {
