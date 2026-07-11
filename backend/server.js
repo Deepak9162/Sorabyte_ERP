@@ -139,6 +139,24 @@ app.use(compression()); // Compress all responses
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Express 5.x compatibility workaround: Make req.query and req.params writable properties
+// Express 5 implements req.query and req.params as read-only getters, which crashes older sanitization libraries
+app.use((req, res, next) => {
+  Object.defineProperty(req, 'query', {
+    value: { ...req.query },
+    writable: true,
+    configurable: true,
+    enumerable: true,
+  });
+  Object.defineProperty(req, 'params', {
+    value: { ...req.params },
+    writable: true,
+    configurable: true,
+    enumerable: true,
+  });
+  next();
+});
+
 // Sanitization against NoSQL query injection
 app.use(mongoSanitize());
 
