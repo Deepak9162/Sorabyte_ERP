@@ -30,15 +30,17 @@ const storage = multer.diskStorage({
   }
 });
 
-// Media type filter
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.pdf'];
+  const bannedExtensions = ['.exe', '.bat', '.js'];
   const ext = path.extname(file.originalname).toLowerCase();
   
-  if (allowedExtensions.includes(ext)) {
+  if (bannedExtensions.includes(ext)) {
+    cb(new Error('Security Alert: Executables and scripts (.exe, .bat, .js) are strictly prohibited.'), false);
+  } else if (allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid image type. Only JPG, JPEG, and PNG images are supported.'), false);
+    cb(new Error('Invalid file type. Only JPG, JPEG, PNG, and PDF files are supported.'), false);
   }
 };
 

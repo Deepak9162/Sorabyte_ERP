@@ -4,6 +4,14 @@
 
 require('dotenv').config();
 
+// Override console methods in production for security and compliance
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+  console.info = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+}
+
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -114,11 +122,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate limiting (Relaxed to 1000 requests per 15 mins to accommodate intensive operations like Bulk ID Cards)
+// Rate limiting (Default to 100 requests per 15 mins to protect against brute force attacks, customizable via env)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: { success: false, message: 'Too many requests, please try again later.' }
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  message: { success: false, message: 'Too many requests, please try again after 15 minutes.' },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false,  // Disable the `X-RateLimit-*` headers
 });
 app.use('/api', limiter);
 
@@ -128,6 +138,9 @@ app.use('/api', limiter);
 app.use(compression()); // Compress all responses
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Sanitization against NoSQL query injection
+app.use(mongoSanitize());
 
 // Custom Data sanitization against NoSQL query injection & XSS (Express 5 compatibility fix)
 const { clean: xssClean } = require('xss-clean/lib/xss');

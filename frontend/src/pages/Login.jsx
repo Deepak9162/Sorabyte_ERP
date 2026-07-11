@@ -121,63 +121,53 @@ const Login = () => {
               required
             />
 
-            <div className="relative group/pass">
-              <Input
-                label="Secure Password"
-                placeholder="••••••••"
-                type={showPassword ? "text" : "password"}
-                icon={Lock}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-5 top-[52px] text-gray-400 hover:text-indigo-600 transition-colors p-1"
-                tabIndex="-1"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
+            <Input
+              label="Secure Password"
+              placeholder="••••••••"
+              type={showPassword ? "text" : "password"}
+              icon={Lock}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              suffix={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-indigo-600 transition-colors p-1 focus:outline-none"
+                  tabIndex="-1"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              }
+            />
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
               <label className="flex items-center gap-3 cursor-pointer group w-full sm:w-auto">
                 <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    className="peer w-6 h-6 rounded-lg border-2 border-gray-200 text-indigo-600 focus:ring-0 appearance-none bg-white transition-all checked:bg-indigo-600 checked:border-indigo-600"
-                  />
+               
                   <CheckCircle
                     size={14}
                     className="absolute inset-0 m-auto text-white opacity-0 peer-checked:opacity-100 transition-opacity"
                   />
                 </div>
-                <span className="text-sm text-gray-500 font-bold group-hover:text-gray-700 transition-colors">
-                  Keep me secure
-                </span>
+                
               </label>
-              <button
-                type="button"
-                className="text-xs font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest transition-all hover:translate-x-1"
-              >
-                Forgot Logic?
-              </button>
+              
             </div>
 
             <Button
               type="submit"
-              className="w-full mt-6 h-16 text-lg font-black uppercase tracking-tight rounded-[1.5rem] shadow-[0_20px_50px_-15px_rgba(79,70,229,0.3)] hover:shadow-indigo-200"
+              className="w-full mt-6 h-16 text-lg font-black uppercase tracking-tight rounded-[1.5rem] shadow-[0_20px_50px_-15px_rgba(79,70,229,0.3)] hover:shadow-indigo-200 relative"
               loading={isLoading}
             >
               {!isLoading && (
-                <>
-                  Authenticate{" "}
+                <div className="relative w-full flex items-center justify-center">
+                  <span>Authenticate</span>
                   <ArrowRight
                     size={22}
-                    className="ml-2 group-hover:translate-x-1 transition-transform"
+                    className="absolute right-0 group-hover:translate-x-1 transition-transform"
                   />
-                </>
+                </div>
               )}
             </Button>
           </form>
