@@ -305,7 +305,7 @@ const ClassManagement = () => {
                       Monthly Tuition
                     </th>
                     <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      Student Capacity
+                      Class Teacher
                     </th>
                     <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">
                       Actions
