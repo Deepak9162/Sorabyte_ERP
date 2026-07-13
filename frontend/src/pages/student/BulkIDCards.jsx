@@ -229,55 +229,6 @@ const BulkIDCards = () => {
         </div>
       </div>
 
-      {/* 2. Customizers Toolbar (hidden during print) */}
-      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-            <Layers size={14} /> Layout:
-          </span>
-          <div className="flex border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-            <button
-              onClick={() => setOrientation("portrait")}
-              className={cn(
-                "px-4 py-2 text-xs font-bold transition-all",
-                orientation === "portrait" ? "bg-indigo-50 text-indigo-700 font-extrabold" : "bg-white text-gray-500 hover:bg-gray-50"
-              )}
-            >
-              Portrait Card
-            </button>
-            <button
-              onClick={() => setOrientation("landscape")}
-              className={cn(
-                "px-4 py-2 text-xs font-bold transition-all",
-                orientation === "landscape" ? "bg-indigo-50 text-indigo-700 font-extrabold" : "bg-white text-gray-500 hover:bg-gray-50"
-              )}
-            >
-              Landscape Card
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Palette size={14} /> Theme:
-          </span>
-          {CARD_THEMES.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTheme(t)}
-              className={cn(
-                "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 shadow-sm active:scale-95",
-                theme.id === t.id
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-700"
-                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-              )}
-            >
-              <span className={cn("w-3 h-3 rounded-full", t.primary)} />
-              {t.name}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Progress status overlay */}
       {downloading && (

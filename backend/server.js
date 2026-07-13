@@ -42,6 +42,8 @@ const academicRoutes = require('./routes/academicRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
 const adminTimetableRoutes = require('./routes/adminTimetableRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
+const admissionRequestRoutes = require('./routes/admissionRequestRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Swagger
 const swaggerUi = require('swagger-ui-express');
@@ -125,7 +127,7 @@ app.use(cors({
 // Rate limiting (Default to 100 requests per 15 mins to protect against brute force attacks, customizable via env)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  max: process.env.NODE_ENV === 'production' ? (parseInt(process.env.RATE_LIMIT_MAX) || 100) : 10000,
   message: { success: false, message: 'Too many requests, please try again after 15 minutes.' },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false,  // Disable the `X-RateLimit-*` headers
@@ -213,6 +215,8 @@ app.use('/api/fees', feeRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/admission-requests', admissionRequestRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Mail,
@@ -25,8 +25,27 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
+  const hasLoggedInRef = useRef(false);
+
+  useEffect(() => {
+    // If we just logged in and are redirecting, bypass auto-logout
+    if (hasLoggedInRef.current) return;
+
+    // Auto-logout when user lands on login page but has a token (e.g., using Back button)
+    const token = localStorage.getItem("token");
+    if (token) {
+      logout();
+    }
+
+    // Check if redirected due to inactivity
+    const wasInactive = localStorage.getItem("inactivityLogout");
+    if (wasInactive) {
+      setError("Your session has expired due to inactivity. Please log in again.");
+      localStorage.removeItem("inactivityLogout");
+    }
+  }, [logout]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +54,7 @@ const Login = () => {
 
     try {
       const user = await login(email, password);
+      hasLoggedInRef.current = true;
       // Redirect based on role
       if (user.role === "admin") {
         navigate("/dashboard");

@@ -31,6 +31,9 @@ import StaffAttendanceAnalysis from "./pages/StaffAttendanceAnalysis";
 import StaffCredentials from "./pages/StaffCredentials";
 import StaffAttendanceHistory from "./pages/admin/StaffAttendanceHistory";
 import MyAttendance from "./pages/teacher/MyAttendance";
+import AdmissionRequestList from "./pages/admission/AdmissionRequestList";
+import AdmissionRequestForm from "./pages/admission/AdmissionRequestForm";
+import AdmissionRequestDetails from "./pages/admission/AdmissionRequestDetails";
 
 // Protected Route Wrapper
 
@@ -146,6 +149,51 @@ function App() {
                 <ProtectedRoute allowedRoles={["admin"]}>
                   <Layout>
                     <StudentIDCard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admission Requests Routes */}
+            <Route
+              path="/admissions/requests"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <AdmissionRequestList />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admissions/requests/new"
+              element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <Layout>
+                    <AdmissionRequestForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admissions/requests/edit/:id"
+              element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <Layout>
+                    <AdmissionRequestForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admissions/requests/details/:id"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <AdmissionRequestDetails />
                   </Layout>
                 </ProtectedRoute>
               }

@@ -17,12 +17,14 @@ import {
   Network,
   Calendar,
   KeyRound,
+  UserPlus,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 import { cn } from "../utils/cn";
 import SchoolLogo from "../components/ui/SchoolLogo";
+import NotificationDropdown from "../components/NotificationDropdown";
 
 const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -44,6 +46,13 @@ const Layout = ({ children }) => {
       label: "Students",
       icon: Users,
       roles: ["admin"],
+    },
+    {
+      id: "admissions",
+      path: "/admissions/requests",
+      label: "Admission Requests",
+      icon: UserPlus,
+      roles: ["admin", "teacher"],
     },
     {
       id: "attendance",
@@ -295,13 +304,7 @@ const Layout = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-8">
-            <button className="text-gray-400 hover:text-indigo-600 relative p-3 hover:bg-gray-50 rounded-2xl transition-all group">
-              <Bell
-                size={24}
-                className="group-hover:rotate-12 transition-transform"
-              />
-              <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white animate-pulse"></span>
-            </button>
+            <NotificationDropdown />
 
             <div className="h-10 w-px bg-gray-100 hidden lg:block"></div>
 

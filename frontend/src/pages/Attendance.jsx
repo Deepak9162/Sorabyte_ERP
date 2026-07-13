@@ -96,6 +96,8 @@ const Attendance = () => {
 
   // 1. Fetch Classes on Load
   useEffect(() => {
+    if (!user) return;
+
     const fetchClasses = async () => {
       try {
         const endpoint =

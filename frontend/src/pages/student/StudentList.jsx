@@ -461,6 +461,7 @@ const StudentList = () => {
   };
 
   const fetchClasses = async () => {
+    if (!user) return;
     try {
       const endpoint =
         user?.role === "teacher"

@@ -86,7 +86,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = async (isInactive = false) => {
     try {
       // ── Tell backend to mark user as Offline
       await api.post("/auth/logout");
@@ -96,10 +96,50 @@ export const AuthProvider = ({ children }) => {
       stopHeartbeat();
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      if (isInactive) {
+        localStorage.setItem("inactivityLogout", "true");
+      }
       setUser(null);
       navigate("/login");
     }
   };
+
+  // Inactivity auto-logout: 15 minutes (900,000 ms)
+  const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
+  const inactivityTimerRef = useRef(null);
+
+  const resetInactivityTimer = () => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    if (user) {
+      inactivityTimerRef.current = setTimeout(() => {
+        logout(true);
+      }, INACTIVITY_TIMEOUT);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      const events = ["mousemove", "mousedown", "keypress", "scroll", "touchstart"];
+      const handleActivity = () => resetInactivityTimer();
+
+      events.forEach((event) => {
+        window.addEventListener(event, handleActivity);
+      });
+
+      resetInactivityTimer();
+
+      return () => {
+        events.forEach((event) => {
+          window.removeEventListener(event, handleActivity);
+        });
+        if (inactivityTimerRef.current) {
+          clearTimeout(inactivityTimerRef.current);
+        }
+      };
+    }
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, loading }}>

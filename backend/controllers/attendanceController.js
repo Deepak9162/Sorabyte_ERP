@@ -19,6 +19,14 @@ const markAttendance = async (req, res, next) => {
       return errorResponse(res, 'Missing required fields: classId, date, or attendanceData array', 400);
     }
 
+    if (req.user.role === 'teacher') {
+      const timetableService = require('../services/timetableService');
+      const isAssigned = await timetableService.isTeacherAssignedToClass(req.user._id, classId);
+      if (!isAssigned) {
+        return errorResponse(res, 'You are not authorized to mark attendance for this class', 403);
+      }
+    }
+
     const result = await attendanceService.markAttendance(classId, date, attendanceData);
     return successResponse(res, result, 'Attendance marked successfully', 201);
   } catch (error) {
@@ -39,6 +47,14 @@ const getAttendanceReport = async (req, res, next) => {
 
     if (!classId || !date) {
       return errorResponse(res, 'Missing query parameters: classId and date are required', 400);
+    }
+
+    if (req.user.role === 'teacher') {
+      const timetableService = require('../services/timetableService');
+      const isAssigned = await timetableService.isTeacherAssignedToClass(req.user._id, classId);
+      if (!isAssigned) {
+        return errorResponse(res, 'You are not authorized to view attendance for this class', 403);
+      }
     }
 
     const report = await attendanceService.getAttendanceReport(classId, date);
@@ -89,16 +105,20 @@ const getStaffAttendanceReport = async (req, res, next) => {
   }
 };
 
-/**
- * @desc    Get student monthly attendance report for grid view
- * @route   GET /api/attendance/student/monthly
- */
 const getStudentMonthlyReport = async (req, res, next) => {
   try {
     const { classId, month, year } = req.query;
 
     if (!classId || !month || !year) {
       return errorResponse(res, 'Missing query parameters: classId, month, and year are required', 400);
+    }
+
+    if (req.user.role === 'teacher') {
+      const timetableService = require('../services/timetableService');
+      const isAssigned = await timetableService.isTeacherAssignedToClass(req.user._id, classId);
+      if (!isAssigned) {
+        return errorResponse(res, 'You are not authorized to view attendance report for this class', 403);
+      }
     }
 
     const report = await attendanceService.getStudentMonthlyReport(classId, month, year);

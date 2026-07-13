@@ -78,13 +78,17 @@ const createStudent = async (req, res, next) => {
   }
 };
 
-/**
- * @desc    Fetch students by class
- * @route   GET /api/admin/classes/:classId/students
- */
 const getStudentsByClass = async (req, res, next) => {
   try {
-    const students = await adminService.getStudentsByClass(req.params.classId);
+    const { classId } = req.params;
+    if (req.user.role === 'teacher') {
+      const timetableService = require('../services/timetableService');
+      const isAssigned = await timetableService.isTeacherAssignedToClass(req.user._id, classId);
+      if (!isAssigned) {
+        return errorResponse(res, 'You are not authorized to view students of this class', 403);
+      }
+    }
+    const students = await adminService.getStudentsByClass(classId);
     return successResponse(res, students, 'Students fetched successfully');
   } catch (error) {
     next(error);
@@ -97,6 +101,12 @@ const getStudentsByClass = async (req, res, next) => {
  */
 const getAllClasses = async (req, res, next) => {
   try {
+    const { all } = req.query;
+    if (req.user.role === 'teacher' && all !== 'true') {
+      const timetableService = require('../services/timetableService');
+      const classes = await timetableService.getTeacherAssignedClasses(req.user._id);
+      return successResponse(res, classes, 'Assigned classes fetched successfully');
+    }
     const classes = await adminService.getAllClasses();
     return successResponse(res, classes, 'Classes fetched successfully');
   } catch (error) {
