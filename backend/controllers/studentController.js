@@ -343,15 +343,31 @@ const getLatestAdmissionStats = async (req, res, next) => {
     let lastAdmissionNumber = null;
     
     if (lastStudent && lastStudent.admissionNumber) {
-      lastAdmissionNumber = lastStudent.admissionNumber;
-      const numMatch = lastAdmissionNumber.match(/\d+$/);
-      if (numMatch) {
-        const numPart = numMatch[0];
-        const nextNum = parseInt(numPart, 10) + 1;
-        const nextNumStr = nextNum.toString().padStart(numPart.length, '0');
-        nextAdmissionNumber = lastAdmissionNumber.replace(new RegExp(numPart + '$'), nextNumStr);
-      } else {
-        nextAdmissionNumber = lastAdmissionNumber + "-1";
+      let currentNumber = lastStudent.admissionNumber;
+      lastAdmissionNumber = currentNumber;
+      let isUnique = false;
+      
+      while (!isUnique) {
+        const numMatch = currentNumber.match(/\d+$/);
+        if (numMatch) {
+          const numPart = numMatch[0];
+          const nextNum = parseInt(numPart, 10) + 1;
+          const nextNumStr = nextNum.toString().padStart(numPart.length, '0');
+          nextAdmissionNumber = currentNumber.replace(new RegExp(numPart + '$'), nextNumStr);
+        } else {
+          nextAdmissionNumber = currentNumber + "-1";
+        }
+        
+        const existing = await Student.findOne({ admissionNumber: nextAdmissionNumber });
+        if (!existing) {
+          isUnique = true;
+        } else {
+          currentNumber = nextAdmissionNumber;
+        }
+      }
+    } else {
+      while (await Student.findOne({ admissionNumber: nextAdmissionNumber })) {
+        nextAdmissionNumber = (parseInt(nextAdmissionNumber, 10) + 1).toString();
       }
     }
     

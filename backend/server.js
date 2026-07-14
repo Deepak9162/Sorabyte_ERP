@@ -44,6 +44,7 @@ const adminTimetableRoutes = require('./routes/adminTimetableRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const admissionRequestRoutes = require('./routes/admissionRequestRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 
 // Swagger
 const swaggerUi = require('swagger-ui-express');
@@ -217,6 +218,7 @@ app.use('/api/teachers', teacherRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/admission-requests', admissionRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));

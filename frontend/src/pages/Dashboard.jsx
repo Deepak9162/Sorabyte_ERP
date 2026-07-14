@@ -10,6 +10,10 @@ import {
   Search,
   MoreVertical,
   Megaphone,
+  Shield,
+  ClipboardList,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import { cn } from "../utils/cn";
@@ -34,11 +38,13 @@ const AdminDashboard = () => {
     title: "",
     content: "",
   });
-  const [isSubmittingAnnouncement, setIsSubmittingAnnouncement] = useState(false);
+  const [isSubmittingAnnouncement, setIsSubmittingAnnouncement] =
+    useState(false);
   const [announcementError, setAnnouncementError] = useState("");
 
   const [pendingStudents, setPendingStudents] = useState([]);
-  const [isPendingStudentsModalOpen, setIsPendingStudentsModalOpen] = useState(false);
+  const [isPendingStudentsModalOpen, setIsPendingStudentsModalOpen] =
+    useState(false);
 
   const [financialData, setFinancialData] = useState([]);
   const [financialLoading, setFinancialLoading] = useState(true);
@@ -110,7 +116,8 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error("Error posting announcement:", error);
-      const msg = error.response?.data?.message || "Failed to post announcement";
+      const msg =
+        error.response?.data?.message || "Failed to post announcement";
       addToast(msg, "error");
     } finally {
       setIsSubmittingAnnouncement(false);
@@ -231,24 +238,29 @@ const AdminDashboard = () => {
       {/* Stats Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 sm:gap-8">
         {stats.map((stat, index) => {
-          let cardBgClass = "from-gray-50 via-white to-gray-50/30 border-gray-200/60 hover:border-gray-300";
+          let cardBgClass =
+            "from-gray-50 via-white to-gray-50/30 border-gray-200/60 hover:border-gray-300";
           let iconBgClass = "bg-gray-100 text-gray-700";
           let hoverShadowClass = "hover:shadow-gray-100/50";
-          
+
           if (stat.color === "indigo") {
-            cardBgClass = "from-indigo-50/70 via-white to-indigo-50/20 border-indigo-100/50 hover:border-indigo-500/30";
+            cardBgClass =
+              "from-indigo-50/70 via-white to-indigo-50/20 border-indigo-100/50 hover:border-indigo-500/30";
             iconBgClass = "bg-indigo-100/70 text-indigo-700";
             hoverShadowClass = "hover:shadow-indigo-100/20";
           } else if (stat.color === "emerald") {
-            cardBgClass = "from-emerald-50/60 via-white to-emerald-50/20 border-emerald-100/60 hover:border-emerald-600/30";
+            cardBgClass =
+              "from-emerald-50/60 via-white to-emerald-50/20 border-emerald-100/60 hover:border-emerald-600/30";
             iconBgClass = "bg-emerald-100/70 text-emerald-700";
             hoverShadowClass = "hover:shadow-emerald-100/20";
           } else if (stat.color === "amber") {
-            cardBgClass = "from-amber-50/70 via-white to-amber-50/20 border-amber-100/60 hover:border-amber-500/30";
+            cardBgClass =
+              "from-amber-50/70 via-white to-amber-50/20 border-amber-100/60 hover:border-amber-500/30";
             iconBgClass = "bg-amber-100/70 text-amber-700";
             hoverShadowClass = "hover:shadow-amber-100/20";
           } else if (stat.color === "rose") {
-            cardBgClass = "from-indigo-100/40 via-white to-indigo-50/20 border-indigo-100/80 hover:border-indigo-600/30";
+            cardBgClass =
+              "from-indigo-100/40 via-white to-indigo-50/20 border-indigo-100/80 hover:border-indigo-600/30";
             iconBgClass = "bg-indigo-100/90 text-indigo-700 font-black";
             hoverShadowClass = "hover:shadow-indigo-100/20";
           }
@@ -261,7 +273,7 @@ const AdminDashboard = () => {
               className={cn(
                 "group bg-gradient-to-br p-6 rounded-[2rem] border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden relative active:scale-[0.97]",
                 cardBgClass,
-                hoverShadowClass
+                hoverShadowClass,
               )}
             >
               {/* Background Accent */}
@@ -280,7 +292,7 @@ const AdminDashboard = () => {
                   <div
                     className={cn(
                       "w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg shadow-gray-150/40",
-                      iconBgClass
+                      iconBgClass,
                     )}
                   >
                     <stat.icon size={28} />
@@ -292,8 +304,8 @@ const AdminDashboard = () => {
                         stat.change === "Live"
                           ? "text-emerald-700 bg-emerald-50"
                           : stat.change.startsWith("+")
-                          ? "text-emerald-700 bg-emerald-50"
-                          : "text-gray-500 bg-gray-50",
+                            ? "text-emerald-700 bg-emerald-50"
+                            : "text-gray-500 bg-gray-50",
                       )}
                     >
                       {stat.change}
@@ -321,10 +333,14 @@ const AdminDashboard = () => {
                       size={16}
                       className={cn(
                         "transition-colors",
-                        stat.color === "indigo" && "text-gray-300 group-hover:text-indigo-500",
-                        stat.color === "emerald" && "text-gray-300 group-hover:text-emerald-500",
-                        stat.color === "amber" && "text-gray-300 group-hover:text-amber-500",
-                        stat.color === "rose" && "text-gray-300 group-hover:text-indigo-500",
+                        stat.color === "indigo" &&
+                          "text-gray-300 group-hover:text-indigo-500",
+                        stat.color === "emerald" &&
+                          "text-gray-300 group-hover:text-emerald-500",
+                        stat.color === "amber" &&
+                          "text-gray-300 group-hover:text-amber-500",
+                        stat.color === "rose" &&
+                          "text-gray-300 group-hover:text-indigo-500",
                       )}
                     />
                   </div>
@@ -359,7 +375,7 @@ const AdminDashboard = () => {
                   "px-4 py-1.5 text-xs font-black rounded-full transition-all uppercase tracking-wider cursor-pointer",
                   chartView === "monthly"
                     ? "bg-white text-indigo-700 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
+                    : "text-gray-500 hover:text-gray-900",
                 )}
               >
                 Monthly
@@ -370,7 +386,7 @@ const AdminDashboard = () => {
                   "px-4 py-1.5 text-xs font-black rounded-full transition-all uppercase tracking-wider cursor-pointer",
                   chartView === "yearly"
                     ? "bg-white text-indigo-700 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
+                    : "text-gray-500 hover:text-gray-900",
                 )}
               >
                 Yearly
@@ -386,7 +402,9 @@ const AdminDashboard = () => {
                     <div
                       key={i}
                       className="bg-gray-100 rounded-t-lg w-full"
-                      style={{ height: `${Math.max(10, Math.sin(i) * 80 + 90)}px` }}
+                      style={{
+                        height: `${Math.max(10, Math.sin(i) * 80 + 90)}px`,
+                      }}
                     />
                   ))}
                 </div>
@@ -403,7 +421,7 @@ const AdminDashboard = () => {
                   style={{
                     left: `${Math.min(
                       Math.max(10, 50 + hoveredMonthIdx * 43 - 75),
-                      350
+                      350,
                     )}px`,
                     top: `-10px`,
                   }}
@@ -420,7 +438,9 @@ const AdminDashboard = () => {
                     </p>
                     <p className="flex justify-between gap-6">
                       <span className="text-gray-400">Expected:</span>
-                      <span>{formatToINR(financialData[hoveredMonthIdx].expected)}</span>
+                      <span>
+                        {formatToINR(financialData[hoveredMonthIdx].expected)}
+                      </span>
                     </p>
                     <p className="flex justify-between gap-6 border-t border-gray-800 pt-1.5">
                       <span className="text-gray-400">Collection Rate:</span>
@@ -447,8 +467,10 @@ const AdminDashboard = () => {
                   {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
                     const y = 20 + (1 - ratio) * 170;
                     const maxVal = Math.max(
-                      ...financialData.map((d) => Math.max(d.expected, d.collected)),
-                      100000
+                      ...financialData.map((d) =>
+                        Math.max(d.expected, d.collected),
+                      ),
+                      100000,
                     );
                     return (
                       <g key={idx} className="opacity-40">
@@ -467,7 +489,9 @@ const AdminDashboard = () => {
                           textAnchor="end"
                           className="text-[9px] font-black fill-gray-400"
                         >
-                          {ratio === 0 ? "₹0" : `₹${Math.round((maxVal * ratio) / 1000)}k`}
+                          {ratio === 0
+                            ? "₹0"
+                            : `₹${Math.round((maxVal * ratio) / 1000)}k`}
                         </text>
                       </g>
                     );
@@ -476,8 +500,10 @@ const AdminDashboard = () => {
                   {/* Collected Bar Charts */}
                   {financialData.map((d, i) => {
                     const maxVal = Math.max(
-                      ...financialData.map((x) => Math.max(x.expected, x.collected)),
-                      100000
+                      ...financialData.map((x) =>
+                        Math.max(x.expected, x.collected),
+                      ),
+                      100000,
                     );
                     const x = 60 + i * 43;
                     const height = (d.collected / maxVal) * 170;
@@ -493,7 +519,7 @@ const AdminDashboard = () => {
                         fill="url(#collectedGradient)"
                         className={cn(
                           "transition-all duration-300 cursor-pointer origin-bottom hover:brightness-110",
-                          hoveredMonthIdx === i ? "opacity-100" : "opacity-85"
+                          hoveredMonthIdx === i ? "opacity-100" : "opacity-85",
                         )}
                         onMouseEnter={() => setHoveredMonthIdx(i)}
                         onMouseLeave={() => setHoveredMonthIdx(null)}
@@ -505,8 +531,10 @@ const AdminDashboard = () => {
                   <path
                     d={(() => {
                       const maxVal = Math.max(
-                        ...financialData.map((x) => Math.max(x.expected, x.collected)),
-                        100000
+                        ...financialData.map((x) =>
+                          Math.max(x.expected, x.collected),
+                        ),
+                        100000,
                       );
                       return financialData
                         .map((d, i) => {
@@ -527,8 +555,10 @@ const AdminDashboard = () => {
                   {/* Expected Area Dots */}
                   {financialData.map((d, i) => {
                     const maxVal = Math.max(
-                      ...financialData.map((x) => Math.max(x.expected, x.collected)),
-                      100000
+                      ...financialData.map((x) =>
+                        Math.max(x.expected, x.collected),
+                      ),
+                      100000,
                     );
                     const x = 60 + i * 43;
                     const y = 190 - (d.expected / maxVal) * 170;
@@ -561,7 +591,7 @@ const AdminDashboard = () => {
                           "text-[9px] font-black uppercase tracking-tight transition-colors duration-200 cursor-pointer",
                           hoveredMonthIdx === i
                             ? "fill-indigo-600 font-extrabold"
-                            : "fill-gray-400"
+                            : "fill-gray-400",
                         )}
                         onMouseEnter={() => setHoveredMonthIdx(i)}
                         onMouseLeave={() => setHoveredMonthIdx(null)}
@@ -573,9 +603,19 @@ const AdminDashboard = () => {
 
                   {/* SVG Gradient definitions */}
                   <defs>
-                    <linearGradient id="collectedGradient" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="collectedGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="0%" stopColor="#4f46e5" />
-                      <stop offset="100%" stopColor="#818cf8" stopOpacity="0.4" />
+                      <stop
+                        offset="100%"
+                        stopColor="#818cf8"
+                        stopOpacity="0.4"
+                      />
                     </linearGradient>
                   </defs>
                 </svg>
@@ -607,7 +647,9 @@ const AdminDashboard = () => {
                     Annual Expectation
                   </span>
                   <h4 className="text-2xl font-black text-gray-900 mt-2">
-                    {formatToINR(financialData.reduce((acc, c) => acc + c.expected, 0))}
+                    {formatToINR(
+                      financialData.reduce((acc, c) => acc + c.expected, 0),
+                    )}
                   </h4>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1">
                     Based on active student base
@@ -619,7 +661,9 @@ const AdminDashboard = () => {
                     Annual Collected
                   </span>
                   <h4 className="text-2xl font-black text-emerald-600 mt-2">
-                    {formatToINR(financialData.reduce((acc, c) => acc + c.collected, 0))}
+                    {formatToINR(
+                      financialData.reduce((acc, c) => acc + c.collected, 0),
+                    )}
                   </h4>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1">
                     Settled payments in 2026-27
@@ -634,8 +678,11 @@ const AdminDashboard = () => {
                     {formatToINR(
                       Math.max(
                         0,
-                        financialData.reduce((acc, c) => acc + c.expected - c.collected, 0)
-                      )
+                        financialData.reduce(
+                          (acc, c) => acc + c.expected - c.collected,
+                          0,
+                        ),
+                      ),
                     )}
                   </h4>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1">
@@ -651,7 +698,8 @@ const AdminDashboard = () => {
                     Net Collection Progress
                   </h5>
                   <p className="text-xs text-gray-400 font-medium">
-                    The percentage of total expected academic revenue successfully processed.
+                    The percentage of total expected academic revenue
+                    successfully processed.
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
@@ -668,8 +716,14 @@ const AdminDashboard = () => {
                       className="h-full bg-indigo-600 rounded-full"
                       style={{
                         width: `${
-                          (financialData.reduce((acc, c) => acc + c.collected, 0) /
-                            financialData.reduce((acc, c) => acc + c.expected, 0)) *
+                          (financialData.reduce(
+                            (acc, c) => acc + c.collected,
+                            0,
+                          ) /
+                            financialData.reduce(
+                              (acc, c) => acc + c.expected,
+                              0,
+                            )) *
                             100 || 0
                         }%`,
                       }}
@@ -704,16 +758,25 @@ const AdminDashboard = () => {
             <div className="space-y-4">
               {announcement.createdAt && (
                 <div className="text-[10px] text-indigo-205 font-bold flex justify-between items-center opacity-90 border-t border-white/10 pt-4">
-                  <span>By: {announcement.createdBy?.name || 'Admin'}</span>
-                  <span>{new Date(announcement.createdAt).toLocaleDateString()}</span>
+                  <span>By: {announcement.createdBy?.name || "Admin"}</span>
+                  <span>
+                    {new Date(announcement.createdAt).toLocaleDateString()}
+                  </span>
                 </div>
               )}
               <Button
                 variant="ghost"
                 onClick={() => {
                   setAnnouncementForm({
-                    title: announcement.title === 'School Announcement' ? '' : announcement.title,
-                    content: announcement.content.startsWith('Welcome to') || announcement.content.startsWith('Loading') ? '' : announcement.content,
+                    title:
+                      announcement.title === "School Announcement"
+                        ? ""
+                        : announcement.title,
+                    content:
+                      announcement.content.startsWith("Welcome to") ||
+                      announcement.content.startsWith("Loading")
+                        ? ""
+                        : announcement.content,
                   });
                   setAnnouncementError("");
                   setIsAnnouncementModalOpen(true);
@@ -724,7 +787,6 @@ const AdminDashboard = () => {
               </Button>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -758,7 +820,10 @@ const AdminDashboard = () => {
             placeholder="e.g. Annual Day Celebrations (optional)"
             value={announcementForm.title}
             onChange={(e) =>
-              setAnnouncementForm({ ...announcementForm, title: e.target.value })
+              setAnnouncementForm({
+                ...announcementForm,
+                title: e.target.value,
+              })
             }
           />
           <div className="space-y-2">
@@ -770,11 +835,15 @@ const AdminDashboard = () => {
               placeholder="Type your announcement content here..."
               value={announcementForm.content}
               onChange={(e) =>
-                setAnnouncementForm({ ...announcementForm, content: e.target.value })
+                setAnnouncementForm({
+                  ...announcementForm,
+                  content: e.target.value,
+                })
               }
               className={cn(
                 "w-full bg-white border border-gray-250 text-gray-900 text-sm sm:text-base rounded-2xl block p-4 sm:p-3 transition-all duration-200 outline-none placeholder:text-gray-400 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100 resize-none",
-                announcementError && "border-red-500 focus:border-red-500 focus:ring-red-500/10"
+                announcementError &&
+                  "border-red-500 focus:border-red-500 focus:ring-red-500/10",
               )}
             />
             {announcementError && (
@@ -797,7 +866,8 @@ const AdminDashboard = () => {
       >
         <div className="space-y-6">
           <p className="text-sm text-gray-500 font-medium leading-relaxed">
-            The following students have pending fee balances. You can initiate fee collection directly from this list.
+            The following students have pending fee balances. You can initiate
+            fee collection directly from this list.
           </p>
 
           <div className="overflow-hidden rounded-2xl border border-gray-150 shadow-sm max-h-[50vh] overflow-y-auto scrollbar-thin">
@@ -854,7 +924,9 @@ const AdminDashboard = () => {
                         onClick={() => {
                           setIsPendingStudentsModalOpen(false);
                           // Pass state to pre-fill search in fee collection
-                          navigate("/fees", { state: { searchStudentId: student.studentId } });
+                          navigate("/fees", {
+                            state: { searchStudentId: student.studentId },
+                          });
                         }}
                         className="px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm cursor-pointer"
                       >
@@ -868,13 +940,20 @@ const AdminDashboard = () => {
           </div>
 
           <div className="flex justify-end gap-3 border-t border-gray-100 pt-4 mt-6">
-            <Button variant="secondary" onClick={() => setIsPendingStudentsModalOpen(false)} className="rounded-xl">
+            <Button
+              variant="secondary"
+              onClick={() => setIsPendingStudentsModalOpen(false)}
+              className="rounded-xl"
+            >
               Close
             </Button>
-            <Button onClick={() => {
-              setIsPendingStudentsModalOpen(false);
-              navigate("/fees");
-            }} className="rounded-xl">
+            <Button
+              onClick={() => {
+                setIsPendingStudentsModalOpen(false);
+                navigate("/fees");
+              }}
+              className="rounded-xl"
+            >
               Go to Fee Console
             </Button>
           </div>
@@ -902,6 +981,7 @@ const TeacherDashboard = () => {
     total: 0,
   });
   const [assignedClasses, setAssignedClasses] = useState([]);
+  const [classTeacherOf, setClassTeacherOf] = useState([]);
   const [announcement, setAnnouncement] = useState({
     title: "School Announcement",
     content: "Loading announcement...",
@@ -959,6 +1039,7 @@ const TeacherDashboard = () => {
         });
 
         setAssignedClasses(data.assignedClasses || []);
+        setClassTeacherOf(data.classTeacherOf || []);
       } catch (error) {
         console.error("Teacher Dashboard error:", error);
       }
@@ -980,17 +1061,21 @@ const TeacherDashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, index) => {
-          let cardBgClass = "from-gray-50 via-white to-gray-50/30 border-gray-200/60 hover:border-gray-300";
+          let cardBgClass =
+            "from-gray-50 via-white to-gray-50/30 border-gray-200/60 hover:border-gray-300";
           let iconBgClass = "bg-gray-100 text-gray-700";
-          
+
           if (stat.color === "indigo") {
-            cardBgClass = "from-indigo-50/70 via-white to-indigo-50/20 border-indigo-100/50 hover:border-indigo-500/30 hover:shadow-indigo-100/20";
+            cardBgClass =
+              "from-indigo-50/70 via-white to-indigo-50/20 border-indigo-100/50 hover:border-indigo-500/30 hover:shadow-indigo-100/20";
             iconBgClass = "bg-indigo-100/70 text-indigo-700";
           } else if (stat.color === "emerald") {
-            cardBgClass = "from-emerald-50/60 via-white to-emerald-50/20 border-emerald-100/60 hover:border-emerald-600/30 hover:shadow-emerald-100/20";
+            cardBgClass =
+              "from-emerald-50/60 via-white to-emerald-50/20 border-emerald-100/60 hover:border-emerald-600/30 hover:shadow-emerald-100/20";
             iconBgClass = "bg-emerald-100/70 text-emerald-700";
           } else if (stat.color === "amber") {
-            cardBgClass = "from-amber-50/70 via-white to-amber-50/20 border-amber-100/60 hover:border-amber-500/30 hover:shadow-amber-100/20";
+            cardBgClass =
+              "from-amber-50/70 via-white to-amber-50/20 border-amber-100/60 hover:border-amber-500/30 hover:shadow-amber-100/20";
             iconBgClass = "bg-amber-100/70 text-amber-700";
           }
 
@@ -999,14 +1084,14 @@ const TeacherDashboard = () => {
               key={index}
               className={cn(
                 "group bg-gradient-to-br p-6 rounded-[2rem] border shadow-sm hover:shadow-lg transition-all duration-300",
-                cardBgClass
+                cardBgClass,
               )}
             >
               <div className="flex items-center gap-4 mb-4">
                 <div
                   className={cn(
                     "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 shadow-md shadow-gray-100/50",
-                    iconBgClass
+                    iconBgClass,
                   )}
                 >
                   <stat.icon size={24} />
@@ -1024,6 +1109,118 @@ const TeacherDashboard = () => {
           );
         })}
       </div>
+
+      {/* My Class (Class Teacher) — Prominent Section */}
+      {classTeacherOf.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-md shadow-indigo-200">
+              <Shield size={20} className="text-white" />
+            </div>
+            <div>
+              <h4 className="text-xl font-black text-gray-900 tracking-tight">
+                My Class (Class Teacher)
+              </h4>
+              <p className="text-xs font-bold text-gray-400">
+                You are the Class Teacher — manage attendance here
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {classTeacherOf.map((cls) => (
+              <div
+                key={cls.id}
+                className="bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/20 p-6 rounded-[2.5rem] border-2 border-indigo-200/60 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative group flex flex-col justify-between min-h-[220px]"
+              >
+                <div className="absolute top-4 right-4">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white bg-indigo-600 px-3 py-1 rounded-full shadow-sm">
+                    Class Teacher
+                  </span>
+                </div>
+
+                <div>
+                  <h4 className="text-3xl font-black text-gray-900 tracking-tight mt-2 uppercase">
+                    Class {cls.name}
+                  </h4>
+                  <p className="text-gray-400 text-xs font-bold mt-2">
+                    Enrolled Students:{" "}
+                    <span className="text-gray-800 font-extrabold">
+                      {cls.studentCount}
+                    </span>
+                  </p>
+
+                  {/* Today's Quick Stats */}
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 size={14} className="text-emerald-600" />
+                      <span className="text-sm font-black text-emerald-700">
+                        {attendance.present}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-bold">
+                        Present
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <XCircle size={14} className="text-rose-600" />
+                      <span className="text-sm font-black text-rose-700">
+                        {attendance.absent}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-bold">
+                        Absent
+                      </span>
+                    </div>
+                    {attendance.total > 0 && (
+                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                        {((attendance.present / attendance.total) * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 mt-6 border-t border-indigo-100 pt-4">
+                  <Button
+                    onClick={() =>
+                      navigate("/attendance", { state: { classId: cls.id } })
+                    }
+                    className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm active:scale-95 transition-all cursor-pointer"
+                  >
+                    Mark Today's Attendance
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      navigate("/teacher/timetable", {
+                        state: { classId: cls.id },
+                      })
+                    }
+                    className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm active:scale-95 transition-all cursor-pointer"
+                  >
+                    View Schedule
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* No Class Teacher Assignment */}
+      {classTeacherOf.length === 0 && (
+        <div className="bg-gradient-to-br from-amber-50/50 via-white to-amber-50/20 rounded-[2.5rem] border border-amber-200/50 p-8 flex items-center gap-6">
+          <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center shadow-inner shadow-amber-200/50 shrink-0">
+            <Shield size={28} className="text-amber-600" />
+          </div>
+          <div>
+            <h4 className="text-lg font-black text-gray-900">
+              No Class Teacher Assignment
+            </h4>
+            <p className="text-sm text-gray-500 font-medium mt-1">
+              You are currently not assigned as the Class Teacher of any class.
+              Contact your administrator to manage student attendance.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="bg-gradient-to-br from-white to-gray-50/50 rounded-[2.5rem] border border-gray-200/70 shadow-sm p-8 flex flex-col justify-between">
@@ -1071,8 +1268,10 @@ const TeacherDashboard = () => {
           </div>
           {announcement.createdAt && (
             <div className="text-[10px] text-indigo-205 font-bold flex justify-between items-center opacity-90 border-t border-white/10 pt-4">
-              <span>By: {announcement.createdBy?.name || 'Admin'}</span>
-              <span>{new Date(announcement.createdAt).toLocaleDateString()}</span>
+              <span>By: {announcement.createdBy?.name || "Admin"}</span>
+              <span>
+                {new Date(announcement.createdAt).toLocaleDateString()}
+              </span>
             </div>
           )}
         </div>
@@ -1081,8 +1280,8 @@ const TeacherDashboard = () => {
           <div>
             <h4 className="text-xl font-bold mb-4">Class Overview</h4>
             <p className="text-gray-300 text-sm leading-relaxed mb-6">
-              You are currently handling students across multiple sessions. Ensure
-              attendance is marked daily.
+              You are currently handling students across multiple sessions.
+              Ensure attendance is marked daily.
             </p>
           </div>
           <Button
@@ -1107,39 +1306,61 @@ const TeacherDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {assignedClasses.map((cls) => (
-            <div
-              key={cls.id}
-              className="bg-gradient-to-br from-white via-indigo-50/5 to-indigo-50/15 p-6 rounded-[2.5rem] border border-gray-200/60 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative group flex flex-col justify-between min-h-[200px]"
-            >
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-750 bg-indigo-100/70 px-3 py-1 rounded-full">
-                  Academic Class
-                </span>
-                <h4 className="text-3xl font-black text-gray-900 tracking-tight mt-4 uppercase">
-                  Class {cls.name}
-                </h4>
-                <p className="text-gray-400 text-xs font-bold mt-2">
-                  Enrolled Students: <span className="text-gray-800 font-extrabold">{cls.studentCount}</span>
-                </p>
-              </div>
+          {assignedClasses.map((cls) => {
+            const isClassTeacherOfThis = classTeacherOf.some(ct => ct.id.toString() === cls.id.toString());
+            return (
+              <div
+                key={cls.id}
+                className="bg-gradient-to-br from-white via-indigo-50/5 to-indigo-50/15 p-6 rounded-[2.5rem] border border-gray-200/60 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative group flex flex-col justify-between min-h-[200px]"
+              >
+                <div>
+                  <span className={cn(
+                    "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
+                    isClassTeacherOfThis
+                      ? "text-indigo-700 bg-indigo-100/70"
+                      : "text-gray-500 bg-gray-100/70"
+                  )}>
+                    {isClassTeacherOfThis ? "Class Teacher" : "Subject Teacher"}
+                  </span>
+                  <h4 className="text-3xl font-black text-gray-900 tracking-tight mt-4 uppercase">
+                    Class {cls.name}
+                  </h4>
+                  <p className="text-gray-400 text-xs font-bold mt-2">
+                    Enrolled Students:{" "}
+                    <span className="text-gray-800 font-extrabold">
+                      {cls.studentCount}
+                    </span>
+                  </p>
+                </div>
 
-              <div className="flex gap-2.5 mt-6 border-t border-gray-100 pt-4">
-                <Button
-                  onClick={() => navigate("/attendance", { state: { classId: cls.id } })}
-                  className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm active:scale-95 transition-all cursor-pointer"
-                >
-                  Mark Attendance
-                </Button>
-                <Button
-                  onClick={() => navigate("/teacher/timetable", { state: { classId: cls.id } })}
-                  className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm active:scale-95 transition-all cursor-pointer"
-                >
-                  View Schedule
-                </Button>
+                <div className="flex gap-2.5 mt-6 border-t border-gray-100 pt-4">
+                  {isClassTeacherOfThis && (
+                    <Button
+                      onClick={() =>
+                        navigate("/attendance", { state: { classId: cls.id } })
+                      }
+                      className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm active:scale-95 transition-all cursor-pointer"
+                    >
+                      Mark Attendance
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() =>
+                      navigate("/teacher/timetable", {
+                        state: { classId: cls.id },
+                      })
+                    }
+                    className={cn(
+                      "rounded-xl py-2.5 text-[11px] font-black bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm active:scale-95 transition-all cursor-pointer",
+                      isClassTeacherOfThis ? "flex-1" : "w-full"
+                    )}
+                  >
+                    View Schedule
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -157,7 +157,7 @@ const deleteTeacher = async (req, res, next) => {
 };
 
 /**
- * @desc    Get dashboard stats for logic-in teacher
+ * @desc    Get dashboard stats for logged-in teacher
  * @route   GET /api/teachers/dashboard/stats
  * @access  Private (Teacher)
  */
@@ -180,14 +180,20 @@ const getTeacherDashboardStats = async (req, res, next) => {
     // Total Students across all assigned classes
     const totalStudents = classes.reduce((acc, c) => acc + (c.students ? c.students.length : 0), 0);
 
-    // Today's Attendance Summary
+    // Find class(es) where this teacher is the Class Teacher
+    const classTeacherClasses = await Class.find({ teacher: teacher._id, isActive: true })
+      .select('name students');
+    classTeacherClasses.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+    // Today's attendance summary — scoped to Class Teacher classes only
+    const classTeacherIds = classTeacherClasses.map(c => c._id);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const todayAttendance = await Attendance.find({
-      class: { $in: classIds },
+      class: { $in: classTeacherIds.length > 0 ? classTeacherIds : classIds },
       date: { $gte: today, $lt: tomorrow }
     });
 
@@ -206,8 +212,40 @@ const getTeacherDashboardStats = async (req, res, next) => {
         id: c._id,
         name: c.name,
         studentCount: c.students ? c.students.length : 0
+      })),
+      // Class Teacher specific data
+      classTeacherOf: classTeacherClasses.map(c => ({
+        id: c._id,
+        name: c.name,
+        studentCount: c.students ? c.students.length : 0
       }))
     }, 'Teacher stats fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get the class(es) where the logged-in teacher is the Class Teacher
+ * @route   GET /api/teachers/my-class
+ * @access  Private (Teacher)
+ */
+const getMyClass = async (req, res, next) => {
+  try {
+    const teacher = await Teacher.findOne({ user: req.user._id });
+    if (!teacher) {
+      return errorResponse(res, 'Teacher profile not found', 404);
+    }
+
+    const classes = await Class.find({ teacher: teacher._id, isActive: true })
+      .populate('teacher', 'firstName lastName')
+      .select('name section students teacher tuitionFee isActive');
+
+    classes.sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    );
+
+    return successResponse(res, classes, 'Class Teacher assignment fetched successfully');
   } catch (error) {
     next(error);
   }
@@ -220,6 +258,7 @@ module.exports = {
   updateTeacher,
   deleteTeacher,
   getTeacherDashboardStats,
+  getMyClass,
 };
 
 

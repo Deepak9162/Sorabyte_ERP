@@ -49,6 +49,11 @@ const AdmissionRequestDetails = () => {
   // Document preview modal
   const [previewDoc, setPreviewDoc] = useState(null);
 
+  // Derive API host for building absolute media URLs
+  const apiHost = api.defaults.baseURL
+    ? api.defaults.baseURL.replace("/api", "")
+    : "";
+
   const fetchRequestDetails = async () => {
     try {
       const res = await api.get(`/admission-requests/${id}`);
@@ -116,7 +121,365 @@ const AdmissionRequestDetails = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    const session = (() => {
+      const m = request.additionalNotes?.remarks?.match(/Academic Session:\s*([^\s|]+)/);
+      return m ? m[1] : "2026-2027";
+    })();
+    const discount = (() => {
+      const m = request.additionalNotes?.remarks?.match(/Discount:\s*(\d+)%/);
+      return m ? `${m[1]}%` : "0%";
+    })();
+    const admissionDate = (() => {
+      const m = request.additionalNotes?.remarks?.match(/Admission Date:\s*([^\s|]+)/);
+      return m ? m[1] : new Date(request.createdAt).toISOString().split("T")[0];
+    })();
+    const photoUrl = request.studentInfo?.studentPhoto
+      ? `${apiHost}${request.studentInfo.studentPhoto}`
+      : null;
+    const dob = request.studentInfo?.dob
+      ? new Date(request.studentInfo.dob).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })
+      : "N/A";
+    const submittedOn = request.submittedAt
+      ? new Date(request.submittedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })
+      : new Date(request.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admission Form – ${request.studentInfo?.fullName || "Student"}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 11pt;
+      color: #1a1a1a;
+      background: #fff;
+      padding: 20mm 18mm 18mm 18mm;
+    }
+
+    /* ── HEADER ── */
+    .school-header {
+      text-align: center;
+      border-bottom: 3px double #1a1a1a;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .school-header .school-name {
+      font-size: 22pt;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .school-header .school-tagline {
+      font-size: 9pt;
+      color: #555;
+      margin-top: 2px;
+      font-style: italic;
+    }
+    .school-header .school-contact {
+      font-size: 8.5pt;
+      color: #444;
+      margin-top: 3px;
+    }
+    .form-title-box {
+      display: inline-block;
+      margin-top: 10px;
+      border: 2px solid #1a1a1a;
+      padding: 5px 24px;
+      font-size: 12pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border-radius: 4px;
+    }
+
+    /* ── APPLICATION META ── */
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5pt;
+      color: #444;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+    }
+    .meta-row span { font-weight: bold; color: #1a1a1a; }
+
+    /* ── PHOTO + BASIC INFO ── */
+    .top-section {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+    .photo-box {
+      width: 110px;
+      height: 130px;
+      border: 2px solid #1a1a1a;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8pt;
+      color: #888;
+      text-align: center;
+      overflow: hidden;
+    }
+    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+
+    .basic-table {
+      flex: 1;
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 10pt;
+    }
+    .basic-table td {
+      padding: 5px 8px;
+      border: 1px solid #ccc;
+      vertical-align: top;
+    }
+    .basic-table .label {
+      font-weight: bold;
+      background: #f5f5f5;
+      white-space: nowrap;
+      width: 36%;
+      font-size: 9pt;
+      text-transform: uppercase;
+      color: #444;
+    }
+
+    /* ── SECTION HEADINGS ── */
+    .section-heading {
+      font-size: 10pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      background: #f0f0f0;
+      padding: 5px 10px;
+      border-left: 4px solid #1a1a1a;
+      margin: 14px 0 8px;
+    }
+
+    /* ── DATA TABLE ── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+    .data-table td {
+      padding: 5px 8px;
+      border: 1px solid #ccc;
+      vertical-align: top;
+    }
+    .data-table .label {
+      font-weight: bold;
+      background: #f9f9f9;
+      white-space: nowrap;
+      font-size: 9pt;
+      text-transform: uppercase;
+      color: #555;
+      width: 30%;
+    }
+
+    /* ── ADDRESS BOX ── */
+    .address-box {
+      border: 1px solid #ccc;
+      padding: 8px 10px;
+      font-size: 10pt;
+      min-height: 44px;
+      border-radius: 2px;
+    }
+
+    /* ── DECLARATION ── */
+    .declaration {
+      margin-top: 20px;
+      font-size: 9pt;
+      color: #444;
+      font-style: italic;
+      line-height: 1.6;
+    }
+
+    /* ── SIGNATURE BLOCK ── */
+    .sig-block {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 36px;
+      gap: 20px;
+    }
+    .sig-item {
+      flex: 1;
+      text-align: center;
+    }
+    .sig-line {
+      border-top: 1.5px solid #1a1a1a;
+      padding-top: 6px;
+      font-size: 9pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 8pt;
+      color: #888;
+      border-top: 1px dashed #ccc;
+      padding-top: 8px;
+    }
+
+    @page { margin: 0; }
+    @media print {
+      body { padding: 12mm 14mm 12mm 14mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SCHOOL HEADER -->
+  <div class="school-header">
+    <div class="school-name">Little Flower English School</div>
+    <div class="school-tagline">Dindayalpur Siwan Bihar 841506</div>
+    <div class="school-contact"> Phone: +91 82946 80282 &nbsp;|&nbsp; Email: tiwarichandramohan50@gmail.com</div>
+    <div class="form-title-box">Admission Application Form</div>
+  </div>
+
+  <!-- APPLICATION META -->
+  <div class="meta-row">
+    <div>Application ID: <span>${request._id}</span></div>
+    <div>Date of Submission: <span>${submittedOn}</span></div>
+    <div>Status: <span>${request.status.toUpperCase()}</span></div>
+    <div>Academic Year: <span>${session}</span></div>
+  </div>
+
+  <!-- PHOTO + BASIC INFO -->
+  <div class="top-section">
+    <div class="photo-box">
+      ${photoUrl
+        ? `<img src="${photoUrl}" alt="Student Photo" />`
+        : `Affix Recent<br/>Passport Size<br/>Photograph`}
+    </div>
+    <table class="basic-table">
+      <tr>
+        <td class="label">Full Name of Student</td>
+        <td><strong>${request.studentInfo?.fullName || "—"}</strong></td>
+        <td class="label">Gender</td>
+        <td>${request.studentInfo?.gender || "—"}</td>
+      </tr>
+      <tr>
+        <td class="label">Date of Birth</td>
+        <td>${dob}</td>
+        <td class="label">Blood Group</td>
+        <td>${request.studentInfo?.bloodGroup || "—"}</td>
+      </tr>
+      <tr>
+        <td class="label">Seeking Admission In</td>
+        <td><strong>Class ${request.studentInfo?.admissionClass || "—"} – Section ${request.studentInfo?.section || "—"}</strong></td>
+        <td class="label">Category / Caste</td>
+        <td>${request.studentInfo?.category || "—"}</td>
+      </tr>
+      <tr>
+        <td class="label">Aadhaar Card No.</td>
+        <td>${request.studentInfo?.aadhar || "Not Provided"}</td>
+        <td class="label">Admission Date</td>
+        <td>${admissionDate}</td>
+      </tr>
+      <tr>
+        <td class="label">Student Email</td>
+        <td>${request.parentInfo?.email || "—"}</td>
+        <td class="label">Student Phone</td>
+        <td>${request.parentInfo?.phone || "—"}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- SECTION 1: PARENT DETAILS -->
+  <div class="section-heading">1. Parent / Guardian Information</div>
+  <table class="data-table">
+    <tr>
+      <td class="label">Father's Full Name</td>
+      <td>${request.parentInfo?.fatherName || "—"}</td>
+      <td class="label">Mother's Full Name</td>
+      <td>${request.parentInfo?.motherName || "—"}</td>
+    </tr>
+    <tr>
+      <td class="label">Emergency Contact No.</td>
+      <td><strong>${request.emergencyContact?.phone || "—"}</strong></td>
+      <td class="label">Relationship</td>
+      <td>${request.emergencyContact?.relationship || "Parent / Guardian"}</td>
+    </tr>
+  </table>
+
+  <!-- SECTION 2: RESIDENTIAL ADDRESS -->
+  <div class="section-heading">2. Residential Address</div>
+  <div class="address-box">${request.address?.currentAddress || "Not Provided"}</div>
+
+  <!-- SECTION 3: ACADEMIC & LOGISTICS -->
+  <div class="section-heading">3. Academic Alignment & Facilities</div>
+  <table class="data-table">
+    <tr>
+      <td class="label">Academic Session</td>
+      <td>${session}</td>
+      <td class="label">Transport Requirement</td>
+      <td>${request.transport?.busRequired ? "School Bus Facility Required" : "Private / Self Transport"}</td>
+    </tr>
+    <tr>
+      <td class="label">Hostel Requirement</td>
+      <td>${request.hostel?.hostelRequired ? "Hostel Accommodation Required" : "Day Scholar (No Hostel)"}</td>
+      <td class="label">Fee Discount Applied</td>
+      <td>${discount}</td>
+    </tr>
+    <tr>
+      <td class="label">Previous School Name</td>
+      <td colspan="3">${request.studentInfo?.previousSchool || "Fresh Admission / None"}</td>
+    </tr>
+  </table>
+
+  <!-- DECLARATION -->
+  <div class="declaration">
+    <strong>Declaration:</strong> I hereby solemnly declare that all the information provided above is true and correct to the best of my knowledge and belief.
+    I understand that any misrepresentation of facts may result in cancellation of admission at any stage.
+  </div>
+
+  <!-- SIGNATURE BLOCK -->
+  <div class="sig-block">
+    <div class="sig-item">
+      <div style="height:40px;"></div>
+      <div class="sig-line">Parent / Guardian Signature</div>
+    </div>
+    <div class="sig-item">
+      <div style="height:40px;"></div>
+      <div class="sig-line">Teacher / Verifier Signature</div>
+    </div>
+    <div class="sig-item">
+      <div style="height:40px;"></div>
+      <div class="sig-line">Principal Signature & Stamp</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    This form is computer-generated via Little Flower English School ERP System &nbsp;|&nbsp; Application ID: ${request._id} &nbsp;|&nbsp; Printed on: ${new Date().toLocaleDateString("en-IN")}
+  </div>
+
+  <script>
+    window.onload = function() {
+      window.print();
+      window.onafterprint = function() { window.close(); };
+    };
+  </script>
+</body>
+</html>`;
+
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } else {
+      addToast("Please allow popups for this site to print the admission form.", "error");
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -140,9 +503,6 @@ const AdmissionRequestDetails = () => {
     return <CardSkeleton />;
   }
 
-  const apiHost = api.defaults.baseURL
-    ? api.defaults.baseURL.replace("/api", "")
-    : "";
 
   return (
     <div className="space-y-8 print:p-0 print:space-y-4">
@@ -737,8 +1097,8 @@ const AdmissionRequestDetails = () => {
         }}
         title="Approve Admission Request"
         message={`Are you sure you want to approve this admission request? This will automatically create a new active student profile for ${request.studentInfo?.fullName} and generate their roll number and admission number.`}
-        confirmText="Approve & Enroll"
-        variant="primary"
+        confirmLabel="Approve & Enroll"
+        variant="success"
       />
 
       {/* Reject Modal */}

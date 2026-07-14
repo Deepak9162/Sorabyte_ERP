@@ -2,6 +2,8 @@ const Timetable = require('../models/Timetable');
 const Class = require('../models/Class');
 const ClassSubject = require('../models/ClassSubject');
 const Teacher = require('../models/Teacher');
+const TimetableAuditLog = require('../models/TimetableAuditLog');
+const mongoose = require('mongoose');
 const PDFDocument = require('pdfkit');
 
 /**
@@ -296,5 +298,174 @@ exports.generateTimetablePDF = async (classId, outStream, filterTeacherUserId = 
 
   doc.end();
   return doc;
+};
+
+// ──────────────────────────────────────────────
+// Timetable Copy & Replication System
+// ──────────────────────────────────────────────
+
+// Using existing timeToMinutes and isOverlap from earlier in the file
+
+exports.previewCopyTimetable = async (timetableId, sourceDay, destinationDays) => {
+  const timetable = await Timetable.findById(timetableId).populate('class');
+  if (!timetable) throw new Error('Timetable not found');
+
+  const sourceSchedule = timetable.weeklySchedule.find(d => d.day === sourceDay);
+  if (!sourceSchedule || !sourceSchedule.slots || sourceSchedule.slots.length === 0) {
+    throw new Error(`Source day ${sourceDay} has no periods to copy.`);
+  }
+
+  // Fetch all other active timetables for conflict detection
+  const otherTimetables = await Timetable.find({
+    _id: { $ne: timetableId },
+    academicYear: timetable.academicYear,
+    semester: timetable.semester,
+    isActive: true
+  });
+
+  const conflicts = [];
+  let existingDestinations = 0;
+
+  for (const destDay of destinationDays) {
+    const existingDest = timetable.weeklySchedule.find(d => d.day === destDay);
+    if (existingDest && existingDest.slots && existingDest.slots.length > 0) {
+      existingDestinations++;
+    }
+
+    for (const sourceSlot of sourceSchedule.slots) {
+      // Check against other timetables on the destination day
+      for (const other of otherTimetables) {
+        const otherDestSchedule = other.weeklySchedule.find(d => d.day === destDay);
+        if (!otherDestSchedule || !otherDestSchedule.slots) continue;
+
+        for (const otherSlot of otherDestSchedule.slots) {
+          if (isOverlap(sourceSlot.startTime, sourceSlot.endTime, otherSlot.startTime, otherSlot.endTime)) {
+            // Teacher Conflict
+            if (sourceSlot.teacher && otherSlot.teacher && sourceSlot.teacher.toString() === otherSlot.teacher.toString()) {
+              conflicts.push(`Teacher conflict on ${destDay} at ${sourceSlot.startTime} - ${sourceSlot.endTime} (Already teaching in another class)`);
+            }
+            // Room Conflict
+            if (sourceSlot.room && otherSlot.room && sourceSlot.room === otherSlot.room) {
+              conflicts.push(`Room conflict on ${destDay} at ${sourceSlot.startTime} - ${sourceSlot.endTime} (Room ${sourceSlot.room} occupied)`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Calculate distinct items
+  const uniqueTeachers = new Set(sourceSchedule.slots.map(s => s.teacher?.toString()).filter(Boolean));
+  const uniqueSubjects = new Set(sourceSchedule.slots.map(s => s.subject?.toString()).filter(Boolean));
+
+  return {
+    sourceDay,
+    destinationDays,
+    periodsCount: sourceSchedule.slots.length,
+    teachersCount: uniqueTeachers.size,
+    subjectsCount: uniqueSubjects.size,
+    conflicts: [...new Set(conflicts)], // Unique conflicts
+    hasExistingDestinations: existingDestinations > 0
+  };
+};
+
+exports.copyTimetable = async (timetableId, sourceDay, destinationDays, overwriteMode, userId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const timetable = await Timetable.findById(timetableId).session(session);
+    if (!timetable) throw new Error('Timetable not found');
+
+    const sourceSchedule = timetable.weeklySchedule.find(d => d.day === sourceDay);
+    if (!sourceSchedule || !sourceSchedule.slots || sourceSchedule.slots.length === 0) {
+      throw new Error(`Source day ${sourceDay} has no periods to copy.`);
+    }
+
+    // Save previous version for Undo
+    const previousVersion = JSON.parse(JSON.stringify(timetable.weeklySchedule));
+
+    const sourceSlots = JSON.parse(JSON.stringify(sourceSchedule.slots));
+
+    for (const destDay of destinationDays) {
+      let destIndex = timetable.weeklySchedule.findIndex(d => d.day === destDay);
+      if (destIndex === -1) {
+        timetable.weeklySchedule.push({ day: destDay, slots: [] });
+        destIndex = timetable.weeklySchedule.length - 1;
+      }
+
+      const destSchedule = timetable.weeklySchedule[destIndex];
+
+      if (overwriteMode === 'replace' || destSchedule.slots.length === 0) {
+        destSchedule.slots = sourceSlots.map(s => {
+          const { _id, ...rest } = s; // Remove old object IDs
+          return rest;
+        });
+      } else if (overwriteMode === 'merge') {
+        // Keep existing slots, append non-overlapping source slots
+        const slotsToAdd = [];
+        for (const sSlot of sourceSlots) {
+          const overlap = destSchedule.slots.some(dSlot => 
+            isOverlap(sSlot.startTime, sSlot.endTime, dSlot.startTime, dSlot.endTime)
+          );
+          if (!overlap) {
+            const { _id, ...rest } = sSlot;
+            slotsToAdd.push(rest);
+          }
+        }
+        destSchedule.slots = [...destSchedule.slots, ...slotsToAdd];
+        // Sort by start time
+        destSchedule.slots.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+      }
+    }
+
+    await timetable.save({ session });
+
+    // Create Audit Log
+    const auditLog = new TimetableAuditLog({
+      action: 'COPY_TIMETABLE',
+      timetable: timetable._id,
+      performedBy: userId,
+      sourceDay,
+      destinationDays,
+      previousVersion,
+      newVersion: timetable.weeklySchedule,
+      details: `Copied ${sourceDay} to ${destinationDays.join(', ')} with mode ${overwriteMode}`
+    });
+    await auditLog.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return { timetable, auditLogId: auditLog._id };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+
+exports.undoCopy = async (auditLogId, userId) => {
+  const auditLog = await TimetableAuditLog.findById(auditLogId);
+  if (!auditLog) throw new Error('Audit log not found');
+  if (auditLog.action !== 'COPY_TIMETABLE') throw new Error('Invalid audit log action for undo');
+  
+  // Optional: Check if 30 seconds have passed
+  const ageInSeconds = (new Date() - auditLog.createdAt) / 1000;
+  if (ageInSeconds > 60) { // Giving 60s buffer on backend, UI will enforce 30s
+    throw new Error('Undo window has expired');
+  }
+
+  const timetable = await Timetable.findById(auditLog.timetable);
+  if (!timetable) throw new Error('Timetable not found');
+
+  timetable.weeklySchedule = auditLog.previousVersion;
+  await timetable.save();
+
+  auditLog.action = 'UNDO_COPY';
+  auditLog.details += ' (UNDONE)';
+  await auditLog.save();
+
+  return timetable;
 };
 

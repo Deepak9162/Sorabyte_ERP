@@ -5,7 +5,10 @@
  */
 
 const adminService = require('../services/adminService');
-const { successResponse } = require('../utils/apiResponse');
+const { successResponse, errorResponse } = require('../utils/apiResponse');
+const { createNotification } = require('../utils/notificationHelper');
+const Class = require('../models/Class');
+const Teacher = require('../models/Teacher');
 
 /**
  * @desc    Create a new class
@@ -26,7 +29,43 @@ const createClass = async (req, res, next) => {
  */
 const updateClass = async (req, res, next) => {
   try {
+    // Detect Class Teacher change for notifications
+    const existingClass = await Class.findById(req.params.id).populate('teacher', 'firstName lastName user');
+    const oldTeacherId = existingClass ? (existingClass.teacher?._id?.toString() || null) : null;
+    const newTeacherId = req.body.teacher || null;
+
     const updatedClass = await adminService.updateClass(req.params.id, req.body);
+
+    // If the Class Teacher was changed, send notifications
+    if (oldTeacherId && newTeacherId && oldTeacherId !== newTeacherId) {
+      const className = updatedClass.name || existingClass?.name || 'Unknown';
+
+      // Notify previous teacher (removal)
+      if (existingClass?.teacher?.user) {
+        await createNotification({
+          recipientUserId: existingClass.teacher.user,
+          senderUserId: req.user._id,
+          title: 'Class Teacher Assignment Removed',
+          message: `You have been removed as the Class Teacher of ${className}. Your attendance marking privileges for this class have been revoked.`,
+          type: 'warning',
+          link: '/dashboard',
+        });
+      }
+
+      // Notify new teacher (assignment)
+      const newTeacher = await Teacher.findById(newTeacherId);
+      if (newTeacher?.user) {
+        await createNotification({
+          recipientUserId: newTeacher.user,
+          senderUserId: req.user._id,
+          title: 'Class Teacher Assignment',
+          message: `You have been assigned as the Class Teacher of ${className}. You can now manage attendance for this class.`,
+          type: 'success',
+          link: '/attendance',
+        });
+      }
+    }
+
     return successResponse(res, updatedClass, 'Class updated successfully');
   } catch (error) {
     next(error);

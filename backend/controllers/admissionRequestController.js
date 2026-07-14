@@ -7,26 +7,43 @@ const { successResponse, errorResponse } = require('../utils/apiResponse');
 
 // Helper to generate next unique admission number
 const getNextAdmissionNumber = async () => {
-  const lastStudent = await Student.findOne().sort({ createdAt: -1 });
   let nextAdmissionNumber = "1001";
+  const lastStudent = await Student.findOne().sort({ createdAt: -1 });
   
   if (lastStudent && lastStudent.admissionNumber) {
-    const lastAdmissionNumber = lastStudent.admissionNumber;
-    const numMatch = lastAdmissionNumber.match(/\d+$/);
-    if (numMatch) {
-      const numPart = numMatch[0];
-      const nextNum = parseInt(numPart, 10) + 1;
-      const nextNumStr = nextNum.toString().padStart(numPart.length, '0');
-      nextAdmissionNumber = lastAdmissionNumber.replace(new RegExp(numPart + '$'), nextNumStr);
-    } else {
-      nextAdmissionNumber = lastAdmissionNumber + "-1";
+    let currentNumber = lastStudent.admissionNumber;
+    let isUnique = false;
+    
+    while (!isUnique) {
+      const numMatch = currentNumber.match(/\d+$/);
+      if (numMatch) {
+        const numPart = numMatch[0];
+        const nextNum = parseInt(numPart, 10) + 1;
+        const nextNumStr = nextNum.toString().padStart(numPart.length, '0');
+        nextAdmissionNumber = currentNumber.replace(new RegExp(numPart + '$'), nextNumStr);
+      } else {
+        nextAdmissionNumber = currentNumber + "-1";
+      }
+      
+      const existing = await Student.findOne({ admissionNumber: nextAdmissionNumber });
+      if (!existing) {
+        isUnique = true;
+      } else {
+        currentNumber = nextAdmissionNumber;
+      }
+    }
+  } else {
+    // If no last student, just ensure 1001 is unique
+    while (await Student.findOne({ admissionNumber: nextAdmissionNumber })) {
+      nextAdmissionNumber = (parseInt(nextAdmissionNumber, 10) + 1).toString();
     }
   }
+  
   return nextAdmissionNumber;
 };
 
 // Helper to generate next sequential roll number within class/section
-const getNextRollNumber = async (classId, section) => {
+const getNextRollNumber = async (classId, section, className, session) => {
   const studentsInClass = await Student.find({ class: classId, section: section });
   let maxRoll = 0;
   studentsInClass.forEach(s => {
@@ -35,7 +52,14 @@ const getNextRollNumber = async (classId, section) => {
       maxRoll = roll;
     }
   });
-  return (maxRoll + 1).toString();
+  
+  let nextRoll = maxRoll + 1;
+  // Ensure we do not hit a unique constraint collision on { className, session, rollNumber }
+  while (await Student.findOne({ className, session, rollNumber: nextRoll.toString() })) {
+    nextRoll++;
+  }
+  
+  return nextRoll.toString();
 };
 
 // Resolve or create class dynamically
@@ -416,9 +440,14 @@ exports.reviewRequest = async (req, res, next) => {
         throw new Error('Failed to resolve or create class group for student enrolment');
       }
 
-      const rollNumber = await getNextRollNumber(targetClass._id, request.studentInfo.section || 'A');
-      const admissionNumber = await getNextAdmissionNumber();
       const session = "2026-2027";
+      const rollNumber = await getNextRollNumber(
+        targetClass._id, 
+        request.studentInfo.section || 'A',
+        request.studentInfo.admissionClass,
+        session
+      );
+      const admissionNumber = await getNextAdmissionNumber();
 
       const studentData = {
         fullName: request.studentInfo.fullName,

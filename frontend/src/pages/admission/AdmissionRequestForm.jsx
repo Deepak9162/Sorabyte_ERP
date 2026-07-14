@@ -60,7 +60,7 @@ const AdmissionRequestForm = () => {
     admissionDate: new Date().toISOString().split("T")[0],
     discountPercentage: 0,
     previousSchool: "",
-    hostelRequired: false,
+   
     studentPhoto: "",
   });
 
@@ -131,7 +131,7 @@ const AdmissionRequestForm = () => {
         admissionDate: new Date().toISOString().split("T")[0],
         discountPercentage: 0,
         previousSchool: duplicateData.studentInfo?.previousSchool || "",
-        hostelRequired: duplicateData.hostel?.hostelRequired || false,
+      
         studentPhoto: duplicateData.studentInfo?.studentPhoto || "",
       });
 
@@ -193,7 +193,7 @@ const AdmissionRequestForm = () => {
               admissionDate: dateVal,
               discountPercentage: discVal,
               previousSchool: data.studentInfo?.previousSchool || "",
-              hostelRequired: data.hostel?.hostelRequired || false,
+             
               studentPhoto: data.studentInfo?.studentPhoto || "",
             });
 
@@ -355,9 +355,7 @@ const AdmissionRequestForm = () => {
       transport: {
         busRequired: studentInfo.transportMode === "School Bus",
       },
-      hostel: {
-        hostelRequired: studentInfo.hostelRequired,
-      },
+   
       additionalNotes: {
         remarks: `Academic Session: ${studentInfo.session.trim()} | Status: ${studentInfo.status} | Discount: ${studentInfo.discountPercentage}% | Admission Date: ${studentInfo.admissionDate}`,
         teacherComments: `Created by teacher. Session: ${studentInfo.session.trim()}`
@@ -383,7 +381,7 @@ const AdmissionRequestForm = () => {
       formData.append("address", JSON.stringify(payload.address));
       formData.append("emergencyContact", JSON.stringify(payload.emergencyContact));
       formData.append("transport", JSON.stringify(payload.transport));
-      formData.append("hostel", JSON.stringify(payload.hostel));
+     
       formData.append("additionalNotes", JSON.stringify(payload.additionalNotes));
 
       if (files.studentPhoto) {
@@ -563,9 +561,12 @@ const AdmissionRequestForm = () => {
 
               <Input
                 label="Personal Phone"
-                placeholder="Phone number"
+                placeholder="10-digit Phone number"
                 value={studentInfo.phone}
-                onChange={(e) => setStudentInfo({ ...studentInfo, phone: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setStudentInfo({ ...studentInfo, phone: val });
+                }}
               />
 
               <div className="space-y-2">
@@ -586,7 +587,10 @@ const AdmissionRequestForm = () => {
                 label="Aadhaar Number"
                 placeholder="12-digit Aadhaar No"
                 value={studentInfo.aadhar}
-                onChange={(e) => setStudentInfo({ ...studentInfo, aadhar: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                  setStudentInfo({ ...studentInfo, aadhar: val });
+                }}
               />
             </div>
           </div>
@@ -687,16 +691,7 @@ const AdmissionRequestForm = () => {
               </div>
 
               <div className="flex items-center gap-3 md:col-span-3 pt-4 pl-1">
-                <input
-                  type="checkbox"
-                  id="hostelRequired"
-                  className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  checked={studentInfo.hostelRequired}
-                  onChange={(e) => setStudentInfo({ ...studentInfo, hostelRequired: e.target.checked })}
-                />
-                <label htmlFor="hostelRequired" className="text-xs font-bold text-gray-600 select-none cursor-pointer">
-                  Hostel Accommodations Required
-                </label>
+               
               </div>
             </div>
           </div>
@@ -728,9 +723,12 @@ const AdmissionRequestForm = () => {
               <div className="md:col-span-2">
                 <Input
                   label="Emergency Contact Number *"
-                  placeholder="Primary contact (10-15 digits)"
+                  placeholder="Primary contact (10 digits)"
                   value={emergencyContact.phone}
-                  onChange={(e) => setEmergencyContact({ ...emergencyContact, phone: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setEmergencyContact({ ...emergencyContact, phone: val });
+                  }}
                 />
               </div>
             </div>
@@ -868,8 +866,8 @@ const AdmissionRequestForm = () => {
                     <strong className="text-gray-700">{studentInfo.transportMode}</strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Hostel Accommodation</span>
-                    <strong className="text-gray-700">{studentInfo.hostelRequired ? "Required" : "Not Required"}</strong>
+                    
+                   
                   </div>
                   <div>
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Admission Date</span>

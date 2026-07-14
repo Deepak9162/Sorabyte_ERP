@@ -501,8 +501,11 @@ const AddStudent = () => {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Personal Phone</label>
                     <input
                       type="text"
-                      placeholder="Phone number"
+                      placeholder="10-digit Phone number"
                       className="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-semibold outline-none focus:ring-4 focus:ring-indigo-100 focus:bg-white transition-all"
+                      onInput={(e) => {
+                        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      }}
                       {...register("phone")}
                     />
                   </div>
@@ -529,6 +532,9 @@ const AddStudent = () => {
                       type="text"
                       placeholder="12-digit Aadhar No"
                       className="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-semibold outline-none focus:ring-4 focus:ring-indigo-100 focus:bg-white transition-all"
+                      onInput={(e) => {
+                        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 12);
+                      }}
                       {...register("aadhar")}
                     />
                   </div>
@@ -887,16 +893,19 @@ const AddStudent = () => {
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Emergency Contact Number *</label>
                     <input
                       type="text"
-                      placeholder="Primary phone number (10-15 digits)"
+                      placeholder="Primary phone number (10 digits)"
                       className={cn(
                         "w-full px-5 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-semibold outline-none focus:ring-4 focus:ring-indigo-100 focus:bg-white transition-all",
                         errors.emergencyContact && "border-red-200 bg-red-50/30"
                       )}
+                      onInput={(e) => {
+                        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      }}
                       {...register("emergencyContact", {
                         required: "Emergency contact is required",
                         pattern: {
-                          value: /^\d{10,15}$/,
-                          message: "Please enter a valid 10-15 digit contact number",
+                          value: /^\d{10}$/,
+                          message: "Please enter a valid 10-digit contact number",
                         },
                       })}
                     />

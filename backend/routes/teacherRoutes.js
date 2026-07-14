@@ -13,11 +13,15 @@ const {
   updateTeacher,
   deleteTeacher,
   getTeacherDashboardStats,
+  getMyClass,
 } = require('../controllers/teacherController');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
 // Dashboard stats for the current logged-in teacher
 router.get('/dashboard/stats', protect, getTeacherDashboardStats);
+
+// Get the class(es) where the logged-in teacher is the Class Teacher
+router.get('/my-class', protect, authorize('teacher'), getMyClass);
 
 // GET    /api/teachers        → List all teachers (supports ?subject=&isActive=&page=&limit=)
 // POST   /api/teachers        → Create a new teacher

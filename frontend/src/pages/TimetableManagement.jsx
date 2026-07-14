@@ -11,16 +11,19 @@ import {
   ChevronDown,
   X,
   AlertCircle,
+  Copy,
+  Undo2,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Modal from "../components/ui/Modal";
+import CopyModal from "../components/ui/CopyModal";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { useToast } from "../context/ToastContext";
 import api from "../services/api";
 import { cn } from "../utils/cn";
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const SLOT_TYPES = ["Theory", "Lab", "Project", "Break"];
 
 const incrementTimeByOneHour = (timeStr) => {
@@ -59,16 +62,26 @@ const TimetableManagement = () => {
   const [saving, setSaving] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [timetable, setTimetable] = useState(null); // { _id, weeklySchedule: [] }
+  const [workingDays, setWorkingDays] = useState(DAYS);
+  
+  // Copy Modal State
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [sourceDayForCopy, setSourceDayForCopy] = useState(null);
+  
+  // Undo State
+  const [lastAuditLogId, setLastAuditLogId] = useState(null);
+  const [undoTimeLeft, setUndoTimeLeft] = useState(0);
 
   // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [classesRes, subjectsRes, teachersRes] = await Promise.allSettled(
+        const [classesRes, subjectsRes, teachersRes, workingDaysRes] = await Promise.allSettled(
           [
             api.get("/admin/classes"),
             api.get("/admin/academic/subjects"),
             api.get("/teachers"),
+            api.get("/settings/working-days"),
           ],
         );
 
@@ -87,6 +100,9 @@ const TimetableManagement = () => {
               : teacherData?.teachers || [],
           );
         }
+        if (workingDaysRes.status === "fulfilled" && workingDaysRes.value.data.data) {
+          setWorkingDays(workingDaysRes.value.data.data);
+        }
       } catch (error) {
         console.error("Failed to fetch data:", error);
       }
@@ -98,15 +114,67 @@ const TimetableManagement = () => {
   useEffect(() => {
     if (selectedClass) {
       fetchTimetable();
+      setLastAuditLogId(null);
+      setUndoTimeLeft(0);
     }
   }, [selectedClass, selectedSemester]);
+
+  // Undo Timer
+  useEffect(() => {
+    let timer;
+    if (undoTimeLeft > 0) {
+      timer = setTimeout(() => setUndoTimeLeft(undoTimeLeft - 1), 1000);
+    } else if (undoTimeLeft === 0 && lastAuditLogId) {
+      setLastAuditLogId(null); // Hide undo button after 30s
+    }
+    return () => clearTimeout(timer);
+  }, [undoTimeLeft, lastAuditLogId]);
+
+  const handleCopySuccess = (auditLogId) => {
+    setIsCopyModalOpen(false);
+    setLastAuditLogId(auditLogId);
+    setUndoTimeLeft(30);
+    fetchTimetable(); // Refresh view
+    addToast("Timetable copied successfully!", "success");
+  };
+
+  const handleUndo = async () => {
+    try {
+      setLoading(true);
+      const res = await api.post(`/admin/timetable/undo/${lastAuditLogId}`);
+      if (res.data.success) {
+        addToast("Undo successful! Timetable reverted.", "success");
+        setLastAuditLogId(null);
+        setUndoTimeLeft(0);
+        fetchTimetable();
+      }
+    } catch (error) {
+      addToast(error.response?.data?.message || "Undo failed", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchTimetable = async () => {
     try {
       setLoading(true);
       const res = await api.get(`/timetable/class/${selectedClass}`);
       if (res.data.success) {
-        setTimetable(res.data.data);
+        const fetchedTimetable = res.data.data;
+        // Ensure all workingDays are present in the timetable
+        const existingDays = fetchedTimetable.weeklySchedule.map(d => d.day);
+        workingDays.forEach(day => {
+          if (!existingDays.includes(day)) {
+            fetchedTimetable.weeklySchedule.push({ day, slots: [] });
+          }
+        });
+        
+        // Sort the days based on the order in workingDays
+        fetchedTimetable.weeklySchedule.sort((a, b) => {
+          return workingDays.indexOf(a.day) - workingDays.indexOf(b.day);
+        });
+
+        setTimetable(fetchedTimetable);
       } else {
         setTimetable(initEmptyTimetable());
       }
@@ -126,7 +194,7 @@ const TimetableManagement = () => {
       class: selectedClass,
       semester: selectedSemester,
       academicYear: new Date().getFullYear().toString(),
-      weeklySchedule: DAYS.map((day) => ({
+      weeklySchedule: workingDays.map((day) => ({
         day,
         slots: [],
       })),
@@ -312,6 +380,16 @@ const TimetableManagement = () => {
           </p>
         </div>
         <div className="flex gap-3">
+          {lastAuditLogId && undoTimeLeft > 0 && (
+            <Button
+              variant="outline"
+              icon={Undo2}
+              onClick={handleUndo}
+              className="border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+            >
+              Undo ({undoTimeLeft}s)
+            </Button>
+          )}
           {timetable?._id && (
             <Button
               variant="secondary"
@@ -416,12 +494,23 @@ const TimetableManagement = () => {
                     {dayData.day}
                   </h3>
                 </div>
-                <button
-                  onClick={() => addSlot(dayIndex)}
-                  className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100/50 hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Plus size={16} /> Add Period
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSourceDayForCopy(dayData.day);
+                      setIsCopyModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 bg-gray-100 text-gray-700 rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 border border-gray-200"
+                  >
+                    <Copy size={16} /> Copy
+                  </button>
+                  <button
+                    onClick={() => addSlot(dayIndex)}
+                    className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100/50 hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Plus size={16} /> Add Period
+                  </button>
+                </div>
               </div>
 
               <div className="p-6 overflow-x-auto custom-scrollbar">
@@ -670,6 +759,18 @@ const TimetableManagement = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Copy Modal */}
+      {isCopyModalOpen && (
+        <CopyModal
+          isOpen={isCopyModalOpen}
+          onClose={() => setIsCopyModalOpen(false)}
+          sourceDay={sourceDayForCopy}
+          workingDays={workingDays}
+          timetableId={timetable?._id}
+          onSuccess={handleCopySuccess}
+        />
+      )}
     </div>
   );
 };

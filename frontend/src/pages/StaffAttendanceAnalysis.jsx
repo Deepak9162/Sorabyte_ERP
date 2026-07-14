@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import api from "../services/api";
+import AttendanceCalendar from "../components/AttendanceCalendar";
 import EmptyState from "../components/ui/EmptyState";
 import Button from "../components/ui/Button";
 import Skeleton, {
@@ -33,7 +34,6 @@ const StaffAttendanceAnalysis = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [activeView, setActiveView] = useState("overview"); // overview, calendar
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     fetchAnalysis();
@@ -97,64 +97,34 @@ const StaffAttendanceAnalysis = () => {
   const overallPercentage = parseFloat(overallAttendance.percentage);
   const isCritical = overallPercentage < 75;
 
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
-  const getMonthDaysList = (year, monthIndex) => {
-    const firstDayIndex = new Date(year, monthIndex, 1).getDay();
-    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-
-    const days = [];
-    for (let i = 0; i < firstDayIndex; i++) {
-      days.push(null);
-    }
-    for (let d = 1; d <= daysInMonth; d++) {
-      days.push(d);
-    }
-    return days;
-  };
-
-  const isWeekendDay = (year, monthIndex, day) => {
-    const dayOfWeek = new Date(year, monthIndex, day).getDay();
-    return dayOfWeek === 0 || dayOfWeek === 6;
-  };
-
-  // Build key mapping of date to attendance record for fast lookup
-  const attendanceMap = {};
-  if (data && data.records) {
-    data.records.forEach((record) => {
-      const d = new Date(record.date);
-      const yearStr = d.getFullYear();
-      const monthStr = String(d.getMonth() + 1).padStart(2, "0");
-      const dateStr = String(d.getDate()).padStart(2, "0");
-      const key = `${yearStr}-${monthStr}-${dateStr}`;
-      attendanceMap[key] = record;
+  // Determine the final records to display in the calendar
+  const getCalendarRecords = () => {
+    if (!data || !data.records) return [];
+    const records = [...data.records];
+    
+    const now = new Date();
+    const todayRecord = records.find(r => {
+      const recordDate = new Date(r.date);
+      return recordDate.getFullYear() === now.getFullYear() && 
+             recordDate.getMonth() === now.getMonth() && 
+             recordDate.getDate() === now.getDate();
     });
-  }
 
-  const getTooltipText = (day, monthIndex, year, record) => {
-    const dateStr = new Date(year, monthIndex, day).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-    if (!record) {
-      const isWeekend = new Date(year, monthIndex, day).getDay() % 6 === 0;
-      return `${dateStr}: ${isWeekend ? "Weekend" : "No record"}`;
+    // If it's past 12 PM and no record exists, visually inject an "Absent" record for today
+    if (!todayRecord && now.getHours() >= 12) {
+      const autoAbsentDate = new Date();
+      autoAbsentDate.setHours(12, 0, 0, 0); // Simulate it was marked at 12:00 PM
+      
+      records.push({
+        date: new Date().toISOString(),
+        status: 'Absent',
+        remarks: 'Auto-marked absent by system (did not mark before 12:00 PM)',
+        markedAt: autoAbsentDate.toISOString()
+      });
     }
-    return `${dateStr} - ${record.status}${record.remarks ? ` (${record.remarks})` : ""}`;
+    
+    return records;
   };
-
-  // Group records by status for the selected year
-  const yearRecords = (data.records || []).filter(
-    (r) => new Date(r.date).getFullYear() === selectedYear
-  );
-  const presentCount = yearRecords.filter((r) => r.status === "Present").length;
-  const absentCount = yearRecords.filter((r) => r.status === "Absent").length;
-  const lateCount = yearRecords.filter((r) => r.status === "Late").length;
-  const leaveCount = yearRecords.filter((r) => r.status === "Leave").length;
 
   const getPercentageColor = (percentage) => {
     if (percentage >= 75)
@@ -180,7 +150,7 @@ const StaffAttendanceAnalysis = () => {
               Staff Attendance Analysis
             </h2>
             <p className="text-gray-500 font-medium text-sm mt-1">
-              Comprehensive attendance history & yearly calendar view
+              Comprehensive attendance history & monthly calendar view
             </p>
           </div>
         </div>
@@ -524,7 +494,7 @@ const StaffAttendanceAnalysis = () => {
                         onClick={() => setActiveView("calendar")}
                         className="text-orange-600 underline-offset-2 underline"
                       >
-                        Yearly Calendar
+                        Monthly Calendar
                       </button>{" "}
                       to view all {data.records.length} records
                     </p>
@@ -543,150 +513,9 @@ const StaffAttendanceAnalysis = () => {
           )}
         </>
       ) : (
-        <>
-          {/* Yearly Calendar View */}
-          <div className="bg-white rounded-[2.5rem] p-6 sm:p-8 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSelectedYear((prev) => prev - 1)}
-                className="p-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-100 transition-all active:scale-95 shadow-sm"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span className="text-3xl font-black text-gray-900 tracking-tight">
-                {selectedYear}
-              </span>
-              <button
-                onClick={() => setSelectedYear((prev) => prev + 1)}
-                className="p-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-100 transition-all active:scale-95 shadow-sm"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-
-            {/* Attendance Status Summary (For the Selected Year) */}
-            <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100/50">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                Present: <span className="font-black">{presentCount}</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 text-rose-700 rounded-2xl border border-rose-100/50">
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
-                Absent: <span className="font-black">{absentCount}</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-2xl border border-indigo-100/50">
-                <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                Late: <span className="font-black">{lateCount}</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 text-amber-700 rounded-2xl border border-amber-100/50">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                Leave: <span className="font-black">{leaveCount}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 12 Months Calendar Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {monthNames.map((monthName, monthIndex) => {
-              const days = getMonthDaysList(selectedYear, monthIndex);
-
-              // Calculate monthly stats
-              const monthlyRecords = yearRecords.filter(
-                (r) => new Date(r.date).getMonth() === monthIndex
-              );
-              const monthlyPresent = monthlyRecords.filter(
-                (r) => r.status === "Present"
-              ).length;
-              const monthlyHeld = monthlyRecords.length;
-
-              return (
-                <div
-                  key={monthName}
-                  className="bg-white rounded-[2.2rem] p-6 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 relative group/month overflow-hidden"
-                >
-                  {/* Monthly Header */}
-                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-50">
-                    <h4 className="font-black text-gray-800 tracking-tight text-base uppercase">
-                      {monthName}
-                    </h4>
-                    {monthlyHeld > 0 && (
-                      <span className="text-[9px] font-black text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-lg">
-                        {monthlyPresent}/{monthlyHeld} Present
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Day labels (S M T W T F S) */}
-                  <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                    {["S", "M", "T", "W", "T", "F", "S"].map((dayLabel, idx) => (
-                      <span
-                        key={idx}
-                        className={cn(
-                          "text-[9px] font-black uppercase tracking-wider",
-                          (idx === 0 || idx === 6)
-                            ? "text-rose-400"
-                            : "text-gray-400"
-                        )}
-                      >
-                        {dayLabel}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Days grid */}
-                  <div className="grid grid-cols-7 gap-1 text-center">
-                    {days.map((day, idx) => {
-                      if (day === null) {
-                        return <div key={`empty-${idx}`} />;
-                      }
-
-                      const key = `${selectedYear}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                      const record = attendanceMap[key];
-                      const isWeekend = isWeekendDay(selectedYear, monthIndex, day);
-                      const tooltipText = getTooltipText(day, monthIndex, selectedYear, record);
-
-                      let cellStyle =
-                        "w-full aspect-square rounded-xl flex items-center justify-center text-[11px] font-bold transition-all relative ";
-                      if (record) {
-                        if (record.status === "Present")
-                          cellStyle += "bg-emerald-500 text-white shadow-sm shadow-emerald-100 hover:scale-110";
-                        else if (record.status === "Absent")
-                          cellStyle += "bg-rose-500 text-white shadow-sm shadow-rose-100 hover:scale-110";
-                        else if (record.status === "Late")
-                          cellStyle += "bg-indigo-500 text-white shadow-sm shadow-indigo-100 hover:scale-110";
-                        else if (record.status === "Leave")
-                          cellStyle += "bg-amber-500 text-white shadow-sm shadow-amber-100 hover:scale-110";
-                      } else {
-                        if (isWeekend) {
-                          cellStyle += "bg-gray-100/50 text-gray-400/80 font-normal hover:bg-gray-100";
-                        } else {
-                          cellStyle += "bg-gray-50 text-gray-300 font-normal hover:bg-gray-100/40";
-                        }
-                      }
-
-                      return (
-                        <div
-                          key={day}
-                          className="relative group/cell cursor-help"
-                        >
-                          <div className={cellStyle}>{day}</div>
-
-                          {/* CSS Hover Tooltip */}
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/cell:flex flex-col items-center pointer-events-none z-30">
-                            <div className="bg-gray-950 text-white text-[9px] py-1.5 px-2.5 rounded-xl shadow-2xl whitespace-nowrap leading-tight font-black border border-gray-800/80">
-                              {tooltipText}
-                            </div>
-                            <div className="w-2.5 h-2.5 bg-gray-950 rotate-45 -mt-1 border-r border-b border-gray-800/80" />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
+        <div className="max-w-4xl mx-auto">
+          <AttendanceCalendar records={getCalendarRecords()} />
+        </div>
       )}
     </div>
   );

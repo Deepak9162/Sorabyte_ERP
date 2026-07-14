@@ -9,5 +9,8 @@ router.use(isAdmin);
 
 router.post('/', timetableController.createTimetable);
 router.put('/:id', timetableController.updateTimetable);
+router.post('/copy/preview', timetableController.previewCopyTimetable);
+router.post('/copy', timetableController.copyTimetable);
+router.post('/undo/:auditLogId', timetableController.undoCopy);
 
 module.exports = router;

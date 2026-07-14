@@ -124,6 +124,35 @@ const MyAttendance = () => {
     );
   }
 
+  // Determine the final records to display in the calendar
+  const getCalendarRecords = () => {
+    if (!data || !data.records) return [];
+    const records = [...data.records];
+    
+    const now = new Date();
+    const todayRecord = records.find(r => {
+      const recordDate = new Date(r.date);
+      return recordDate.getFullYear() === now.getFullYear() && 
+             recordDate.getMonth() === now.getMonth() && 
+             recordDate.getDate() === now.getDate();
+    });
+
+    // If it's past 12 PM and no record exists, visually inject an "Absent" record for today
+    if (!todayRecord && now.getHours() >= 12) {
+      const autoAbsentDate = new Date();
+      autoAbsentDate.setHours(12, 0, 0, 0); // Simulate it was marked at 12:00 PM
+      
+      records.push({
+        date: new Date().toISOString(),
+        status: 'Absent',
+        remarks: 'Auto-marked absent by system (did not mark before 12:00 PM)',
+        markedAt: autoAbsentDate.toISOString()
+      });
+    }
+    
+    return records;
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
@@ -151,7 +180,7 @@ const MyAttendance = () => {
       </div>
 
       {data && data.records ? (
-        <AttendanceCalendar records={data.records} />
+        <AttendanceCalendar records={getCalendarRecords()} />
       ) : (
         <div className="bg-white p-12 rounded-xl border border-dashed border-gray-200 text-center">
           <p className="text-gray-500 font-medium">No attendance records found.</p>

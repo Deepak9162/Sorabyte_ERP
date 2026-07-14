@@ -2,10 +2,52 @@
  * Attendance Controller
  * 
  * Handles HTTP requests for attendance marking and reporting.
+ * Enforces Class Teacher authorization for student attendance.
+ * Admins have full access to all attendance operations.
  */
 
 const attendanceService = require('../services/attendanceService');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
+const { createNotification } = require('../utils/notificationHelper');
+const Teacher = require('../models/Teacher');
+const Class = require('../models/Class');
+
+/**
+ * Extract user info from request for audit logging
+ */
+const getUserInfo = (req) => ({
+  userId: req.user?._id,
+  userName: req.user?.name || 'Unknown',
+  ip: req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'Unknown',
+  userAgent: req.headers['user-agent'] || 'Unknown',
+});
+
+/**
+ * Verify the logged-in teacher is the Class Teacher of the specified class.
+ * Returns { authorized, teacher, cls, errorMsg }
+ */
+const checkClassTeacherAuth = async (userId, classId) => {
+  const teacher = await Teacher.findOne({ user: userId });
+  if (!teacher) {
+    return { authorized: false, errorMsg: 'Teacher profile not found. Please contact your administrator.' };
+  }
+
+  const cls = await Class.findById(classId);
+  if (!cls) {
+    return { authorized: false, errorMsg: 'Class not found' };
+  }
+
+  if (!cls.isActive) {
+    return { authorized: false, errorMsg: 'This class is currently inactive' };
+  }
+
+  const isClassTeacher = cls.teacher && cls.teacher.toString() === teacher._id.toString();
+  if (!isClassTeacher) {
+    return { authorized: false, errorMsg: 'Only the assigned Class Teacher can manage attendance for this class.' };
+  }
+
+  return { authorized: true, teacher, cls };
+};
 
 /**
  * @desc    Mark attendance for a class
@@ -19,19 +61,52 @@ const markAttendance = async (req, res, next) => {
       return errorResponse(res, 'Missing required fields: classId, date, or attendanceData array', 400);
     }
 
+    // Class Teacher authorization (admin bypasses)
     if (req.user.role === 'teacher') {
-      const timetableService = require('../services/timetableService');
-      const isAssigned = await timetableService.isTeacherAssignedToClass(req.user._id, classId);
-      if (!isAssigned) {
-        return errorResponse(res, 'You are not authorized to mark attendance for this class', 403);
+      const authCheck = await checkClassTeacherAuth(req.user._id, classId);
+      if (!authCheck.authorized) {
+        return errorResponse(res, authCheck.errorMsg, 403);
       }
     }
 
-    const result = await attendanceService.markAttendance(classId, date, attendanceData);
+    const result = await attendanceService.markAttendance(classId, date, attendanceData, getUserInfo(req));
     return successResponse(res, result, 'Attendance marked successfully', 201);
   } catch (error) {
     if (error.message.includes('already marked')) {
         return errorResponse(res, error.message, 409); // Conflict
+    }
+    if (error.message.includes('locked')) {
+        return errorResponse(res, error.message, 423); // Locked
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update attendance for a class
+ * @route   PUT /api/attendance
+ */
+const updateAttendance = async (req, res, next) => {
+  try {
+    const { classId, date, attendanceData } = req.body;
+
+    if (!classId || !date || !attendanceData || !Array.isArray(attendanceData)) {
+      return errorResponse(res, 'Missing required fields: classId, date, or attendanceData array', 400);
+    }
+
+    // Class Teacher authorization (admin bypasses)
+    if (req.user.role === 'teacher') {
+      const authCheck = await checkClassTeacherAuth(req.user._id, classId);
+      if (!authCheck.authorized) {
+        return errorResponse(res, authCheck.errorMsg, 403);
+      }
+    }
+
+    const result = await attendanceService.updateAttendance(classId, date, attendanceData, getUserInfo(req));
+    return successResponse(res, result, 'Attendance updated successfully');
+  } catch (error) {
+    if (error.message.includes('locked')) {
+        return errorResponse(res, error.message, 423);
     }
     next(error);
   }
@@ -49,16 +124,139 @@ const getAttendanceReport = async (req, res, next) => {
       return errorResponse(res, 'Missing query parameters: classId and date are required', 400);
     }
 
+    // Class Teacher authorization for viewing (admin bypasses)
     if (req.user.role === 'teacher') {
-      const timetableService = require('../services/timetableService');
-      const isAssigned = await timetableService.isTeacherAssignedToClass(req.user._id, classId);
-      if (!isAssigned) {
-        return errorResponse(res, 'You are not authorized to view attendance for this class', 403);
+      const authCheck = await checkClassTeacherAuth(req.user._id, classId);
+      if (!authCheck.authorized) {
+        return errorResponse(res, authCheck.errorMsg, 403);
       }
     }
 
     const report = await attendanceService.getAttendanceReport(classId, date);
     return successResponse(res, report, 'Attendance report fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Submit attendance (draft → submitted)
+ * @route   POST /api/attendance/submit
+ */
+const submitAttendance = async (req, res, next) => {
+  try {
+    const { classId, date } = req.body;
+
+    if (!classId || !date) {
+      return errorResponse(res, 'Missing required fields: classId and date', 400);
+    }
+
+    if (req.user.role === 'teacher') {
+      const authCheck = await checkClassTeacherAuth(req.user._id, classId);
+      if (!authCheck.authorized) {
+        return errorResponse(res, authCheck.errorMsg, 403);
+      }
+    }
+
+    const session = await attendanceService.submitAttendance(classId, date, getUserInfo(req));
+    return successResponse(res, session, 'Attendance submitted successfully');
+  } catch (error) {
+    if (error.message.includes('already')) {
+      return errorResponse(res, error.message, 409);
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Lock attendance (admin only)
+ * @route   POST /api/attendance/lock
+ */
+const lockAttendance = async (req, res, next) => {
+  try {
+    const { classId, date } = req.body;
+
+    if (!classId || !date) {
+      return errorResponse(res, 'Missing required fields: classId and date', 400);
+    }
+
+    const result = await attendanceService.lockAttendance(classId, date, getUserInfo(req));
+
+    // Notify the Class Teacher
+    if (result.classTeacherUserId) {
+      await createNotification({
+        recipientUserId: result.classTeacherUserId,
+        senderUserId: req.user._id,
+        title: 'Attendance Locked',
+        message: `Attendance for ${result.className} on ${new Date(date).toLocaleDateString()} has been locked by the administrator.`,
+        type: 'warning',
+        link: '/attendance',
+      });
+    }
+
+    return successResponse(res, result.session, 'Attendance locked successfully');
+  } catch (error) {
+    if (error.message.includes('already')) {
+      return errorResponse(res, error.message, 409);
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Unlock attendance (admin only)
+ * @route   POST /api/attendance/unlock
+ */
+const unlockAttendance = async (req, res, next) => {
+  try {
+    const { classId, date } = req.body;
+
+    if (!classId || !date) {
+      return errorResponse(res, 'Missing required fields: classId and date', 400);
+    }
+
+    const result = await attendanceService.unlockAttendance(classId, date, getUserInfo(req));
+
+    // Notify the Class Teacher
+    if (result.classTeacherUserId) {
+      await createNotification({
+        recipientUserId: result.classTeacherUserId,
+        senderUserId: req.user._id,
+        title: 'Attendance Unlocked',
+        message: `Attendance for ${result.className} on ${new Date(date).toLocaleDateString()} has been unlocked. You can now edit it.`,
+        type: 'success',
+        link: '/attendance',
+      });
+    }
+
+    return successResponse(res, result.session, 'Attendance unlocked successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get the class(es) where the logged-in teacher is the Class Teacher
+ * @route   GET /api/attendance/my-class
+ */
+const getMyClassInfo = async (req, res, next) => {
+  try {
+    const classes = await attendanceService.getClassTeacherClasses(req.user._id);
+    return successResponse(res, classes, 'Class Teacher assignment fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get attendance audit log
+ * @route   GET /api/attendance/audit-log
+ */
+const getAuditLog = async (req, res, next) => {
+  try {
+    const { classId, page, limit } = req.query;
+    const logs = await attendanceService.getAuditLog(classId, page, limit);
+    return successResponse(res, logs, 'Audit log fetched successfully');
   } catch (error) {
     next(error);
   }
@@ -113,11 +311,11 @@ const getStudentMonthlyReport = async (req, res, next) => {
       return errorResponse(res, 'Missing query parameters: classId, month, and year are required', 400);
     }
 
+    // Class Teacher authorization (admin bypasses)
     if (req.user.role === 'teacher') {
-      const timetableService = require('../services/timetableService');
-      const isAssigned = await timetableService.isTeacherAssignedToClass(req.user._id, classId);
-      if (!isAssigned) {
-        return errorResponse(res, 'You are not authorized to view attendance report for this class', 403);
+      const authCheck = await checkClassTeacherAuth(req.user._id, classId);
+      if (!authCheck.authorized) {
+        return errorResponse(res, authCheck.errorMsg, 403);
       }
     }
 
@@ -178,7 +376,6 @@ const getMyAttendanceAnalysis = async (req, res, next) => {
       return errorResponse(res, 'User not authenticated', 401);
     }
     
-    const Teacher = require('../models/Teacher');
     const teacher = await Teacher.findOne({ user: userId });
     
     if (!teacher) {
@@ -256,7 +453,6 @@ const markSelfAttendance = async (req, res, next) => {
       status = 'Late';
     }
 
-    const Teacher = require('../models/Teacher');
     const StaffAttendance = require('../models/StaffAttendance');
 
     const teacher = await Teacher.findOne({ user: req.user._id });
@@ -293,7 +489,13 @@ const markSelfAttendance = async (req, res, next) => {
 
 module.exports = {
   markAttendance,
+  updateAttendance,
   getAttendanceReport,
+  submitAttendance,
+  lockAttendance,
+  unlockAttendance,
+  getMyClassInfo,
+  getAuditLog,
   markStaffAttendance,
   getStaffAttendanceReport,
   getStudentMonthlyReport,

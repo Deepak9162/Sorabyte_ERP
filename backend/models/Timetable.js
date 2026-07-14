@@ -33,6 +33,10 @@ const slotSchema = new mongoose.Schema({
     ref: 'Teacher', // Referencing the dedicated Teacher model for profile info
     // Optional for breaks
   },
+  room: {
+    type: String,
+    trim: true,
+  },
   type: {
     type: String,
     enum: {
@@ -51,7 +55,6 @@ const slotSchema = new mongoose.Schema({
 const dayScheduleSchema = new mongoose.Schema({
   day: {
     type: String,
-    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     required: true,
   },
   slots: [slotSchema],

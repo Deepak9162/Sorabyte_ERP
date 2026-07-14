@@ -17,7 +17,10 @@ const AttendanceCalendar = ({ records = [] }) => {
     records.forEach(r => {
       const d = new Date(r.date);
       if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
-        map[d.getDate()] = r.status;
+        map[d.getDate()] = {
+          status: r.status,
+          markedAt: r.markedAt ? new Date(r.markedAt) : null
+        };
       }
     });
     return map;
@@ -29,11 +32,11 @@ const AttendanceCalendar = ({ records = [] }) => {
   // Calculate stats for current month only
   const monthStats = useMemo(() => {
     let present = 0, absent = 0, leave = 0, late = 0;
-    Object.values(attendanceMap).forEach(status => {
-      if (status === 'Present') present++;
-      if (status === 'Absent') absent++;
-      if (status === 'Leave') leave++;
-      if (status === 'Late') late++;
+    Object.values(attendanceMap).forEach(record => {
+      if (record.status === 'Present') present++;
+      if (record.status === 'Absent') absent++;
+      if (record.status === 'Leave') leave++;
+      if (record.status === 'Late') late++;
     });
     return { present, absent, leave, late };
   }, [attendanceMap]);
@@ -98,7 +101,10 @@ const AttendanceCalendar = ({ records = [] }) => {
         
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const dateNum = i + 1;
-          const status = attendanceMap[dateNum];
+          const record = attendanceMap[dateNum];
+          const status = record?.status;
+          const markedAt = record?.markedAt;
+
           return (
             <div 
               key={dateNum} 
@@ -109,9 +115,16 @@ const AttendanceCalendar = ({ records = [] }) => {
             >
               <span className={cn("text-lg font-bold", status ? "" : "opacity-50")}>{dateNum}</span>
               {status && (
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/50">
-                  {status}
-                </span>
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/60 shadow-sm">
+                    {status}
+                  </span>
+                  {markedAt && (
+                    <span className="text-[9px] font-semibold opacity-75 mt-0.5">
+                      {markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           );

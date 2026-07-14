@@ -137,4 +137,40 @@ exports.getTeacherAssignedClasses = async (req, res, next) => {
   }
 };
 
+exports.previewCopyTimetable = async (req, res, next) => {
+  try {
+    const { timetableId, sourceDay, destinationDays } = req.body;
+    const preview = await timetableService.previewCopyTimetable(timetableId, sourceDay, destinationDays);
+    res.status(200).json({ success: true, data: preview });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.copyTimetable = async (req, res, next) => {
+  try {
+    const { timetableId, sourceDay, destinationDays, overwriteMode } = req.body;
+    const result = await timetableService.copyTimetable(
+      timetableId, 
+      sourceDay, 
+      destinationDays, 
+      overwriteMode || 'merge', 
+      req.user._id
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.undoCopy = async (req, res, next) => {
+  try {
+    const { auditLogId } = req.params;
+    const timetable = await timetableService.undoCopy(auditLogId, req.user._id);
+    res.status(200).json({ success: true, data: timetable });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
