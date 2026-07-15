@@ -340,10 +340,13 @@ class AdminService {
       // Get all active teachers
       const activeTeachers = await Teacher.find({ isActive: true });
 
+      const tomorrow = new Date(targetDate);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
       for (const teacher of activeTeachers) {
         const existing = await StaffAttendance.findOne({
           teacher: teacher._id,
-          date: targetDate
+          date: { $gte: targetDate, $lt: tomorrow }
         });
 
         if (!existing) {

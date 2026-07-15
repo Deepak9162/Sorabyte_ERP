@@ -477,9 +477,9 @@ const markSelfAttendance = async (req, res, next) => {
 
     const record = await StaffAttendance.create({
       teacher: teacher._id,
-      date: new Date(),
+      date: today,
       status: status,
-      remarks: 'Self marked via Geofencing'
+      remarks: 'Self marked via Geofencing at ' + new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
     });
 
     return successResponse(res, record, `Attendance successfully marked as ${status}`, 201);
