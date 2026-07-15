@@ -56,6 +56,7 @@ const teacherSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
     },
     assignedClasses: [
       {

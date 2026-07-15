@@ -20,7 +20,8 @@ const {
   getStudentAttendanceAnalysis,
   getDashboardStats,
   getStaffCredentials,
-  resetStaffPassword
+  resetStaffPassword,
+  getAttendanceAnalytics
 } = require('../controllers/adminController');
 const { protect, authorize, isAdmin } = require('../middleware/auth');
 
@@ -34,6 +35,9 @@ const sharedAccess = authorize('admin', 'teacher');
 
 // Stats route (Admin only)
 router.get('/stats', adminOnly, getDashboardStats);
+
+// Attendance Analytics route (Admin only)
+router.get('/attendance-analytics', adminOnly, getAttendanceAnalytics);
 
 // Class routes (Shared access for viewing, Admin only for mutations)
 router.post('/classes', adminOnly, createClass);

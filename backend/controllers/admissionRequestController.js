@@ -494,16 +494,20 @@ exports.reviewRequest = async (req, res, next) => {
     await request.save();
 
     const Notification = require('../models/Notification');
-    await Notification.create({
-      recipient: request.createdBy,
-      sender: req.user._id,
-      title: status === 'Approved' ? 'Admission Approved' : 'Admission Rejected',
-      message: status === 'Approved' 
-        ? `Admission request for ${request.studentInfo.fullName} was Approved! Student profile created.`
-        : `Admission request for ${request.studentInfo.fullName} was Rejected. Reason: ${reviewNotes || 'N/A'}.`,
-      link: `/admissions/requests/details/${request._id}`,
-      type: status === 'Approved' ? 'success' : 'error'
-    });
+    // Only notify creator if they are an admin
+    const creatorUser = await User.findById(request.createdBy);
+    if (creatorUser && creatorUser.role === 'admin') {
+      await Notification.create({
+        recipient: request.createdBy,
+        sender: req.user._id,
+        title: status === 'Approved' ? 'Admission Approved' : 'Admission Rejected',
+        message: status === 'Approved' 
+          ? `Admission request for ${request.studentInfo.fullName} was Approved! Student profile created.`
+          : `Admission request for ${request.studentInfo.fullName} was Rejected. Reason: ${reviewNotes || 'N/A'}.`,
+        link: `/admissions/requests/details/${request._id}`,
+        type: status === 'Approved' ? 'success' : 'error'
+      });
+    }
 
     return successResponse(res, request, `Request reviewed and marked as ${status} successfully`);
   } catch (error) {
@@ -557,14 +561,18 @@ exports.addComment = async (req, res, next) => {
       });
       await Promise.all(promises);
     } else {
-      await Notification.create({
-        recipient: request.createdBy,
-        sender: req.user._id,
-        title: 'New Comment from Admin',
-        message: `${req.user.name} (Admin) added a comment to your request for ${request.studentInfo.fullName}.`,
-        link: `/admissions/requests/details/${request._id}`,
-        type: 'info'
-      });
+      // Only notify creator if they are an admin
+      const creatorUser = await User.findById(request.createdBy);
+      if (creatorUser && creatorUser.role === 'admin') {
+        await Notification.create({
+          recipient: request.createdBy,
+          sender: req.user._id,
+          title: 'New Comment from Admin',
+          message: `${req.user.name} (Admin) added a comment to your request for ${request.studentInfo.fullName}.`,
+          link: `/admissions/requests/details/${request._id}`,
+          type: 'info'
+        });
+      }
     }
 
     return successResponse(res, request, 'Comment added successfully');

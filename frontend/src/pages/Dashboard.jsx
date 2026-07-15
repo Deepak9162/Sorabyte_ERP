@@ -14,6 +14,8 @@ import {
   ClipboardList,
   CheckCircle2,
   XCircle,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import { cn } from "../utils/cn";
@@ -41,6 +43,56 @@ const AdminDashboard = () => {
   const [isSubmittingAnnouncement, setIsSubmittingAnnouncement] =
     useState(false);
   const [announcementError, setAnnouncementError] = useState("");
+
+  const [attendanceAnalytics, setAttendanceAnalytics] = useState(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceErrorState, setAttendanceErrorState] = useState(null);
+  const [isPendingModalOpen, setIsPendingModalOpen] = useState(false);
+  const [isAbsentStudentsModalOpen, setIsAbsentStudentsModalOpen] = useState(false);
+  const [isAbsentTeachersModalOpen, setIsAbsentTeachersModalOpen] = useState(false);
+
+  const fetchAttendanceAnalytics = async () => {
+    setAttendanceLoading(true);
+    setAttendanceErrorState(null);
+    try {
+      const res = await api.get("/admin/attendance-analytics");
+      if (res.data.success) {
+        setAttendanceAnalytics(res.data.data);
+      } else {
+        setAttendanceErrorState("Failed to fetch analytics data");
+      }
+    } catch (error) {
+      console.error("Error fetching attendance analytics:", error);
+      setAttendanceErrorState(error.response?.data?.message || "Failed to load real-time analytics");
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+
+    fetchAttendanceAnalytics();
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchAttendanceAnalytics();
+      }
+    }, 60000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchAttendanceAnalytics();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [user?.role]);
 
   const [pendingStudents, setPendingStudents] = useState([]);
   const [isPendingStudentsModalOpen, setIsPendingStudentsModalOpen] =
@@ -353,6 +405,216 @@ const AdminDashboard = () => {
             </div>
           );
         })}
+      </div>
+
+      {/* Live Attendance Analytics Section */}
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-150 pb-4">
+          <div>
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              Today's Live Attendance Analytics
+            </h3>
+            <p className="text-gray-400 text-xs font-semibold mt-1">
+              Real-time calculations of attendance metrics across students and teachers.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={fetchAttendanceAnalytics}
+            className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-indigo-650 hover:bg-indigo-50 border border-indigo-100 hover:border-indigo-200 rounded-xl px-4 py-2 cursor-pointer self-start sm:self-auto"
+            loading={attendanceLoading}
+          >
+            <RefreshCw size={14} className={cn(attendanceLoading && "animate-spin")} />
+            Sync Now
+          </Button>
+        </div>
+
+        {attendanceLoading && !attendanceAnalytics ? (
+          <AnalyticsSkeleton />
+        ) : attendanceErrorState ? (
+          <AnalyticsError message={attendanceErrorState} onRetry={fetchAttendanceAnalytics} />
+        ) : (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            {/* KPI Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Student Attendance Card */}
+              <div
+                onClick={() => navigate("/reports/attendance")}
+                className="group bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/10 border border-emerald-100/50 hover:border-emerald-500/30 p-6 rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[160px] active:scale-[0.98]"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                      Students Today
+                    </span>
+                    <h4 className="text-2xl font-black text-gray-900 tracking-tight">
+                      {attendanceAnalytics?.studentPresent} Present
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsAbsentStudentsModalOpen(true);
+                        }}
+                        className="text-[9px] font-black text-rose-700 bg-rose-50 border border-rose-100 hover:bg-rose-105 px-2 py-0.5 rounded-full transition-all uppercase tracking-wider shrink-0"
+                        title="View Absent Students"
+                      >
+                        Absent: {attendanceAnalytics?.studentAbsent}
+                      </span>
+                      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">
+                        • Total: {attendanceAnalytics?.totalStudents}
+                      </span>
+                    </div>
+                  </div>
+                  <CircularProgress
+                    percentage={attendanceAnalytics?.studentAttendancePercentage || 0}
+                    colorClass={getCircularColor(attendanceAnalytics?.studentAttendancePercentage || 0)}
+                  />
+                </div>
+                <div className="flex items-center justify-between border-t border-emerald-100/40 pt-4 mt-4">
+                  <span className={cn(
+                    "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
+                    getAttendanceBgClass(attendanceAnalytics?.studentAttendancePercentage || 0)
+                  )}>
+                    {attendanceAnalytics?.studentAttendancePercentage >= 95 ? "Excellent" : attendanceAnalytics?.studentAttendancePercentage >= 90 ? "Warning" : "Critical"}
+                  </span>
+                  <span className="text-[9px] font-black text-gray-300 group-hover:text-emerald-500 transition-colors uppercase tracking-widest">
+                    View Report →
+                  </span>
+                </div>
+              </div>
+
+              {/* Teacher Attendance Card */}
+              <div
+                onClick={() => navigate("/admin/staff/attendance-history")}
+                className="group bg-gradient-to-br from-indigo-50/30 via-white to-indigo-50/10 border border-indigo-100/50 hover:border-indigo-500/30 p-6 rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[160px] active:scale-[0.98]"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                      Teachers Today
+                    </span>
+                    <h4 className="text-2xl font-black text-gray-900 tracking-tight">
+                      {attendanceAnalytics?.teacherPresent} Present
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsAbsentTeachersModalOpen(true);
+                        }}
+                        className="text-[9px] font-black text-rose-700 bg-rose-50 border border-rose-100 hover:bg-rose-105 px-2 py-0.5 rounded-full transition-all uppercase tracking-wider shrink-0"
+                        title="View Absent Teachers"
+                      >
+                        Absent: {attendanceAnalytics?.teacherAbsent}
+                      </span>
+                      <span className="text-gray-455 text-[10px] font-bold uppercase tracking-wider">
+                        • Total: {attendanceAnalytics?.totalTeachers}
+                      </span>
+                    </div>
+                  </div>
+                  <CircularProgress
+                    percentage={attendanceAnalytics?.teacherAttendancePercentage || 0}
+                    colorClass={getCircularColor(attendanceAnalytics?.teacherAttendancePercentage || 0)}
+                  />
+                </div>
+                <div className="flex items-center justify-between border-t border-indigo-100/40 pt-4 mt-4">
+                  <span className={cn(
+                    "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
+                    getAttendanceBgClass(attendanceAnalytics?.teacherAttendancePercentage || 0)
+                  )}>
+                    {attendanceAnalytics?.teacherAttendancePercentage >= 95 ? "Excellent" : attendanceAnalytics?.teacherAttendancePercentage >= 90 ? "Warning" : "Critical"}
+                  </span>
+                  <span className="text-[9px] font-black text-gray-305 group-hover:text-indigo-500 transition-colors uppercase tracking-widest">
+                    View Report →
+                  </span>
+                </div>
+              </div>
+
+              {/* Completion Card */}
+              <div
+                onClick={() => setIsPendingModalOpen(true)}
+                className="group bg-gradient-to-br from-amber-50/30 via-white to-amber-50/10 border border-amber-100/50 hover:border-amber-500/30 p-6 rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-[160px] active:scale-[0.98]"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">
+                      Classes Completed
+                    </span>
+                    <h4 className="text-2xl font-black text-gray-900 tracking-tight">
+                      {attendanceAnalytics?.attendanceCompleted} / {attendanceAnalytics?.totalClasses}
+                    </h4>
+                    <p className="text-gray-450 text-[10px] font-bold uppercase tracking-wider">
+                      Pending: {attendanceAnalytics?.attendancePending} classes
+                    </p>
+                  </div>
+                  <CircularProgress
+                    percentage={attendanceAnalytics?.completionPercentage || 0}
+                    colorClass="text-amber-500"
+                  />
+                </div>
+                <div className="flex items-center justify-between border-t border-amber-100/40 pt-4 mt-4">
+                  <span className={cn(
+                    "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
+                    attendanceAnalytics?.attendancePending === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700 border border-amber-100"
+                  )}>
+                    {attendanceAnalytics?.attendancePending === 0 ? "All Submitted" : "Pending Actions"}
+                  </span>
+                  <span className="text-[9px] font-black text-gray-305 group-hover:text-amber-500 transition-colors uppercase tracking-widest">
+                    View Pending List →
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Insights panel */}
+            <div className="bg-gradient-to-br from-white to-gray-50/50 rounded-[2.5rem] border border-gray-200/60 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-indigo-650 rounded-full animate-ping" />
+                  <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+                    Today's Quick Insights
+                  </h4>
+                </div>
+                {attendanceAnalytics?.lastUpdated && (
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Clock size={12} />
+                    Last Updated: {attendanceAnalytics.lastUpdated}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {attendanceAnalytics?.insights && attendanceAnalytics.insights.length > 0 ? (
+                  attendanceAnalytics.insights.map((insight, idx) => {
+                    let dotColor = "bg-indigo-500";
+                    if (insight.toLowerCase().includes("pending") || insight.toLowerCase().includes("below")) {
+                      dotColor = "bg-amber-500";
+                    }
+                    if (insight.toLowerCase().includes("no active") || insight.toLowerCase().includes("critical") || insight.toLowerCase().includes("weekend") || insight.toLowerCase().includes("no student")) {
+                      dotColor = "bg-rose-500";
+                    }
+                    if (insight.toLowerCase().includes("excellent") || insight.toLowerCase().includes("completed")) {
+                      dotColor = "bg-emerald-500";
+                    }
+                    return (
+                      <div key={idx} className="flex items-center gap-3 bg-white p-3.5 rounded-2xl border border-gray-150/70 shadow-sm">
+                        <span className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />
+                        <p className="text-xs text-gray-700 font-bold tracking-tight">
+                          {insight}
+                        </p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-2 text-center py-6 text-xs text-gray-405 font-bold uppercase tracking-widest">
+                    No insights compiled for today.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content Grid */}
@@ -959,6 +1221,263 @@ const AdminDashboard = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Pending Attendance Modal */}
+      <Modal
+        isOpen={isPendingModalOpen}
+        onClose={() => setIsPendingModalOpen(false)}
+        title="Pending Class Attendance"
+        maxWidth="md"
+        noFooter
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-gray-500 font-medium leading-relaxed">
+            The following classes have not submitted attendance for today yet. You can follow up with the respective Class Teachers.
+          </p>
+
+          <div className="overflow-hidden rounded-2xl border border-gray-150 shadow-sm max-h-[50vh] overflow-y-auto scrollbar-thin">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Class
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Class Teacher
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {attendanceAnalytics?.pendingClassesList && attendanceAnalytics.pendingClassesList.length > 0 ? (
+                  attendanceAnalytics.pendingClassesList.map((item) => (
+                    <tr
+                      key={item.classId}
+                      className="hover:bg-gray-50/40 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-gray-100 text-gray-650 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                          {item.className}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-black text-gray-900 uppercase text-xs tracking-tight">
+                          {item.teacherName}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+                          item.status === "Draft (Not Submitted)"
+                            ? "bg-amber-50 text-amber-700 border border-amber-100"
+                            : "bg-rose-50 text-rose-700 border border-rose-100"
+                        )}>
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest">
+                      No pending classes. All classes submitted!
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-gray-100 pt-4 mt-6">
+            <Button
+              variant="secondary"
+              onClick={() => setIsPendingModalOpen(false)}
+              className="rounded-xl"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Absent Students Modal */}
+      <Modal
+        isOpen={isAbsentStudentsModalOpen}
+        onClose={() => setIsAbsentStudentsModalOpen(false)}
+        title="Students Absent Today"
+        maxWidth="md"
+        noFooter
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-gray-500 font-medium leading-relaxed">
+            The following students are marked absent for today. You can contact their guardians or review their attendance remarks.
+          </p>
+
+          <div className="overflow-hidden rounded-2xl border border-gray-150 shadow-sm max-h-[50vh] overflow-y-auto scrollbar-thin">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Student Details
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Class
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Mobile/Contact
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Remarks
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {attendanceAnalytics?.absentStudentsList && attendanceAnalytics.absentStudentsList.length > 0 ? (
+                  attendanceAnalytics.absentStudentsList.map((student) => (
+                    <tr
+                      key={student.studentId}
+                      className="hover:bg-gray-50/40 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-black text-gray-900 uppercase text-xs tracking-tight">
+                            {student.fullName}
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                            Roll No: {student.rollNumber}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-gray-100 text-gray-650 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                          {student.className} - {student.section}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs font-semibold text-gray-700">
+                        {student.phone}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+                          student.remarks !== 'No remarks'
+                            ? "bg-amber-50 text-amber-700 border border-amber-100"
+                            : "bg-gray-50 text-gray-500 border border-gray-200"
+                        )}>
+                          {student.remarks}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest">
+                      No absent students today. 100% Student attendance!
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-end border-t border-gray-100 pt-4 mt-6">
+            <Button
+              variant="secondary"
+              onClick={() => setIsAbsentStudentsModalOpen(false)}
+              className="rounded-xl"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Absent Teachers Modal */}
+      <Modal
+        isOpen={isAbsentTeachersModalOpen}
+        onClose={() => setIsAbsentTeachersModalOpen(false)}
+        title="Teachers Absent Today"
+        maxWidth="md"
+        noFooter
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-gray-500 font-medium leading-relaxed">
+            The following staff/teachers are marked absent for today.
+          </p>
+
+          <div className="overflow-hidden rounded-2xl border border-gray-150 shadow-sm max-h-[50vh] overflow-y-auto scrollbar-thin">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Teacher Name
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Subject/Dept
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Phone Number
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Remarks/Reason
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {attendanceAnalytics?.absentTeachersList && attendanceAnalytics.absentTeachersList.length > 0 ? (
+                  attendanceAnalytics.absentTeachersList.map((teacher) => (
+                    <tr
+                      key={teacher.teacherId}
+                      className="hover:bg-gray-50/40 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <p className="font-black text-gray-900 uppercase text-xs tracking-tight">
+                          {teacher.fullName}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                          {teacher.subject}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs font-semibold text-gray-700">
+                        {teacher.phone}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+                          teacher.remarks !== 'No remarks'
+                            ? "bg-amber-50 text-amber-700 border border-amber-100"
+                            : "bg-gray-50 text-gray-500 border border-gray-200"
+                        )}>
+                          {teacher.remarks}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest">
+                      No absent teachers today. 100% Teacher attendance!
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-end border-t border-gray-100 pt-4 mt-6">
+            <Button
+              variant="secondary"
+              onClick={() => setIsAbsentTeachersModalOpen(false)}
+              className="rounded-xl"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
@@ -1374,5 +1893,89 @@ const Dashboard = () => {
 
   return user.role === "admin" ? <AdminDashboard /> : <TeacherDashboard />;
 };
+
+// ──────────────────────────────────────────────────────────────────────
+// Helper Components for Live Attendance Analytics
+// ──────────────────────────────────────────────────────────────────────
+
+const CircularProgress = ({ percentage, colorClass, size = 52, strokeWidth = 5 }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle
+          className="text-gray-100"
+          strokeWidth={strokeWidth}
+          stroke="currentColor"
+          fill="transparent"
+          r={radius}
+          cx={size / 2}
+          cy={size / 2}
+        />
+        <circle
+          className={cn("transition-all duration-1000 ease-out", colorClass)}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          stroke="currentColor"
+          fill="transparent"
+          r={radius}
+          cx={size / 2}
+          cy={size / 2}
+        />
+      </svg>
+      <span className="absolute text-[10px] font-black text-gray-900">
+        {Math.round(percentage)}%
+      </span>
+    </div>
+  );
+};
+
+const getCircularColor = (pct) => {
+  if (pct >= 95) return "text-emerald-500";
+  if (pct >= 90) return "text-amber-500";
+  return "text-rose-500";
+};
+
+const getAttendanceBgClass = (pct) => {
+  if (pct >= 95) return "bg-emerald-50 text-emerald-700 border border-emerald-100";
+  if (pct >= 90) return "bg-amber-50 text-amber-700 border border-amber-100";
+  return "bg-rose-50 text-rose-700 border border-rose-100";
+};
+
+const AnalyticsSkeleton = () => (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
+    {[...Array(3)].map((_, i) => (
+      <div key={i} className="bg-white border border-gray-150 p-6 rounded-[2rem] h-[160px] flex flex-col justify-between">
+        <div className="flex justify-between items-start">
+          <div className="space-y-2 w-2/3">
+            <div className="h-4 bg-gray-250 rounded-full w-1/2" />
+            <div className="h-6 bg-gray-255 rounded-full w-3/4" />
+          </div>
+          <div className="w-12 h-12 rounded-full bg-gray-200" />
+        </div>
+        <div className="h-4 bg-gray-100 rounded-full w-5/6 mt-4" />
+      </div>
+    ))}
+  </div>
+);
+
+const AnalyticsError = ({ message, onRetry }) => (
+  <div className="bg-rose-50 border border-rose-100 p-6 rounded-[2rem] text-center space-y-3">
+    <p className="text-sm font-semibold text-rose-800">
+      Error loading live attendance analytics: {message}
+    </p>
+    <button
+      onClick={onRetry}
+      className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm cursor-pointer"
+    >
+      Retry Connection
+    </button>
+  </div>
+);
 
 export default Dashboard;

@@ -39,5 +39,8 @@ const staffAttendanceSchema = new mongoose.Schema(
 
 // Compound index to ensure uniqueness of teacher-date attendance records
 staffAttendanceSchema.index({ teacher: 1, date: 1 }, { unique: true });
+// Indexes for optimized aggregation on dashboard
+staffAttendanceSchema.index({ date: 1 });
+staffAttendanceSchema.index({ status: 1 });
 
 module.exports = mongoose.model('StaffAttendance', staffAttendanceSchema);

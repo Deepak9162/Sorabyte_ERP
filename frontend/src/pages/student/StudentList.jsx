@@ -36,13 +36,37 @@ const StudentList = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   
   // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterClass, setFilterClass] = useState("all");
-  const [filterSection, setFilterSection] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return localStorage.getItem("student_list_search_query") || "";
+  });
+  const [filterClass, setFilterClass] = useState(() => {
+    return localStorage.getItem("student_list_filter_class") || "all";
+  });
+  const [filterSection, setFilterSection] = useState(() => {
+    return localStorage.getItem("student_list_filter_section") || "all";
+  });
+  const [filterStatus, setFilterStatus] = useState(() => {
+    return localStorage.getItem("student_list_filter_status") || "all";
+  });
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem("student_list_view_mode") || "list";
   }); // 'list' or 'grid'
+
+  useEffect(() => {
+    localStorage.setItem("student_list_search_query", searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    localStorage.setItem("student_list_filter_class", filterClass);
+  }, [filterClass]);
+
+  useEffect(() => {
+    localStorage.setItem("student_list_filter_section", filterSection);
+  }, [filterSection]);
+
+  useEffect(() => {
+    localStorage.setItem("student_list_filter_status", filterStatus);
+  }, [filterStatus]);
 
   useEffect(() => {
     localStorage.setItem("student_list_view_mode", viewMode);
@@ -52,8 +76,21 @@ const StudentList = () => {
   const [selectedIds, setSelectedIds] = useState([]);
 
   // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(() => {
+    return parseInt(localStorage.getItem("student_list_current_page")) || 1;
+  });
+  const [pageSize, setPageSize] = useState(() => {
+    return parseInt(localStorage.getItem("student_list_page_size")) || 10;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("student_list_current_page", currentPage.toString());
+  }, [currentPage]);
+
+  useEffect(() => {
+    localStorage.setItem("student_list_page_size", pageSize.toString());
+  }, [pageSize]);
+
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);

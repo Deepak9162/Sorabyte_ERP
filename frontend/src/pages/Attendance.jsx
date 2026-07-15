@@ -37,7 +37,9 @@ const Attendance = () => {
   const navigate = useNavigate();
 
   // Navigation states
-  const [activeTab, setActiveTab] = useState("mark-students");
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("attendance_active_tab") || "mark-students";
+  });
   const [loading, setLoading] = useState(false);
 
   // Helper to get local date string in YYYY-MM-DD format
@@ -51,8 +53,18 @@ const Attendance = () => {
 
   // Filter states
   const [classes, setClasses] = useState([]);
-  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedClass, setSelectedClass] = useState(() => {
+    return localStorage.getItem("attendance_selected_class") || "";
+  });
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
+
+  useEffect(() => {
+    localStorage.setItem("attendance_active_tab", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem("attendance_selected_class", selectedClass);
+  }, [selectedClass]);
 
   // Monthly History Filter states
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);

@@ -47,5 +47,8 @@ const attendanceSchema = new mongoose.Schema(
 attendanceSchema.index({ student: 1, date: 1, class: 1 }, { unique: true });
 // Index for fast lookup by class and date (used in attendance reporting)
 attendanceSchema.index({ class: 1, date: 1 });
+// Indexes for optimized aggregation on dashboard
+attendanceSchema.index({ date: 1 });
+attendanceSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

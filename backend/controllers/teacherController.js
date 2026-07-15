@@ -134,23 +134,28 @@ const updateTeacher = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete a teacher (soft delete — sets isActive to false)
+ * @desc    Delete a teacher (permanently deletes teacher and associated user account)
  * @route   DELETE /api/teachers/:id
  * @access  Public
  */
 const deleteTeacher = async (req, res, next) => {
   try {
-    const teacher = await Teacher.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    );
+    const teacher = await Teacher.findById(req.params.id);
 
     if (!teacher) {
       return errorResponse(res, 'Teacher not found', 404);
     }
 
-    return successResponse(res, teacher, 'Teacher deactivated successfully');
+    const mongoose = require('mongoose');
+    // Delete the associated User account if it exists
+    if (teacher.user) {
+      await mongoose.model('User').findByIdAndDelete(teacher.user);
+    }
+
+    // Delete the Teacher document
+    await Teacher.findByIdAndDelete(req.params.id);
+
+    return successResponse(res, null, 'Teacher and associated user account deleted successfully');
   } catch (error) {
     next(error);
   }

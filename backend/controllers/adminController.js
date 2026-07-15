@@ -284,6 +284,32 @@ const resetStaffPassword = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Get live, real-time optimized attendance analytics for students & teachers today
+ * @route   GET /api/admin/attendance-analytics
+ */
+const getAttendanceAnalytics = async (req, res, next) => {
+  try {
+    const { date } = req.query;
+
+    let dateStr = date;
+    if (!dateStr) {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      dateStr = `${year}-${month}-${day}`;
+    }
+
+    const instituteId = req.user?.institute || req.user?.instituteId || null;
+
+    const analytics = await adminService.getAttendanceAnalytics(dateStr, instituteId);
+    return successResponse(res, analytics, 'Attendance analytics fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createClass,
   updateClass,
@@ -299,4 +325,5 @@ module.exports = {
   getDashboardStats,
   getStaffCredentials,
   resetStaffPassword,
+  getAttendanceAnalytics
 };

@@ -18,6 +18,7 @@ const Class = require('../models/Class');
 const getUserInfo = (req) => ({
   userId: req.user?._id,
   userName: req.user?.name || 'Unknown',
+  role: req.user?.role || 'teacher',
   ip: req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'Unknown',
   userAgent: req.headers['user-agent'] || 'Unknown',
 });

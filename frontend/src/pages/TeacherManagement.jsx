@@ -13,6 +13,7 @@ import {
   WifiOff,
   Clock,
   UserSquare2,
+  Trash2,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -28,7 +29,13 @@ const TeacherManagement = () => {
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return localStorage.getItem("teacher_list_search_query") || "";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("teacher_list_search_query", searchQuery);
+  }, [searchQuery]);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -172,6 +179,25 @@ const TeacherManagement = () => {
     } catch (error) {
       console.error("Status toggle error:", error);
       showToast("Failed to update status", "error");
+    }
+  };
+
+  const handleDeleteTeacher = async (teacher) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to permanently delete ${teacher.firstName} ${teacher.lastName}? This will also delete their login credentials.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      const res = await api.delete(`/teachers/${teacher._id}`);
+      if (res.data.success) {
+        showToast("Staff member deleted successfully", "success");
+        fetchTeachers();
+      }
+    } catch (error) {
+      console.error("Delete staff error:", error);
+      const message = error.response?.data?.message || "Failed to delete staff member";
+      showToast(message, "error");
     }
   };
 
@@ -442,12 +468,20 @@ const TeacherManagement = () => {
 
                     {/* Actions */}
                     <td className="px-8 py-5 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => handleOpenModal(t)}
                           className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-gray-100"
+                          title="Edit Profile"
                         >
                           <Edit2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTeacher(t)}
+                          className="p-2 text-gray-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-gray-100"
+                          title="Delete Teacher"
+                        >
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>

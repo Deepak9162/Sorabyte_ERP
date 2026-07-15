@@ -15,21 +15,21 @@ const startCronJobs = () => {
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       // Get all active teachers
-      const activeTeachers = await Teacher.find({ status: 'Active' });
+      const activeTeachers = await Teacher.find({ isActive: true });
 
       let absentCount = 0;
       for (const teacher of activeTeachers) {
         // Check if attendance is already marked for today
         const existing = await StaffAttendance.findOne({
           teacher: teacher._id,
-          date: { $gte: today, $lt: tomorrow }
+          date: today
         });
 
         // If no record exists, mark as Absent
         if (!existing) {
           await StaffAttendance.create({
             teacher: teacher._id,
-            date: new Date(),
+            date: today,
             status: 'Absent',
             remarks: 'Auto-marked absent by system (did not mark before 12:00 PM)'
           });

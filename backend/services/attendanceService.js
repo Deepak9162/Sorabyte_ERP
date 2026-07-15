@@ -13,6 +13,7 @@ const StaffAttendance = require('../models/StaffAttendance');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
+const adminService = require('./adminService');
 
 class AttendanceService {
   /**
@@ -101,6 +102,7 @@ class AttendanceService {
       details: `Attendance marked for ${results.length} students`,
     });
 
+    adminService.invalidateAnalyticsCache();
     return results;
   }
 
@@ -115,9 +117,9 @@ class AttendanceService {
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
 
-    // Check lock status
+    // Check lock status (Admins can bypass the lock)
     const session = await AttendanceSession.findOne({ class: classId, date: targetDate });
-    if (session && session.attendanceStatus === 'locked') {
+    if (session && session.attendanceStatus === 'locked' && userInfo.role !== 'admin') {
       throw new Error('Attendance is locked for this date. Only an administrator can unlock it.');
     }
 
@@ -156,6 +158,7 @@ class AttendanceService {
       details: `Attendance updated for ${results.length} students`,
     });
 
+    adminService.invalidateAnalyticsCache();
     return results;
   }
 
@@ -197,6 +200,7 @@ class AttendanceService {
       details: 'Attendance submitted for review',
     });
 
+    adminService.invalidateAnalyticsCache();
     return session;
   }
 
@@ -236,6 +240,7 @@ class AttendanceService {
     });
 
     // Return class teacher's user ID for notification
+    adminService.invalidateAnalyticsCache();
     return {
       session,
       classTeacherUserId: cls && cls.teacher ? cls.teacher.user : null,
@@ -278,6 +283,7 @@ class AttendanceService {
       details: 'Attendance unlocked by administrator',
     });
 
+    adminService.invalidateAnalyticsCache();
     return {
       session,
       classTeacherUserId: cls && cls.teacher ? cls.teacher.user : null,
@@ -328,6 +334,53 @@ class AttendanceService {
   }
 
   /**
+   * Sync and automatically mark active teachers as absent if it is past 12:00 PM (IST)
+   * @param {Date} targetDate - Normalized date to check
+   */
+  async syncAutoAbsentTeachers(targetDate) {
+    try {
+      const nowUtc = new Date();
+      // Shift UTC time to IST (UTC + 5:30)
+      const nowIst = new Date(nowUtc.getTime() + (5.5 * 60 * 60 * 1000));
+      const hoursIst = nowIst.getUTCHours();
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Only sync if targetDate is today or in the past
+      if (targetDate.getTime() > today.getTime()) {
+        return;
+      }
+
+      // If checking today, only sync if it is past 12:00 PM IST
+      if (targetDate.getTime() === today.getTime() && hoursIst < 12) {
+        return;
+      }
+
+      // Get all active teachers
+      const activeTeachers = await Teacher.find({ isActive: true });
+
+      for (const teacher of activeTeachers) {
+        const existing = await StaffAttendance.findOne({
+          teacher: teacher._id,
+          date: targetDate
+        });
+
+        if (!existing) {
+          await StaffAttendance.create({
+            teacher: teacher._id,
+            date: targetDate,
+            status: 'Absent',
+            remarks: 'Auto-marked absent by system (did not mark before 12:00 PM)'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing auto absent teachers:', error);
+    }
+  }
+
+  /**
    * Mark attendance for staff (teachers)
    * @param {string} date - Date of attendance
    * @param {Array} attendanceData - Array of { teacherId, status, remarks }
@@ -336,20 +389,17 @@ class AttendanceService {
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
 
-    // Check if staff attendance already exists for this date
-    const existing = await StaffAttendance.findOne({ date: targetDate });
-    if (existing) {
-      throw new Error(`Staff attendance already marked for ${targetDate.toDateString()}`);
-    }
+    // Update or insert staff attendance records (Admin can overwrite multiple times)
+    const updatePromises = attendanceData.map(item =>
+      StaffAttendance.findOneAndUpdate(
+        { teacher: item.teacherId, date: targetDate },
+        { status: item.status, remarks: item.remarks || '' },
+        { new: true, upsert: true }
+      )
+    );
 
-    const operations = attendanceData.map(item => ({
-      teacher: item.teacherId,
-      date: targetDate,
-      status: item.status,
-      remarks: item.remarks || ''
-    }));
-
-    const results = await StaffAttendance.insertMany(operations);
+    const results = await Promise.all(updatePromises);
+    adminService.invalidateAnalyticsCache();
     return results;
   }
 
@@ -359,6 +409,8 @@ class AttendanceService {
   async getStaffAttendanceReport(date) {
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
+
+    await this.syncAutoAbsentTeachers(targetDate);
 
     const report = await StaffAttendance.find({
       date: targetDate
@@ -455,6 +507,10 @@ class AttendanceService {
     const teacher = await Teacher.findById(teacherId);
     if (!teacher) throw new Error('Teacher not found');
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    await this.syncAutoAbsentTeachers(today);
+
     const records = await StaffAttendance.find({ teacher: teacherId }).sort({ date: 1 });
 
     const totalDays = records.length;
@@ -496,6 +552,10 @@ class AttendanceService {
    * Get overall staff attendance summary for all teachers
    */
   async getStaffAttendanceSummary() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    await this.syncAutoAbsentTeachers(today);
+
     const teachers = await Teacher.find({ isActive: true }).sort({ firstName: 1 });
     const records = await StaffAttendance.find({});
 

@@ -100,30 +100,7 @@ const StaffAttendanceAnalysis = () => {
   // Determine the final records to display in the calendar
   const getCalendarRecords = () => {
     if (!data || !data.records) return [];
-    const records = [...data.records];
-    
-    const now = new Date();
-    const todayRecord = records.find(r => {
-      const recordDate = new Date(r.date);
-      return recordDate.getFullYear() === now.getFullYear() && 
-             recordDate.getMonth() === now.getMonth() && 
-             recordDate.getDate() === now.getDate();
-    });
-
-    // If it's past 12 PM and no record exists, visually inject an "Absent" record for today
-    if (!todayRecord && now.getHours() >= 12) {
-      const autoAbsentDate = new Date();
-      autoAbsentDate.setHours(12, 0, 0, 0); // Simulate it was marked at 12:00 PM
-      
-      records.push({
-        date: new Date().toISOString(),
-        status: 'Absent',
-        remarks: 'Auto-marked absent by system (did not mark before 12:00 PM)',
-        markedAt: autoAbsentDate.toISOString()
-      });
-    }
-    
-    return records;
+    return data.records;
   };
 
   const getPercentageColor = (percentage) => {
