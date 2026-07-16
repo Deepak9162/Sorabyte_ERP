@@ -196,7 +196,7 @@ exports.updateTimetable = async (id, updateData) => {
 exports.getTimetableByClass = async (classId) => {
   const timetable = await Timetable.findOne({ class: classId, isActive: true })
     .populate('class', 'name')
-    .populate('weeklySchedule.slots.subject', 'name code')
+    .populate('weeklySchedule.slots.subject', 'name')
     .populate('weeklySchedule.slots.teacher', 'firstName lastName'); 
   
   return timetable;
@@ -267,7 +267,7 @@ exports.generateTimetablePDF = async (classId, outStream, filterTeacherUserId = 
       }
 
       const subjectName = slot.subject ? slot.subject.name : (slot.label || slot.type);
-      const subjectCode = slot.subject ? `(${slot.subject.code})` : '';
+      const subjectCode = slot.subject && slot.subject.code ? `(${slot.subject.code})` : '';
       const teacherName = slot.teacher ? `| Faculty: ${slot.teacher.firstName} ${slot.teacher.lastName}` : '';
 
       

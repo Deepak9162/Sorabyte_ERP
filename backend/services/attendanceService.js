@@ -514,7 +514,15 @@ class AttendanceService {
     today.setHours(0, 0, 0, 0);
     await this.syncAutoAbsentTeachers(today);
 
-    const records = await StaffAttendance.find({ teacher: teacherId }).sort({ date: 1 });
+    const allRecords = await StaffAttendance.find({ teacher: teacherId }).sort({ date: 1, updatedAt: 1 });
+    
+    const uniqueRecordsMap = new Map();
+    allRecords.forEach(r => {
+      const dateKey = new Date(r.date).toISOString().split('T')[0];
+      uniqueRecordsMap.set(dateKey, r);
+    });
+    
+    const records = Array.from(uniqueRecordsMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const totalDays = records.length;
     const presentCount = records.filter(r => r.status === 'Present').length;
@@ -560,7 +568,18 @@ class AttendanceService {
     await this.syncAutoAbsentTeachers(today);
 
     const teachers = await Teacher.find({ isActive: true }).sort({ firstName: 1 });
-    const records = await StaffAttendance.find({});
+    const allRecords = await StaffAttendance.find({}).sort({ date: 1, updatedAt: 1 });
+    
+    const uniqueRecordsMap = new Map();
+    allRecords.forEach(r => {
+      if (r.teacher) {
+        const dateStr = new Date(r.date).toISOString().split('T')[0];
+        const key = `${r.teacher.toString()}_${dateStr}`;
+        uniqueRecordsMap.set(key, r);
+      }
+    });
+    const records = Array.from(uniqueRecordsMap.values());
+    const uniqueDates = new Set(records.map(r => new Date(r.date).toISOString().split('T')[0]));
 
     const summary = teachers.map(teacher => {
       const teacherRecords = records.filter(r => r.teacher.toString() === teacher._id.toString());
@@ -590,7 +609,7 @@ class AttendanceService {
     });
 
     return {
-      totalDays: records.length,
+      totalDays: uniqueDates.size,
       staff: summary
     };
   }

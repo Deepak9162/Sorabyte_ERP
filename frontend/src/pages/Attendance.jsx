@@ -206,7 +206,9 @@ const Attendance = () => {
             setIsMarked(true);
             const markedData = {};
             records.forEach((entry) => {
-              markedData[entry.student._id] = entry.status.toLowerCase();
+              if (entry?.student?._id) {
+                markedData[entry.student._id] = entry.status.toLowerCase();
+              }
             });
             setAttendanceData(markedData);
           } else {
@@ -257,10 +259,12 @@ const Attendance = () => {
           setIsStaffMarked(true);
           const markedData = {};
           statusRes.data.data.forEach((entry) => {
-            markedData[entry.teacher._id] = {
-              status: entry.status.toLowerCase(),
-              markedAt: entry.createdAt
-            };
+            if (entry?.teacher?._id) {
+              markedData[entry.teacher._id] = {
+                status: entry.status.toLowerCase(),
+                markedAt: entry.createdAt
+              };
+            }
           });
           setStaffAttendanceData(markedData);
         } else {
@@ -535,14 +539,19 @@ const Attendance = () => {
   const currentTotal =
     activeTab === "mark-students" ? students.length : teachers.length;
 
+  const getStatusCount = (statusVal) => {
+    return Object.values(currentMarkedData).filter((s) => {
+      const status = typeof s === "object" ? s?.status : s;
+      return status === statusVal;
+    }).length;
+  };
+
   const stats = {
     total: currentTotal,
-    present: Object.values(currentMarkedData).filter((s) => s === "present")
-      .length,
-    absent: Object.values(currentMarkedData).filter((s) => s === "absent")
-      .length,
-    leave: Object.values(currentMarkedData).filter((s) => s === "leave").length,
-    late: Object.values(currentMarkedData).filter((s) => s === "late").length,
+    present: getStatusCount("present"),
+    absent: getStatusCount("absent"),
+    leave: getStatusCount("leave"),
+    late: getStatusCount("late"),
   };
 
   return (

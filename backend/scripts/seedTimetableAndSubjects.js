@@ -15,16 +15,16 @@ const seedTimetableAndSubjects = async () => {
 
     // 1. Create standard subjects
     const subjectTemplates = [
-      { name: 'Mathematics', code: 'MTH101' },
-      { name: 'English', code: 'ENG101' },
-      { name: 'Science', code: 'SCI101' },
-      { name: 'History', code: 'HST101' },
-      { name: 'Computers', code: 'CMP101' }
+      { name: 'Mathematics' },
+      { name: 'English' },
+      { name: 'Science' },
+      { name: 'History' },
+      { name: 'Computers' }
     ];
 
     const subjects = [];
     for (const t of subjectTemplates) {
-      let sub = await Subject.findOne({ code: t.code });
+      let sub = await Subject.findOne({ name: t.name });
       if (!sub) {
         sub = await Subject.create(t);
         console.log(`Created Subject: ${t.name}`);

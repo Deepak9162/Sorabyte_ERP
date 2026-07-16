@@ -147,10 +147,19 @@ const deleteTeacher = async (req, res, next) => {
     }
 
     const mongoose = require('mongoose');
-    // Delete the associated User account if it exists
-    if (teacher.user) {
-      await mongoose.model('User').findByIdAndDelete(teacher.user);
+    // Delete the associated User account if it exists (handles both populated object and unpopulated ID)
+    const userId = teacher.user && (teacher.user._id || teacher.user);
+    if (userId) {
+      await mongoose.model('User').findByIdAndDelete(userId);
     }
+
+    // Also delete any User account with the same email as a fallback (case-insensitive)
+    if (teacher.email) {
+      await mongoose.model('User').findOneAndDelete({ email: teacher.email.toLowerCase() });
+    }
+
+    // Clean up associated class-subject mappings
+    await mongoose.model('ClassSubject').deleteMany({ teacher: req.params.id });
 
     // Delete the Teacher document
     await Teacher.findByIdAndDelete(req.params.id);

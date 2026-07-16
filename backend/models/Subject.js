@@ -6,13 +6,6 @@ const subjectSchema = new mongoose.Schema({
     required: [true, 'Subject name is required'],
     trim: true,
   },
-  code: {
-    type: String,
-    required: [true, 'Subject code is required'],
-    unique: true,
-    trim: true,
-    uppercase: true,
-  },
   description: {
     type: String,
     trim: true,

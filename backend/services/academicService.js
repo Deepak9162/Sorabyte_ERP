@@ -7,9 +7,9 @@ class AcademicService {
   // --- Subject Management --- //
 
   async createSubject(subjectData) {
-    const exists = await Subject.findOne({ code: subjectData.code });
+    const exists = await Subject.findOne({ name: { $regex: new RegExp(`^${subjectData.name.trim()}$`, 'i') } });
     if (exists) {
-      throw new Error(`Subject with code ${subjectData.code} already exists`);
+      throw new Error(`Subject with name "${subjectData.name}" already exists`);
     }
     const subject = await Subject.create(subjectData);
     return subject;
@@ -75,7 +75,7 @@ class AcademicService {
 
   async getClassSubjects(classId) {
     return await ClassSubject.find({ class: classId })
-      .populate('subject', 'name code type')
+      .populate('subject', 'name type')
       .populate('teacher', 'firstName lastName email');
   }
 

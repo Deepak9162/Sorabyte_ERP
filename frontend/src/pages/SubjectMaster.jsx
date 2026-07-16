@@ -18,7 +18,6 @@ const SubjectMaster = () => {
 
   const [formData, setFormData] = useState({
     name: "",
-    code: "",
     type: "Theoretical",
     description: "",
   });
@@ -49,7 +48,6 @@ const SubjectMaster = () => {
       setEditingSubject(subject);
       setFormData({
         name: subject.name,
-        code: subject.code,
         type: subject.type,
         description: subject.description || "",
       });
@@ -57,7 +55,6 @@ const SubjectMaster = () => {
       setEditingSubject(null);
       setFormData({
         name: "",
-        code: "",
         type: "Theoretical",
         description: "",
       });
@@ -106,8 +103,7 @@ const SubjectMaster = () => {
 
   const filteredSubjects = subjects.filter(
     (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.code.toLowerCase().includes(search.toLowerCase()),
+      s.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -154,7 +150,6 @@ const SubjectMaster = () => {
               <thead>
                 <tr className="bg-gray-50 text-xs uppercase tracking-widest font-black text-gray-400 border-b border-gray-200">
                   <th className="px-6 py-4">Subject</th>
-                  <th className="px-6 py-4">Code</th>
                   <th className="px-6 py-4">Type</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -174,11 +169,6 @@ const SubjectMaster = () => {
                           {subject.description}
                         </div>
                       )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 text-xs font-bold rounded-md bg-gray-100 text-gray-600 border border-gray-200">
-                        {subject.code}
-                      </span>
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-600">
                       <span
@@ -238,16 +228,6 @@ const SubjectMaster = () => {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="e.g. Mathematics"
-            required
-          />
-          <Input
-            label="Subject Code"
-            name="code"
-            value={formData.code}
-            onChange={(e) =>
-              setFormData({ ...formData, code: e.target.value.toUpperCase() })
-            }
-            placeholder="e.g. MAT101"
             required
           />
 

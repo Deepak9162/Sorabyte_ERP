@@ -144,7 +144,7 @@ const ClassSubjectMapping = () => {
 
   // Filter out subjects that are already mapped to this class
   const unmappedSubjects = subjects.filter(
-    (sub) => !mappings.some((mapping) => mapping.subject._id === sub._id),
+    (sub) => !mappings.some((mapping) => mapping?.subject?._id === sub?._id),
   );
 
   return (
@@ -180,8 +180,8 @@ const ClassSubjectMapping = () => {
               >
                 <option value="">-- Choose a Class --</option>
                 {classes.map((cls) => (
-                  <option key={cls._id} value={cls._id}>
-                    {cls.name}
+                  <option key={cls?._id} value={cls?._id}>
+                    {cls?.name}
                   </option>
                 ))}
               </select>
@@ -226,7 +226,7 @@ const ClassSubjectMapping = () => {
                 <tbody className="divide-y divide-gray-50">
                   {mappings.map((mapping) => (
                     <tr
-                      key={mapping._id}
+                      key={mapping?._id}
                       className="hover:bg-gray-50/50 transition-colors group"
                     >
                       <td className="px-6 py-4">
@@ -236,10 +236,10 @@ const ClassSubjectMapping = () => {
                           </div>
                           <div>
                             <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                              {mapping.subject.name}
+                              {mapping?.subject?.name || "Deleted Subject"}
                             </div>
                             <div className="text-xs font-medium text-gray-500 tracking-wider">
-                              {mapping.subject.code}
+                              {mapping?.subject?.code || "N/A"}
                             </div>
                           </div>
                         </div>
@@ -247,25 +247,26 @@ const ClassSubjectMapping = () => {
                       <td className="px-6 py-4 border-l border-gray-50">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                            {mapping.teacher.firstName.charAt(0)}
-                            {mapping.teacher.lastName.charAt(0)}
+                            {mapping?.teacher?.firstName?.charAt(0) || "?"}
+                            {mapping?.teacher?.lastName?.charAt(0) || "?"}
                           </div>
                           <div>
                             <div className="font-bold text-gray-700">
-                              {mapping.teacher.firstName}{" "}
-                              {mapping.teacher.lastName}
+                              {mapping?.teacher
+                                ? `${mapping.teacher.firstName} ${mapping.teacher.lastName}`
+                                : "Deleted Teacher"}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 border-l border-gray-50 text-center">
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 font-bold text-gray-600 text-sm">
-                          {mapping.sessionsPerWeek}
+                          {mapping?.sessionsPerWeek}
                         </span>
                       </td>
                       <td className="px-6 py-4 border-l border-gray-50 text-right">
                         <button
-                          onClick={() => handleRemoveMapping(mapping._id)}
+                          onClick={() => handleRemoveMapping(mapping?._id)}
                           className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
                           title="Remove Assignment"
                         >
@@ -308,7 +309,7 @@ const ClassSubjectMapping = () => {
                 Target Class
               </p>
               <p className="font-black text-indigo-900 text-lg leading-tight">
-                {classes.find((c) => c._id === selectedClass)?.name}
+                {classes.find((c) => c?._id === selectedClass)?.name}
               </p>
             </div>
           </div>
@@ -330,8 +331,8 @@ const ClassSubjectMapping = () => {
             >
               <option value="">-- Choose Subject --</option>
               {unmappedSubjects.map((sub) => (
-                <option key={sub._id} value={sub._id}>
-                  {sub.name} ({sub.code})
+                <option key={sub?._id} value={sub?._id}>
+                  {sub?.name} ({sub?.code})
                 </option>
               ))}
             </select>
@@ -356,8 +357,8 @@ const ClassSubjectMapping = () => {
               >
                 <option value="">-- Choose Teacher --</option>
                 {teachers.map((tch) => (
-                  <option key={tch._id} value={tch._id}>
-                    {tch.firstName} {tch.lastName}
+                  <option key={tch?._id} value={tch?._id}>
+                    {tch?.firstName} {tch?.lastName}
                   </option>
                 ))}
               </select>

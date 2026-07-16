@@ -66,6 +66,10 @@ class AdminService {
    * Delete a class
    */
   async deleteClass(id) {
+    // Clean up associated mappings
+    const ClassSubject = require('../models/ClassSubject');
+    await ClassSubject.deleteMany({ class: id });
+
     const deletedClass = await Class.findByIdAndDelete(id);
     if (!deletedClass) throw new Error('Class not found');
     return deletedClass;
@@ -197,7 +201,15 @@ class AdminService {
     const student = await Student.findById(studentId).populate('class', 'name');
     if (!student) throw new Error('Student not found');
 
-    const records = await Attendance.find({ student: studentId }).sort({ date: -1 });
+    const allRecords = await Attendance.find({ student: studentId }).sort({ date: 1, updatedAt: 1 });
+    
+    const uniqueRecordsMap = new Map();
+    allRecords.forEach(r => {
+      const dateKey = new Date(r.date).toISOString().split('T')[0];
+      uniqueRecordsMap.set(dateKey, r);
+    });
+    
+    const records = Array.from(uniqueRecordsMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
     
     // Overall classes
     const attendanceDates = await Attendance.distinct('date', { class: student.class._id });
@@ -410,6 +422,14 @@ class AdminService {
 
     const studentStatsArray = await Attendance.aggregate([
       { $match: studentMatch },
+      { $sort: { updatedAt: -1 } },
+      {
+        $group: {
+          _id: '$student',
+          status: { $first: '$status' },
+          student: { $first: '$student' }
+        }
+      },
       {
         $lookup: {
           from: 'students',
@@ -447,6 +467,14 @@ class AdminService {
 
     const teacherStatsArray = await StaffAttendance.aggregate([
       { $match: teacherMatch },
+      { $sort: { updatedAt: -1 } },
+      {
+        $group: {
+          _id: '$teacher',
+          status: { $first: '$status' },
+          teacher: { $first: '$teacher' }
+        }
+      },
       {
         $lookup: {
           from: 'teachers',
@@ -504,6 +532,15 @@ class AdminService {
     // 5. Aggregate today's student attendance by class to calculate highest/lowest attendance
     const classAttendanceArray = await Attendance.aggregate([
       { $match: studentMatch },
+      { $sort: { updatedAt: -1 } },
+      {
+        $group: {
+          _id: '$student',
+          status: { $first: '$status' },
+          class: { $first: '$class' },
+          student: { $first: '$student' }
+        }
+      },
       {
         $lookup: {
           from: 'students',
@@ -560,16 +597,24 @@ class AdminService {
       : null;
 
     // 5.1. Fetch Absent Students for Today
-    const absentStudentRecords = await Attendance.find({ date: targetDate, status: 'Absent' })
+    const allStudentTodayRecords = await Attendance.find({ date: targetDate })
       .populate({
         path: 'student',
         match: { status: 'Active' },
         select: 'fullName rollNumber phone emergencyContact section'
       })
-      .populate('class', 'name');
+      .populate('class', 'name')
+      .sort({ updatedAt: 1 });
 
-    const absentStudentsList = absentStudentRecords
-      .filter(record => record.student !== null)
+    const latestStudentRecordsMap = new Map();
+    allStudentTodayRecords.forEach(record => {
+      if (record.student) {
+        latestStudentRecordsMap.set(record.student._id.toString(), record);
+      }
+    });
+
+    const absentStudentsList = Array.from(latestStudentRecordsMap.values())
+      .filter(record => record.status === 'Absent')
       .map(record => ({
         studentId: record.student._id,
         fullName: record.student.fullName,
@@ -581,15 +626,23 @@ class AdminService {
       }));
 
     // 5.2. Fetch Absent Teachers for Today
-    const absentTeacherRecords = await StaffAttendance.find({ date: targetDate, status: 'Absent' })
+    const allTeacherTodayRecords = await StaffAttendance.find({ date: targetDate })
       .populate({
         path: 'teacher',
         match: { isActive: true },
         select: 'firstName lastName subject phone'
-      });
+      })
+      .sort({ updatedAt: 1 });
 
-    const absentTeachersList = absentTeacherRecords
-      .filter(record => record.teacher !== null)
+    const latestTeacherRecordsMap = new Map();
+    allTeacherTodayRecords.forEach(record => {
+      if (record.teacher) {
+        latestTeacherRecordsMap.set(record.teacher._id.toString(), record);
+      }
+    });
+
+    const absentTeachersList = Array.from(latestTeacherRecordsMap.values())
+      .filter(record => record.status === 'Absent')
       .map(record => ({
         teacherId: record.teacher._id,
         fullName: `${record.teacher.firstName} ${record.teacher.lastName}`,

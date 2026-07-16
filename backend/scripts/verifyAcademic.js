@@ -65,7 +65,6 @@ const run = async () => {
     console.log('\n--- Creating Subject ---');
     const newSubjectReq = await makeRequest(token, 'POST', '/api/admin/academic/subjects', {
       name: 'Advanced Physics',
-      code: 'PHY201',
       description: 'Quantum and Relativity',
       type: 'Theoretical'
     });
@@ -75,7 +74,7 @@ const run = async () => {
       if (newSubjectReq.message.includes('already exists')) {
         console.log('Subject already exists, fetching it instead...');
         const subjects = await makeRequest(token, 'GET', '/api/admin/academic/subjects');
-        const existing = subjects.data.find(s => s.code === 'PHY201');
+        const existing = subjects.data.find(s => s.name === 'Advanced Physics');
         subjectId = existing._id;
       } else {
         return console.error('Failed to create subject:', newSubjectReq);
