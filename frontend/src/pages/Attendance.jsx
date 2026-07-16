@@ -30,6 +30,246 @@ import { cn } from "../utils/cn";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
+// Memoized Mobile Student Attendance Card
+const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus }) => {
+  const isEditingDisabled = isMarked && sessionStatus !== 'draft';
+  
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="w-10 h-10 flex items-center justify-center bg-indigo-50 text-indigo-600 font-black rounded-xl text-sm shadow-inner">
+            {student.rollNumber}
+          </span>
+          <div>
+            <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm leading-snug">
+              {student.fullName || "N/A"}
+            </h4>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+              ID: {student.studentId}
+            </p>
+          </div>
+        </div>
+        
+        <div>
+          {status ? (
+            <span
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border",
+                status === "present" && "bg-emerald-50 text-emerald-600 border-emerald-100",
+                status === "absent" && "bg-rose-50 text-rose-600 border-rose-100",
+                status === "leave" && "bg-amber-50 text-amber-600 border-amber-100",
+                status === "late" && "bg-indigo-50 text-indigo-600 border-indigo-100",
+              )}
+            >
+              <span
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  status === "present" && "bg-emerald-500",
+                  status === "absent" && "bg-rose-500",
+                  status === "leave" && "bg-amber-500",
+                  status === "late" && "bg-indigo-500",
+                )}
+              />
+              {status}
+            </span>
+          ) : (
+            <span className="text-[9px] text-gray-300 font-black uppercase tracking-widest italic">
+              Pending...
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 pt-2 border-t border-gray-50/50">
+        {[
+          {
+            id: "present",
+            label: "P",
+            tooltip: "Present",
+            color: "emerald",
+            icon: CheckCircle2,
+          },
+          {
+            id: "absent",
+            label: "A",
+            tooltip: "Absent",
+            color: "rose",
+            icon: XCircle,
+          },
+          {
+            id: "leave",
+            label: "L",
+            tooltip: "Leave",
+            color: "amber",
+            icon: Calendar,
+          },
+          {
+            id: "late",
+            label: "T",
+            tooltip: "Late",
+            color: "indigo",
+            icon: Clock,
+          },
+        ].map((option) => {
+          const isSelected = status === option.id;
+          return (
+            <button
+              key={option.id}
+              disabled={isEditingDisabled || sessionStatus === 'locked'}
+              aria-label={`Mark as ${option.tooltip}`}
+              title={option.tooltip}
+              onClick={() => toggleStudentStatus(student._id, option.id)}
+              className={cn(
+                "h-11 rounded-xl border transition-all text-xs font-black uppercase tracking-tight flex items-center justify-center gap-1.5 active:scale-95 touch-manipulation cursor-pointer",
+                isSelected
+                  ? option.color === "emerald" && "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100"
+                  : "bg-white text-gray-400 border-gray-100 hover:bg-gray-50",
+                isSelected
+                  ? option.color === "rose" && "bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-100"
+                  : "",
+                isSelected
+                  ? option.color === "amber" && "bg-amber-505 border-amber-500 text-white shadow-md shadow-amber-100"
+                  : "",
+                isSelected
+                  ? option.color === "indigo" && "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100"
+                  : "",
+                (isEditingDisabled || sessionStatus === 'locked') && "opacity-60 cursor-not-allowed"
+              )}
+            >
+              <option.icon size={14} />
+              <span>{option.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+StudentAttendanceCard.displayName = "StudentAttendanceCard";
+
+// Memoized Mobile Staff Attendance Card
+const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMarked, toggleStaffStatus }) => {
+  const fullName = `${teacher.firstName} ${teacher.lastName}`;
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center font-black text-sm shadow-inner">
+            {teacher.firstName ? teacher.firstName.charAt(0) : "T"}
+          </div>
+          <div>
+            <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm leading-snug">
+              {fullName}
+            </h4>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+              Sub: {teacher.subject} • Phone: {teacher.phone}
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex flex-col items-end gap-0.5">
+          {status ? (
+            <span
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border",
+                status === "present" && "bg-emerald-50 text-emerald-600 border-emerald-100",
+                status === "absent" && "bg-rose-50 text-rose-600 border-rose-100",
+                status === "leave" && "bg-amber-50 text-amber-600 border-amber-100",
+                status === "late" && "bg-indigo-50 text-indigo-600 border-indigo-100",
+              )}
+            >
+              <span
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  status === "present" && "bg-emerald-500",
+                  status === "absent" && "bg-rose-500",
+                  status === "leave" && "bg-amber-500",
+                  status === "late" && "bg-indigo-500",
+                )}
+              />
+              {status}
+            </span>
+          ) : (
+            <span className="text-[9px] text-gray-300 font-black uppercase tracking-widest italic">
+              Pending...
+            </span>
+          )}
+          {markedAt && (
+            <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">
+              {new Date(markedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 pt-2 border-t border-gray-50/50">
+        {[
+          {
+            id: "present",
+            label: "P",
+            tooltip: "Present",
+            color: "emerald",
+            icon: CheckCircle2,
+          },
+          {
+            id: "absent",
+            label: "A",
+            tooltip: "Absent",
+            color: "rose",
+            icon: XCircle,
+          },
+          {
+            id: "leave",
+            label: "L",
+            tooltip: "Leave",
+            color: "amber",
+            icon: Calendar,
+          },
+          {
+            id: "late",
+            label: "T",
+            tooltip: "Late",
+            color: "indigo",
+            icon: Clock,
+          },
+        ].map((option) => {
+          const isSelected = status === option.id;
+          return (
+            <button
+              key={option.id}
+              disabled={isStaffMarked}
+              aria-label={`Mark as ${option.tooltip}`}
+              title={option.tooltip}
+              onClick={() => toggleStaffStatus(teacher._id, option.id)}
+              className={cn(
+                "h-11 rounded-xl border transition-all text-xs font-black uppercase tracking-tight flex items-center justify-center gap-1.5 active:scale-95 touch-manipulation cursor-pointer",
+                isSelected
+                  ? option.color === "emerald" && "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100"
+                  : "bg-white text-gray-400 border-gray-100 hover:bg-gray-50",
+                isSelected
+                  ? option.color === "rose" && "bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-100"
+                  : "",
+                isSelected
+                  ? option.color === "amber" && "bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-100"
+                  : "",
+                isSelected
+                  ? option.color === "indigo" && "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100"
+                  : "",
+                isStaffMarked && "opacity-60 cursor-not-allowed"
+              )}
+            >
+              <option.icon size={14} />
+              <span>{option.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+StaffAttendanceCard.displayName = "StaffAttendanceCard";
+
 const Attendance = () => {
   const { user } = useAuth();
   const { addToast } = useToast();
@@ -555,14 +795,14 @@ const Attendance = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-4 md:space-y-8 animate-in fade-in duration-700">
       {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6">
         <div>
-          <h2 className="text-4xl font-black text-gray-900 tracking-tight">
+          <h2 className="text-2xl md:text-4xl font-black text-gray-900 tracking-tight">
             Attendance Hub
           </h2>
-          <p className="text-gray-500 font-medium italic">
+          <p className="hidden md:block text-gray-500 font-medium italic">
             Track, mark, and check historical data for both student cohorts and
             school staff.
           </p>
@@ -584,7 +824,7 @@ const Attendance = () => {
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-2.5 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shrink-0",
+                  "flex items-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all shrink-0",
                   isActive
                     ? "bg-white text-indigo-600 shadow-md font-bold"
                     : "text-gray-500 hover:text-gray-900 hover:bg-white/30",
@@ -623,7 +863,10 @@ const Attendance = () => {
       )}
 
       {/* Control Bar: Filters depending on Active Tab */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+      <div className={cn(
+        "flex flex-wrap items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-[2rem] border border-gray-100 shadow-sm",
+        (activeTab === "mark-students" || activeTab === "mark-staff") ? "hidden md:flex" : "flex"
+      )}>
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {/* Class filter (visible in Mark Student and Student History) */}
           {(activeTab === "mark-students" ||
@@ -791,68 +1034,167 @@ const Attendance = () => {
         )}
       </div>
 
+      {/* Mobile Attendance Information Card */}
+      {(activeTab === "mark-students" || activeTab === "mark-staff") && (
+        <div className="md:hidden bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+            <div>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5">Class</span>
+              {activeTab === "mark-students" ? (
+                (user?.role === "admin" || classes.length > 1) ? (
+                  <div className="relative inline-block w-full">
+                    <select
+                      value={selectedClass}
+                      onChange={(e) => setSelectedClass(e.target.value)}
+                      className="w-full py-1 pl-2 pr-6 border border-gray-200 rounded-lg text-xs font-black text-gray-700 focus:ring-2 focus:ring-indigo-100 outline-none appearance-none bg-white cursor-pointer"
+                    >
+                      {classes.map((cls) => (
+                        <option key={cls._id} value={cls._id}>
+                          Class {cls.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-450 pointer-events-none" size={12} />
+                  </div>
+                ) : (
+                  <span className="text-gray-800 font-black">Class {classes.find(c => c._id === selectedClass)?.name || "N/A"}</span>
+                )
+              ) : (
+                <span className="text-gray-800 font-black">All Faculty</span>
+              )}
+            </div>
+            <div>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5">Date</span>
+              <span className="text-gray-800 font-black">
+                {new Date(selectedDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5">Status</span>
+              <span className={cn(
+                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border",
+                activeTab === "mark-students" 
+                  ? (sessionStatus === 'locked' ? "bg-rose-50 text-rose-700 border-rose-200"
+                    : sessionStatus === 'submitted' ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : !isMarked ? "bg-amber-50 text-amber-700 border-amber-200"
+                    : "bg-blue-50 text-blue-700 border-blue-200")
+                  : (isStaffMarked ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200")
+              )}>
+                {activeTab === "mark-students" ? (
+                  sessionStatus === 'locked' ? "Locked" : sessionStatus === 'submitted' ? "Submitted" : !isMarked ? "Pending" : "Draft Saved"
+                ) : (
+                  isStaffMarked ? "Submitted" : "Pending"
+                )}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5">Teacher</span>
+              <span className="text-gray-800 font-black truncate block">{user?.name || "N/A"}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary Row (Only for daily marking sheets) */}
       {(activeTab === "mark-students" || activeTab === "mark-staff") && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-6">
-          {[
-            {
-              label: "Total Capacity",
-              value: stats.total,
-              color: "indigo",
-              icon: Users,
-            },
-            {
-              label: "Present",
-              value: stats.present,
-              color: "emerald",
-              icon: CheckCircle2,
-            },
-            {
-              label: "Absent",
-              value: stats.absent,
-              color: "rose",
-              icon: XCircle,
-            },
-            {
-              label: "Leave",
-              value: stats.leave,
-              color: "amber",
-              icon: Calendar,
-            },
-            { label: "Late", value: stats.late, color: "violet", icon: Clock },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all"
-            >
-              <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                  {item.label}
-                </p>
-                <p className="text-2xl font-black text-gray-900 tracking-tight">
-                  {item.value}
-                </p>
-              </div>
+        <>
+          {/* Desktop Summary Grid */}
+          <div className="hidden md:grid grid-cols-5 gap-6">
+            {[
+              {
+                label: "Total Capacity",
+                value: stats.total,
+                color: "indigo",
+                icon: Users,
+              },
+              {
+                label: "Present",
+                value: stats.present,
+                color: "emerald",
+                icon: CheckCircle2,
+              },
+              {
+                label: "Absent",
+                value: stats.absent,
+                color: "rose",
+                icon: XCircle,
+              },
+              {
+                label: "Leave",
+                value: stats.leave,
+                color: "amber",
+                icon: Calendar,
+              },
+              { label: "Late", value: stats.late, color: "violet", icon: Clock },
+            ].map((item, i) => (
               <div
-                className={cn(
-                  "p-3 rounded-2xl shadow-inner",
-                  item.color === "indigo" &&
-                    "bg-indigo-50 text-indigo-600 shadow-indigo-100/50",
-                  item.color === "emerald" &&
-                    "bg-emerald-50 text-emerald-600 shadow-emerald-100/50",
-                  item.color === "rose" &&
-                    "bg-rose-50 text-rose-600 shadow-rose-100/50",
-                  item.color === "amber" &&
-                    "bg-amber-50 text-amber-600 shadow-amber-100/50",
-                  item.color === "violet" &&
-                    "bg-violet-50 text-violet-600 shadow-violet-100/50",
-                )}
+                key={i}
+                className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all"
               >
-                <item.icon size={20} />
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                    {item.label}
+                  </p>
+                  <p className="text-2xl font-black text-gray-900 tracking-tight">
+                    {item.value}
+                  </p>
+                </div>
+                <div
+                  className={cn(
+                    "p-3 rounded-2xl shadow-inner",
+                    item.color === "indigo" &&
+                      "bg-indigo-50 text-indigo-600 shadow-indigo-100/50",
+                    item.color === "emerald" &&
+                      "bg-emerald-50 text-emerald-600 shadow-emerald-100/50",
+                    item.color === "rose" &&
+                      "bg-rose-50 text-rose-600 shadow-rose-100/50",
+                    item.color === "amber" &&
+                      "bg-amber-50 text-amber-600 shadow-amber-100/50",
+                    item.color === "violet" &&
+                      "bg-violet-50 text-violet-600 shadow-violet-100/50",
+                  )}
+                >
+                  <item.icon size={20} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile Summary Grid */}
+          <div className="md:hidden grid grid-cols-2 gap-2">
+            {[
+              { label: activeTab === "mark-students" ? "Students" : "Staff", value: stats.total, color: "indigo", icon: Users },
+              { label: "Present", value: stats.present, color: "emerald", icon: CheckCircle2 },
+              { label: "Absent", value: stats.absent, color: "rose", icon: XCircle },
+              { label: "Leave", value: stats.leave, color: "amber", icon: Calendar },
+            ].map((item, idx) => (
+              <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">{item.label}</span>
+                  <p className="text-lg font-black text-gray-900 leading-tight">{item.value}</p>
+                </div>
+                <div className={cn(
+                  "p-1.5 rounded-lg shadow-inner",
+                  item.color === "indigo" && "bg-indigo-50 text-indigo-600 shadow-indigo-100/30",
+                  item.color === "emerald" && "bg-emerald-50 text-emerald-600 shadow-emerald-100/30",
+                  item.color === "rose" && "bg-rose-50 text-rose-600 shadow-rose-100/30",
+                  item.color === "amber" && "bg-amber-50 text-amber-600 shadow-amber-100/30",
+                )}>
+                  <item.icon size={14} />
+                </div>
+              </div>
+            ))}
+            <div className="col-span-2 bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Late</span>
+                <p className="text-lg font-black text-gray-900 leading-tight">{stats.late}</p>
+              </div>
+              <div className="p-1.5 rounded-lg bg-violet-50 text-violet-600 shadow-inner shadow-violet-100/30">
+                <Clock size={14} />
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        </>
       )}
 
       {/* Main Content Area */}
@@ -860,7 +1202,7 @@ const Attendance = () => {
         {/* Daily Mark - Student Tab */}
         {activeTab === "mark-students" && (
           <>
-            <div className="p-6 sm:p-10 border-b border-gray-50 bg-gray-50/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="sticky top-0 bg-white/95 backdrop-blur-md z-20 p-6 sm:p-10 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm md:shadow-none">
               <div>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
                   <Users size={20} className="text-indigo-600" />
@@ -901,163 +1243,183 @@ const Attendance = () => {
                   onAction={() => {}}
                 />
               ) : (
-                <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-gray-50/30 border-b border-gray-100">
-                        <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest w-24">
-                          Roll
-                        </th>
-                        <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          Student Information
-                        </th>
-                        <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest w-48">
-                          Verification Status
-                        </th>
-                        <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right w-72">
-                          Status Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {filteredStudents.map((student) => {
-                        const status = attendanceData[student._id];
-                        return (
-                          <tr
-                            key={student._id}
-                            className="group hover:bg-gray-50/50 transition-all duration-300"
-                          >
-                            <td className="px-10 py-6">
-                              <span className="w-12 h-12 flex items-center justify-center bg-gray-100 text-gray-500 font-black rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
-                                {student.rollNumber}
-                              </span>
-                            </td>
-                            <td className="px-10 py-6">
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-black text-sm">
-                                  {student.fullName
-                                    ? student.fullName.charAt(0)
-                                    : "S"}
+                <>
+                  {/* Desktop View */}
+                  <div className="hidden md:block overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-gray-50/30 border-b border-gray-100">
+                          <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest w-24">
+                            Roll
+                          </th>
+                          <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            Student Information
+                          </th>
+                          <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest w-48">
+                            Verification Status
+                          </th>
+                          <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right w-72">
+                            Status Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {filteredStudents.map((student) => {
+                          const status = attendanceData[student._id];
+                          return (
+                            <tr
+                              key={student._id}
+                              className="group hover:bg-gray-50/50 transition-all duration-300"
+                            >
+                              <td className="px-10 py-6">
+                                <span className="w-12 h-12 flex items-center justify-center bg-gray-100 text-gray-500 font-black rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                                  {student.rollNumber}
+                                </span>
+                              </td>
+                              <td className="px-10 py-6">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-black text-sm">
+                                    {student.fullName
+                                      ? student.fullName.charAt(0)
+                                      : "S"}
+                                  </div>
+                                  <div>
+                                    <p className="font-black text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
+                                      {student.fullName || "N/A"}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                                      ID: {student.studentId}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="font-black text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
-                                    {student.fullName || "N/A"}
-                                  </p>
-                                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                                    ID: {student.studentId}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-10 py-6">
-                              {status ? (
-                                <span
-                                  className={cn(
-                                    "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 border",
-                                    status === "present" &&
-                                      "bg-emerald-50 text-emerald-600 border-emerald-100",
-                                    status === "absent" &&
-                                      "bg-rose-50 text-rose-600 border-rose-100",
-                                    status === "leave" &&
-                                      "bg-amber-50 text-amber-600 border-amber-100",
-                                    status === "late" &&
-                                      "bg-indigo-50 text-indigo-600 border-indigo-100",
-                                  )}
-                                >
+                              </td>
+                              <td className="px-10 py-6">
+                                {status ? (
                                   <span
                                     className={cn(
-                                      "w-1.5 h-1.5 rounded-full",
-                                      status === "present" && "bg-emerald-500",
-                                      status === "absent" && "bg-rose-500",
-                                      status === "leave" && "bg-amber-500",
-                                      status === "late" && "bg-indigo-500",
+                                      "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 border",
+                                      status === "present" &&
+                                        "bg-emerald-50 text-emerald-600 border-emerald-100",
+                                      status === "absent" &&
+                                        "bg-rose-50 text-rose-600 border-rose-100",
+                                      status === "leave" &&
+                                        "bg-amber-50 text-amber-600 border-amber-100",
+                                      status === "late" &&
+                                        "bg-indigo-50 text-indigo-600 border-indigo-100",
                                     )}
-                                  />
-                                  {status}
-                                </span>
-                              ) : (
-                                <span className="text-[10px] text-gray-300 font-black uppercase tracking-widest italic">
-                                  Pending...
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-10 py-6 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {[
-                                  {
-                                    id: "present",
-                                    label: "P",
-                                    tooltip: "Present",
-                                    color: "emerald",
-                                    icon: CheckCircle2,
-                                  },
-                                  {
-                                    id: "absent",
-                                    label: "A",
-                                    tooltip: "Absent",
-                                    color: "rose",
-                                    icon: XCircle,
-                                  },
-                                  {
-                                    id: "leave",
-                                    label: "L",
-                                    tooltip: "Leave",
-                                    color: "amber",
-                                    icon: Calendar,
-                                  },
-                                  {
-                                    id: "late",
-                                    label: "T",
-                                    tooltip: "Late",
-                                    color: "indigo",
-                                    icon: Clock,
-                                  },
-                                ].map((option) => {
-                                  const isSelected = status === option.id;
-                                  return (
-                                    <button
-                                      key={option.id}
-                                      disabled={isMarked}
-                                      title={option.tooltip}
-                                      onClick={() =>
-                                        toggleStudentStatus(
-                                          student._id,
-                                          option.id,
-                                        )
-                                      }
+                                  >
+                                    <span
                                       className={cn(
-                                        "p-2.5 rounded-xl border transition-all text-xs font-black uppercase tracking-tight flex items-center gap-1 active:scale-90",
-                                        isSelected
-                                          ? option.color === "emerald" &&
-                                              "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100 scale-105"
-                                          : "bg-white text-gray-400 hover:text-gray-900 border-gray-100 hover:bg-gray-50",
-                                        isSelected
-                                          ? option.color === "rose" &&
-                                              "bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-100 scale-105"
-                                          : "",
-                                        isSelected
-                                          ? option.color === "amber" &&
-                                              "bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-100 scale-105"
-                                          : "",
-                                        isSelected
-                                          ? option.color === "indigo" &&
-                                              "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
-                                          : "",
+                                        "w-1.5 h-1.5 rounded-full",
+                                        status === "present" && "bg-emerald-500",
+                                        status === "absent" && "bg-rose-500",
+                                        status === "leave" && "bg-amber-500",
+                                        status === "late" && "bg-indigo-500",
                                       )}
-                                    >
-                                      <option.icon size={16} />
-                                      {option.label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                    />
+                                    {status}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-300 font-black uppercase tracking-widest italic">
+                                    Pending...
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-10 py-6 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {[
+                                    {
+                                      id: "present",
+                                      label: "P",
+                                      tooltip: "Present",
+                                      color: "emerald",
+                                      icon: CheckCircle2,
+                                    },
+                                    {
+                                      id: "absent",
+                                      label: "A",
+                                      tooltip: "Absent",
+                                      color: "rose",
+                                      icon: XCircle,
+                                    },
+                                    {
+                                      id: "leave",
+                                      label: "L",
+                                      tooltip: "Leave",
+                                      color: "amber",
+                                      icon: Calendar,
+                                    },
+                                    {
+                                      id: "late",
+                                      label: "T",
+                                      tooltip: "Late",
+                                      color: "indigo",
+                                      icon: Clock,
+                                    },
+                                  ].map((option) => {
+                                    const isSelected = status === option.id;
+                                    return (
+                                      <button
+                                        key={option.id}
+                                        disabled={isMarked}
+                                        title={option.tooltip}
+                                        onClick={() =>
+                                          toggleStudentStatus(
+                                            student._id,
+                                            option.id,
+                                          )
+                                        }
+                                        className={cn(
+                                          "p-2.5 rounded-xl border transition-all text-xs font-black uppercase tracking-tight flex items-center gap-1 active:scale-90 cursor-pointer",
+                                          isSelected
+                                            ? option.color === "emerald" &&
+                                                "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100 scale-105"
+                                            : "bg-white text-gray-400 hover:text-gray-900 border-gray-100 hover:bg-gray-50",
+                                          isSelected
+                                            ? option.color === "rose" &&
+                                                "bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-100 scale-105"
+                                            : "",
+                                          isSelected
+                                            ? option.color === "amber" &&
+                                                "bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-100 scale-105"
+                                            : "",
+                                          isSelected
+                                            ? option.color === "indigo" &&
+                                                "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
+                                            : "",
+                                        )}
+                                      >
+                                        <option.icon size={16} />
+                                        {option.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Cards View */}
+                  <div className="block md:hidden space-y-3.5 p-4 bg-gray-50/40">
+                    {filteredStudents.map((student) => {
+                      const status = attendanceData[student._id];
+                      return (
+                        <StudentAttendanceCard
+                          key={student._id}
+                          student={student}
+                          status={status}
+                          isMarked={isMarked}
+                          sessionStatus={sessionStatus}
+                          toggleStudentStatus={toggleStudentStatus}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </>
@@ -1066,7 +1428,7 @@ const Attendance = () => {
         {/* Daily Mark - Staff Tab */}
         {activeTab === "mark-staff" && (
           <>
-            <div className="p-6 sm:p-10 border-b border-gray-50 bg-gray-50/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="sticky top-0 bg-white/95 backdrop-blur-md z-20 p-6 sm:p-10 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm md:shadow-none">
               <div>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
                   <UserCheck size={20} className="text-indigo-600" />
@@ -1104,166 +1466,188 @@ const Attendance = () => {
                   onAction={() => {}}
                 />
               ) : (
-                <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-gray-50/30 border-b border-gray-100">
-                        <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          Faculty Information
-                        </th>
-                        <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest w-48">
-                          Verification Status
-                        </th>
-                        <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right w-72">
-                          Status Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {filteredTeachers.map((teacher) => {
-                        const attendanceObj = staffAttendanceData[teacher._id];
-                        const status = typeof attendanceObj === 'object' ? attendanceObj?.status : attendanceObj;
-                        const markedAt = typeof attendanceObj === 'object' ? attendanceObj?.markedAt : null;
-                        const fullName = `${teacher.firstName} ${teacher.lastName}`;
-                        return (
-                          <tr
-                            key={teacher._id}
-                            className="group hover:bg-gray-50/50 transition-all duration-300"
-                          >
-                            <td className="px-10 py-6">
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center font-black text-sm">
-                                  {teacher.firstName
-                                    ? teacher.firstName.charAt(0)
-                                    : "T"}
+                <>
+                  {/* Desktop View */}
+                  <div className="hidden md:block overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-gray-50/30 border-b border-gray-100">
+                          <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            Faculty Information
+                          </th>
+                          <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest w-48">
+                            Verification Status
+                          </th>
+                          <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right w-72">
+                            Status Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {filteredTeachers.map((teacher) => {
+                          const attendanceObj = staffAttendanceData[teacher._id];
+                          const status = typeof attendanceObj === 'object' ? attendanceObj?.status : attendanceObj;
+                          const markedAt = typeof attendanceObj === 'object' ? attendanceObj?.markedAt : null;
+                          const fullName = `${teacher.firstName} ${teacher.lastName}`;
+                          return (
+                            <tr
+                              key={teacher._id}
+                              className="group hover:bg-gray-50/50 transition-all duration-300"
+                            >
+                              <td className="px-10 py-6">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center font-black text-sm">
+                                    {teacher.firstName
+                                      ? teacher.firstName.charAt(0)
+                                      : "T"}
+                                  </div>
+                                  <div>
+                                    <p className="font-black text-gray-900 group-hover:text-orange-600 transition-colors uppercase tracking-tight">
+                                      {fullName}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                                      Subject: {teacher.subject} • Phone:{" "}
+                                      {teacher.phone}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="font-black text-gray-900 group-hover:text-orange-600 transition-colors uppercase tracking-tight">
-                                    {fullName}
-                                  </p>
-                                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                                    Subject: {teacher.subject} • Phone:{" "}
-                                    {teacher.phone}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-10 py-6">
-                              {status ? (
-                                <div className="flex flex-col gap-1 items-start">
-                                  <span
-                                    className={cn(
-                                      "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 border",
-                                      status === "present" &&
-                                        "bg-emerald-50 text-emerald-600 border-emerald-100",
-                                      status === "absent" &&
-                                        "bg-rose-50 text-rose-600 border-rose-100",
-                                      status === "leave" &&
-                                        "bg-amber-50 text-amber-600 border-amber-100",
-                                      status === "late" &&
-                                        "bg-indigo-50 text-indigo-600 border-indigo-100",
-                                    )}
-                                  >
+                              </td>
+                              <td className="px-10 py-6">
+                                {status ? (
+                                  <div className="flex flex-col gap-1 items-start">
                                     <span
                                       className={cn(
-                                        "w-1.5 h-1.5 rounded-full",
-                                        status === "present" && "bg-emerald-500",
-                                        status === "absent" && "bg-rose-500",
-                                        status === "leave" && "bg-amber-500",
-                                        status === "late" && "bg-indigo-500",
-                                      )}
-                                    />
-                                    {status}
-                                  </span>
-                                  {markedAt && (
-                                    <span className="text-[9px] text-gray-400 font-bold px-1 uppercase tracking-widest">
-                                      {new Date(markedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-[10px] text-gray-300 font-black uppercase tracking-widest italic">
-                                  Pending...
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-10 py-6 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {[
-                                  {
-                                    id: "present",
-                                    label: "P",
-                                    tooltip: "Present",
-                                    color: "emerald",
-                                    icon: CheckCircle2,
-                                  },
-                                  {
-                                    id: "absent",
-                                    label: "A",
-                                    tooltip: "Absent",
-                                    color: "rose",
-                                    icon: XCircle,
-                                  },
-                                  {
-                                    id: "leave",
-                                    label: "L",
-                                    tooltip: "Leave",
-                                    color: "amber",
-                                    icon: Calendar,
-                                  },
-                                  {
-                                    id: "late",
-                                    label: "T",
-                                    tooltip: "Late",
-                                    color: "indigo",
-                                    icon: Clock,
-                                  },
-                                ].map((option) => {
-                                  const isSelected = status === option.id;
-                                  return (
-                                    <button
-                                      key={option.id}
-                                      disabled={isStaffMarked}
-                                      title={option.tooltip}
-                                      onClick={() =>
-                                        toggleStaffStatus(
-                                          teacher._id,
-                                          option.id,
-                                        )
-                                      }
-                                      className={cn(
-                                        "p-2.5 rounded-xl border transition-all text-xs font-black uppercase tracking-tight flex items-center gap-1 active:scale-90",
-                                        isSelected
-                                          ? option.color === "emerald" &&
-                                              "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100 scale-105"
-                                          : "bg-white text-gray-400 hover:text-gray-900 border-gray-100 hover:bg-gray-50",
-                                        isSelected
-                                          ? option.color === "rose" &&
-                                              "bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-100 scale-105"
-                                          : "",
-                                        isSelected
-                                          ? option.color === "amber" &&
-                                              "bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-100 scale-105"
-                                          : "",
-                                        isSelected
-                                          ? option.color === "indigo" &&
-                                              "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
-                                          : "",
+                                        "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 border",
+                                        status === "present" &&
+                                          "bg-emerald-50 text-emerald-600 border-emerald-100",
+                                        status === "absent" &&
+                                          "bg-rose-50 text-rose-600 border-rose-100",
+                                        status === "leave" &&
+                                          "bg-amber-50 text-amber-600 border-amber-100",
+                                        status === "late" &&
+                                          "bg-indigo-50 text-indigo-600 border-indigo-100",
                                       )}
                                     >
-                                      <option.icon size={16} />
-                                      {option.label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                      <span
+                                        className={cn(
+                                          "w-1.5 h-1.5 rounded-full",
+                                          status === "present" && "bg-emerald-500",
+                                          status === "absent" && "bg-rose-500",
+                                          status === "leave" && "bg-amber-500",
+                                          status === "late" && "bg-indigo-500",
+                                        )}
+                                      />
+                                      {status}
+                                    </span>
+                                    {markedAt && (
+                                      <span className="text-[9px] text-gray-400 font-bold px-1 uppercase tracking-widest">
+                                        {new Date(markedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-gray-300 font-black uppercase tracking-widest italic">
+                                    Pending...
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-10 py-6 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {[
+                                    {
+                                      id: "present",
+                                      label: "P",
+                                      tooltip: "Present",
+                                      color: "emerald",
+                                      icon: CheckCircle2,
+                                    },
+                                    {
+                                      id: "absent",
+                                      label: "A",
+                                      tooltip: "Absent",
+                                      color: "rose",
+                                      icon: XCircle,
+                                    },
+                                    {
+                                      id: "leave",
+                                      label: "L",
+                                      tooltip: "Leave",
+                                      color: "amber",
+                                      icon: Calendar,
+                                    },
+                                    {
+                                      id: "late",
+                                      label: "T",
+                                      tooltip: "Late",
+                                      color: "indigo",
+                                      icon: Clock,
+                                    },
+                                  ].map((option) => {
+                                    const isSelected = status === option.id;
+                                    return (
+                                      <button
+                                        key={option.id}
+                                        disabled={isStaffMarked}
+                                        title={option.tooltip}
+                                        onClick={() =>
+                                          toggleStaffStatus(
+                                            teacher._id,
+                                            option.id,
+                                          )
+                                        }
+                                        className={cn(
+                                          "p-2.5 rounded-xl border transition-all text-xs font-black uppercase tracking-tight flex items-center gap-1 active:scale-90 cursor-pointer",
+                                          isSelected
+                                            ? option.color === "emerald" &&
+                                                "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100 scale-105"
+                                            : "bg-white text-gray-400 hover:text-gray-900 border-gray-100 hover:bg-gray-50",
+                                          isSelected
+                                            ? option.color === "rose" &&
+                                                "bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-100 scale-105"
+                                            : "",
+                                          isSelected
+                                            ? option.color === "amber" &&
+                                                "bg-amber-505 border-amber-500 text-white shadow-md shadow-amber-100 scale-105"
+                                            : "",
+                                          isSelected
+                                            ? option.color === "indigo" &&
+                                                "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
+                                            : "",
+                                        )}
+                                      >
+                                        <option.icon size={16} />
+                                        {option.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Cards View */}
+                  <div className="block md:hidden space-y-3.5 p-4 bg-gray-50/40">
+                    {filteredTeachers.map((teacher) => {
+                      const attendanceObj = staffAttendanceData[teacher._id];
+                      const status = typeof attendanceObj === 'object' ? attendanceObj?.status : attendanceObj;
+                      const markedAt = typeof attendanceObj === 'object' ? attendanceObj?.markedAt : null;
+                      return (
+                        <StaffAttendanceCard
+                          key={teacher._id}
+                          teacher={teacher}
+                          status={status}
+                          markedAt={markedAt}
+                          isStaffMarked={isStaffMarked}
+                          toggleStaffStatus={toggleStaffStatus}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </>
@@ -1717,9 +2101,26 @@ const Attendance = () => {
 
       {/* Sticky Mobile Submit Button for Marking */}
       {(activeTab === "mark-students" || activeTab === "mark-staff") && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-xl border-t border-gray-100 z-50 animate-in slide-in-from-bottom duration-500">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 pb-safe-bottom flex flex-col gap-2 shadow-xl">
+          {/* Submit for Review (visible on mobile only when student draft is saved) */}
+          {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && (
+            <Button
+              className="w-full h-11 text-xs font-black uppercase tracking-wider shadow-sm rounded-xl transition-all border-blue-200 text-blue-700 bg-blue-50/70 hover:bg-blue-55 cursor-pointer"
+              onClick={handleSubmitForReview}
+              loading={loading}
+              icon={Send}
+            >
+              Submit for Review
+            </Button>
+          )}
+
           <Button
-            className="w-full h-16 text-lg font-black uppercase tracking-tighter shadow-2xl rounded-[1.5rem]"
+            className={cn(
+              "w-full h-11 text-xs font-black uppercase tracking-wider shadow-md rounded-xl transition-colors duration-200 cursor-pointer",
+              (activeTab === "mark-students" ? (sessionStatus === 'submitted' || sessionStatus === 'locked') : isStaffMarked)
+                ? "bg-emerald-600 hover:bg-emerald-600 text-white"
+                : "bg-indigo-600 hover:bg-indigo-700 text-white"
+            )}
             onClick={
               activeTab === "mark-students"
                 ? handleStudentSubmit
@@ -1729,11 +2130,15 @@ const Attendance = () => {
             icon={Save}
             disabled={
               activeTab === "mark-students"
-                ? Object.keys(attendanceData).length === 0 || isMarked
-                : Object.keys(staffAttendanceData).length === 0 || isStaffMarked
+                ? sessionStatus === 'submitted' || sessionStatus === 'locked'
+                : isStaffMarked
             }
           >
-            Finalize Roll Call
+            {activeTab === "mark-students"
+              ? ((sessionStatus === 'submitted' || sessionStatus === 'locked')
+                ? "Attendance Submitted"
+                : "Submit Attendance")
+              : (isStaffMarked ? "Attendance Submitted" : "Submit Attendance")}
           </Button>
         </div>
       )}
@@ -1741,15 +2146,15 @@ const Attendance = () => {
       {/* Synchronized Notification Banner */}
       {((activeTab === "mark-students" && isMarked) ||
         (activeTab === "mark-staff" && isStaffMarked)) && (
-        <div className="bg-emerald-600 p-8 rounded-[2.5rem] flex items-center gap-6 border border-emerald-500 shadow-2xl shadow-emerald-100 animate-in zoom-in-95 duration-500">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur-md text-white rounded-[1.5rem] flex items-center justify-center shadow-inner">
-            <CheckCircle size={32} />
+        <div className="bg-emerald-600 p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] flex items-center gap-4 md:gap-6 border border-emerald-500 shadow-2xl shadow-emerald-100 animate-in zoom-in-95 duration-500">
+          <div className="w-10 h-10 md:w-16 md:h-16 bg-white/20 backdrop-blur-md text-white rounded-xl md:rounded-[1.5rem] flex items-center justify-center shadow-inner shrink-0">
+            <CheckCircle className="w-6 h-6 md:w-8 md:h-8" />
           </div>
           <div>
-            <p className="font-black text-white text-xl tracking-tight uppercase">
+            <p className="font-black text-white text-sm md:text-xl tracking-tight uppercase">
               Records Synchronized
             </p>
-            <p className="text-emerald-50 font-bold tracking-tight opacity-90">
+            <p className="text-emerald-50 text-[10px] md:text-sm font-bold tracking-tight opacity-90 leading-snug mt-0.5">
               Attendance records have been securely uploaded to the system
               ledger.
             </p>

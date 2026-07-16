@@ -1568,17 +1568,43 @@ const TeacherDashboard = () => {
   }, []);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div>
-        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+        <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
           Teacher Dashboard
         </h2>
-        <p className="text-gray-500 mt-2 font-medium">
+        <p className="hidden md:block text-gray-500 mt-1 font-medium">
           Manage your classes, students, and attendance records.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Mobile Top Summary Grid */}
+      <div className="md:hidden grid grid-cols-2 gap-3">
+        {[
+          { label: "Classes", value: assignedClasses.length, color: "indigo", icon: BookOpen },
+          { label: "Students", value: stats.find(s => s.label === "My Students" || s.label === "Students")?.value || "0", color: "emerald", icon: Users },
+          { label: "Pending", value: classTeacherOf.length > 0 ? (attendance.total > 0 ? 0 : classTeacherOf.length) : 0, color: "amber", icon: Clock },
+          { label: "Completed", value: classTeacherOf.length > 0 ? (attendance.total > 0 ? classTeacherOf.length : 0) : 0, color: "emerald", icon: CheckCircle2 }
+        ].map((item, idx) => (
+          <div key={idx} className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-bold text-gray-450 uppercase tracking-wider block mb-0.5">{item.label}</span>
+              <p className="text-xl font-black text-gray-900 leading-tight">{item.value}</p>
+            </div>
+            <div className={cn(
+              "p-2 rounded-xl shrink-0 shadow-inner",
+              item.color === "indigo" && "bg-indigo-50 text-indigo-600 shadow-indigo-100/30",
+              item.color === "emerald" && "bg-emerald-50 text-emerald-600 shadow-emerald-100/30",
+              item.color === "amber" && "bg-amber-50 text-amber-600 shadow-amber-100/30",
+            )}>
+              <item.icon size={16} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Stats Grid */}
+      <div className="hidden md:grid grid-cols-3 gap-6">
         {stats.map((stat, index) => {
           let cardBgClass =
             "from-gray-50 via-white to-gray-50/30 border-gray-200/60 hover:border-gray-300";
@@ -1595,7 +1621,7 @@ const TeacherDashboard = () => {
           } else if (stat.color === "amber") {
             cardBgClass =
               "from-amber-50/70 via-white to-amber-50/20 border-amber-100/60 hover:border-amber-500/30 hover:shadow-amber-100/20";
-            iconBgClass = "bg-amber-100/70 text-amber-700";
+            iconBgClass = "bg-amber-100/70 text-amber-750";
           }
 
           return (
@@ -1631,96 +1657,141 @@ const TeacherDashboard = () => {
 
       {/* My Class (Class Teacher) — Prominent Section */}
       {classTeacherOf.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-md shadow-indigo-200">
-              <Shield size={20} className="text-white" />
+        <>
+          {/* Desktop Class Teacher Section */}
+          <div className="hidden md:block space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-md shadow-indigo-200">
+                <Shield size={20} className="text-white" />
+              </div>
+              <div>
+                <h4 className="text-xl font-black text-gray-900 tracking-tight">
+                  My Class (Class Teacher)
+                </h4>
+                <p className="text-xs font-bold text-gray-400">
+                  You are the Class Teacher — manage attendance here
+                </p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-xl font-black text-gray-900 tracking-tight">
-                My Class (Class Teacher)
-              </h4>
-              <p className="text-xs font-bold text-gray-400">
-                You are the Class Teacher — manage attendance here
-              </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {classTeacherOf.map((cls) => (
+                <div
+                  key={cls.id}
+                  className="bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/20 p-6 rounded-[2.5rem] border-2 border-indigo-200/60 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative group flex flex-col justify-between min-h-[220px]"
+                >
+                  <div className="absolute top-4 right-4">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white bg-indigo-600 px-3 py-1 rounded-full shadow-sm">
+                      Class Teacher
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-3xl font-black text-gray-900 tracking-tight mt-2 uppercase">
+                      Class {cls.name}
+                    </h4>
+                    <p className="text-gray-400 text-xs font-bold mt-2">
+                      Enrolled Students:{" "}
+                      <span className="text-gray-800 font-extrabold">
+                        {cls.studentCount}
+                      </span>
+                    </p>
+
+                    {/* Today's Quick Stats */}
+                    <div className="flex items-center gap-4 mt-4">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-emerald-600" />
+                        <span className="text-sm font-black text-emerald-700">
+                          {attendance.present}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-bold">
+                          Present
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <XCircle size={14} className="text-rose-600" />
+                        <span className="text-sm font-black text-rose-700">
+                          {attendance.absent}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-bold">
+                          Absent
+                        </span>
+                      </div>
+                      {attendance.total > 0 && (
+                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          {((attendance.present / attendance.total) * 100).toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2.5 mt-6 border-t border-indigo-100 pt-4">
+                    <Button
+                      onClick={() =>
+                        navigate("/attendance", { state: { classId: cls.id } })
+                      }
+                      className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm active:scale-95 transition-all cursor-pointer"
+                    >
+                      Mark Today's Attendance
+                    </Button>
+                    <Button
+                      onClick={() =>
+                        navigate("/teacher/timetable", {
+                          state: { classId: cls.id },
+                        })
+                      }
+                      className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm active:scale-95 transition-all cursor-pointer"
+                    >
+                      View Schedule
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Mobile Class Teacher Section */}
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                <Shield size={16} className="text-white" />
+              </div>
+              <h4 className="text-base font-black text-gray-900 tracking-tight">
+                My Class (Class Teacher)
+              </h4>
+            </div>
             {classTeacherOf.map((cls) => (
-              <div
-                key={cls.id}
-                className="bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/20 p-6 rounded-[2.5rem] border-2 border-indigo-200/60 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative group flex flex-col justify-between min-h-[220px]"
-              >
-                <div className="absolute top-4 right-4">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white bg-indigo-600 px-3 py-1 rounded-full shadow-sm">
-                    Class Teacher
+              <div key={cls.id} className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-sm space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="text-lg font-black text-gray-900 uppercase">Class {cls.name}</h4>
+                    <p className="text-gray-400 text-xs font-bold mt-0.5">{cls.studentCount} Students</p>
+                  </div>
+                  <span className={cn(
+                    "text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-lg border",
+                    attendance.total > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100"
+                  )}>
+                    {attendance.total > 0 ? "Attendance Completed" : "Attendance Pending"}
                   </span>
                 </div>
-
-                <div>
-                  <h4 className="text-3xl font-black text-gray-900 tracking-tight mt-2 uppercase">
-                    Class {cls.name}
-                  </h4>
-                  <p className="text-gray-400 text-xs font-bold mt-2">
-                    Enrolled Students:{" "}
-                    <span className="text-gray-800 font-extrabold">
-                      {cls.studentCount}
-                    </span>
-                  </p>
-
-                  {/* Today's Quick Stats */}
-                  <div className="flex items-center gap-4 mt-4">
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 size={14} className="text-emerald-600" />
-                      <span className="text-sm font-black text-emerald-700">
-                        {attendance.present}
-                      </span>
-                      <span className="text-[10px] text-gray-400 font-bold">
-                        Present
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <XCircle size={14} className="text-rose-600" />
-                      <span className="text-sm font-black text-rose-700">
-                        {attendance.absent}
-                      </span>
-                      <span className="text-[10px] text-gray-400 font-bold">
-                        Absent
-                      </span>
-                    </div>
-                    {attendance.total > 0 && (
-                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                        {((attendance.present / attendance.total) * 100).toFixed(0)}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-2.5 mt-6 border-t border-indigo-100 pt-4">
+                <div className="flex gap-2 pt-2 border-t border-gray-50">
                   <Button
-                    onClick={() =>
-                      navigate("/attendance", { state: { classId: cls.id } })
-                    }
-                    className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm active:scale-95 transition-all cursor-pointer"
+                    onClick={() => navigate("/attendance", { state: { classId: cls.id } })}
+                    className="flex-1 h-11 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm cursor-pointer"
                   >
-                    Mark Today's Attendance
+                    Mark Attendance
                   </Button>
                   <Button
-                    onClick={() =>
-                      navigate("/teacher/timetable", {
-                        state: { classId: cls.id },
-                      })
-                    }
-                    className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm active:scale-95 transition-all cursor-pointer"
+                    onClick={() => navigate("/teacher/timetable", { state: { classId: cls.id } })}
+                    className="flex-1 h-11 text-[11px] font-black bg-white hover:bg-gray-50 text-gray-705 border border-gray-200 rounded-xl shadow-sm cursor-pointer"
                   >
-                    View Schedule
+                    Schedule
                   </Button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </>
       )}
 
       {/* No Class Teacher Assignment */}
@@ -1742,7 +1813,8 @@ const TeacherDashboard = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="bg-gradient-to-br from-white to-gray-50/50 rounded-[2.5rem] border border-gray-200/70 shadow-sm p-8 flex flex-col justify-between">
+        {/* Desktop Attendance Summary Card */}
+        <div className="hidden lg:flex bg-gradient-to-br from-white to-gray-50/50 rounded-[2.5rem] border border-gray-200/70 shadow-sm p-8 flex flex-col justify-between">
           <h4 className="text-xl font-bold text-gray-900 mb-6">
             Today's Attendance Summary
           </h4>
@@ -1767,10 +1839,33 @@ const TeacherDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-100 flex flex-col justify-between min-h-[280px] animate-in fade-in duration-300">
+        {/* Mobile Attendance Summary Card */}
+        <div className="lg:hidden bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+          <h4 className="text-sm font-black text-gray-900 tracking-tight">Today's Attendance</h4>
+          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1 text-xs whitespace-nowrap">
+            <div className="flex-1 bg-emerald-50/60 border border-emerald-100 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-emerald-800">
+              <span className="font-bold">Present</span>
+              <span className="font-black text-sm">{attendance.present}</span>
+            </div>
+            <div className="flex-1 bg-rose-50/60 border border-rose-100 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-rose-800">
+              <span className="font-bold">Absent</span>
+              <span className="font-black text-sm">{attendance.absent}</span>
+            </div>
+            <div className="flex-1 bg-amber-50/60 border border-amber-100 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-amber-800">
+              <span className="font-bold">Leave</span>
+              <span className="font-black text-sm">0</span>
+            </div>
+            <div className="flex-1 bg-violet-50/60 border border-violet-100 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-violet-800">
+              <span className="font-bold">Late</span>
+              <span className="font-black text-sm">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl lg:rounded-[2.5rem] p-4 lg:p-8 text-white shadow-xl shadow-indigo-100 flex flex-col justify-between min-h-[180px] lg:min-h-[280px] animate-in fade-in duration-300">
           <div>
-            <h4 className="text-xl font-black mb-4 flex items-center gap-2">
-              <Megaphone size={22} className="text-indigo-200" />
+            <h4 className="text-base lg:text-xl font-black mb-2 lg:mb-4 flex items-center gap-2">
+              <Megaphone size={18} className="text-indigo-205" />
               {announcement.title}
             </h4>
             {announcementLoading ? (
@@ -1780,13 +1875,13 @@ const TeacherDashboard = () => {
                 <div className="h-4 bg-white/20 rounded-full w-5/6" />
               </div>
             ) : (
-              <p className="text-indigo-100 text-sm leading-relaxed mb-6 whitespace-pre-line font-medium">
+              <p className="text-indigo-100 text-xs lg:text-sm leading-relaxed mb-4 lg:mb-6 whitespace-pre-line font-medium">
                 {announcement.content}
               </p>
             )}
           </div>
           {announcement.createdAt && (
-            <div className="text-[10px] text-indigo-205 font-bold flex justify-between items-center opacity-90 border-t border-white/10 pt-4">
+            <div className="text-[9px] lg:text-[10px] text-indigo-200 font-bold flex justify-between items-center opacity-90 border-t border-white/10 pt-2 lg:pt-4">
               <span>By: {announcement.createdBy?.name || "Admin"}</span>
               <span>
                 {new Date(announcement.createdAt).toLocaleDateString()}
@@ -1795,10 +1890,10 @@ const TeacherDashboard = () => {
           )}
         </div>
 
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-[2.5rem] p-8 text-white shadow-xl flex flex-col justify-between min-h-[280px] animate-in fade-in duration-300">
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl lg:rounded-[2.5rem] p-4 lg:p-8 text-white shadow-xl flex flex-col justify-between min-h-[160px] lg:min-h-[280px] animate-in fade-in duration-300">
           <div>
-            <h4 className="text-xl font-bold mb-4">Class Overview</h4>
-            <p className="text-gray-300 text-sm leading-relaxed mb-6">
+            <h4 className="text-base lg:text-xl font-bold mb-2 lg:mb-4">Class Overview</h4>
+            <p className="text-gray-305 text-xs lg:text-sm leading-relaxed mb-4 lg:mb-6">
               You are currently handling students across multiple sessions.
               Ensure attendance is marked daily.
             </p>
@@ -1806,7 +1901,7 @@ const TeacherDashboard = () => {
           <Button
             variant="ghost"
             onClick={() => navigate("/teacher/timetable")}
-            className="bg-white/10 text-white border-none hover:bg-white/20 w-full rounded-2xl py-3 text-xs font-black tracking-wider uppercase transition-all duration-300 mt-auto"
+            className="bg-white/10 text-white border-none hover:bg-white/20 w-full rounded-xl lg:rounded-2xl py-2.5 lg:py-3 text-[10px] lg:text-xs font-black tracking-wider uppercase transition-all duration-300 mt-auto"
           >
             View My Schedule
           </Button>
@@ -1830,21 +1925,21 @@ const TeacherDashboard = () => {
             return (
               <div
                 key={cls.id}
-                className="bg-gradient-to-br from-white via-indigo-50/5 to-indigo-50/15 p-6 rounded-[2.5rem] border border-gray-200/60 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative group flex flex-col justify-between min-h-[200px]"
+                className="bg-gradient-to-br from-white via-indigo-50/5 to-indigo-50/15 p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-gray-200/60 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative group flex flex-col justify-between min-h-[150px] md:min-h-[200px]"
               >
                 <div>
                   <span className={cn(
-                    "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
+                    "text-[9px] md:text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full",
                     isClassTeacherOfThis
                       ? "text-indigo-700 bg-indigo-100/70"
                       : "text-gray-500 bg-gray-100/70"
                   )}>
                     {isClassTeacherOfThis ? "Class Teacher" : "Subject Teacher"}
                   </span>
-                  <h4 className="text-3xl font-black text-gray-900 tracking-tight mt-4 uppercase">
+                  <h4 className="text-xl md:text-3xl font-black text-gray-900 tracking-tight mt-2 md:mt-4 uppercase">
                     Class {cls.name}
                   </h4>
-                  <p className="text-gray-400 text-xs font-bold mt-2">
+                  <p className="text-gray-400 text-xs font-bold mt-1 md:mt-2">
                     Enrolled Students:{" "}
                     <span className="text-gray-800 font-extrabold">
                       {cls.studentCount}
@@ -1852,13 +1947,13 @@ const TeacherDashboard = () => {
                   </p>
                 </div>
 
-                <div className="flex gap-2.5 mt-6 border-t border-gray-100 pt-4">
+                <div className="flex gap-2 mt-4 md:mt-6 border-t border-gray-100 pt-3 md:pt-4">
                   {isClassTeacherOfThis && (
                     <Button
                       onClick={() =>
                         navigate("/attendance", { state: { classId: cls.id } })
                       }
-                      className="flex-1 rounded-xl py-2.5 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm active:scale-95 transition-all cursor-pointer"
+                      className="flex-1 rounded-xl py-2 h-10 text-[10px] md:text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm active:scale-95 transition-all cursor-pointer"
                     >
                       Mark Attendance
                     </Button>
@@ -1870,7 +1965,7 @@ const TeacherDashboard = () => {
                       })
                     }
                     className={cn(
-                      "rounded-xl py-2.5 text-[11px] font-black bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-sm active:scale-95 transition-all cursor-pointer",
+                      "rounded-xl py-2 h-10 text-[10px] md:text-[11px] font-black bg-white hover:bg-gray-50 text-gray-705 border border-gray-205 shadow-sm active:scale-95 transition-all cursor-pointer",
                       isClassTeacherOfThis ? "flex-1" : "w-full"
                     )}
                   >

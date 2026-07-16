@@ -12,7 +12,8 @@ const {
   downloadReceipt,
   getStudentFeesByMonth,
   getPendingFeesStudents,
-  getMonthlyFinancialSummary
+  getMonthlyFinancialSummary,
+  updateTransportFee
 } = require('../controllers/feeController');
 const { protect, isAdmin } = require('../middleware/auth');
 
@@ -35,5 +36,8 @@ router.get('/:classId/:rollNumber', getFeeDetails);
 
 // Post a new payment
 router.post('/pay', recordPayment);
+
+// Update student transport fee
+router.put('/student/:studentId/transport-fee', updateTransportFee);
 
 module.exports = router;

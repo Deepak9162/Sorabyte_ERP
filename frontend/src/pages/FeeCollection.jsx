@@ -26,6 +26,7 @@ import Modal from "../components/ui/Modal";
 import { useToast } from "../context/ToastContext";
 import { cn } from "../utils/cn";
 import { formatToINR } from "../utils/format";
+import ReceiptPreview from "../components/ui/ReceiptPreview";
 
 const FeeCollection = () => {
   const { addToast } = useToast();
@@ -45,7 +46,7 @@ const FeeCollection = () => {
             setSelectedClass(classId);
             setSearchQuery(s.rollNumber);
             
-            const feeRes = await api.get(`/fees/${classId}/${s.rollNumber}`);
+            const feeRes = await api.get(`/fees/${classId}/${s.rollNumber}?academicYear=2026-2027`);
             if (feeRes.data.success) {
               const {
                 student: sData,
@@ -63,15 +64,19 @@ const FeeCollection = () => {
                 dueFee: feeSummary.dueFee,
                 class: sData.class,
                 ledger: ledger,
+                transportMode: sData.transportMode || 'Private',
+                transportFee: sData.transportFee || 0
               });
               setTransactions(txs || []);
+              setIncludeTransport(false);
               
               const firstUnpaid = ledger?.monthlyBreakdown.find(
                 (m) => m.status !== "PAID"
               );
               if (firstUnpaid) {
-                setSelectedMonth(firstUnpaid.month);
-                setAmount(firstUnpaid.pending.toString());
+                setSelectedMonths([firstUnpaid.month]);
+              } else {
+                setSelectedMonths([]);
               }
               
               setCurrentStep("active");
@@ -100,8 +105,34 @@ const FeeCollection = () => {
   const [transaction, setTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [currentStep, setCurrentStep] = useState("selector"); // selector, active
-  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedMonths, setSelectedMonths] = useState([]);
+  const [includeTransport, setIncludeTransport] = useState(false);
+  const [isEditingTransportFee, setIsEditingTransportFee] = useState(false);
+  const [tempTransportFee, setTempTransportFee] = useState("");
+  const [isUpdatingFee, setIsUpdatingFee] = useState(false);
   const [academicYear] = useState("2026-2027");
+
+  // Reactively calculate total payment amount based on selected months and transport toggle
+  useEffect(() => {
+    if (!student) return;
+    const breakdown = student.ledger?.monthlyBreakdown || [];
+    
+    // Sum outstanding tuition fees for selected months
+    const tuitionPending = selectedMonths.reduce((sum, mName) => {
+      const mInfo = breakdown.find(mb => mb.month === mName);
+      return sum + (mInfo ? mInfo.pending : 0);
+    }, 0);
+    
+    // Sum outstanding transport fees for selected months (if checked and student uses school bus)
+    const transportPending = includeTransport && student.transportMode === 'School Bus'
+      ? selectedMonths.reduce((sum, mName) => {
+          const mInfo = breakdown.find(mb => mb.month === mName);
+          return sum + (mInfo ? (mInfo.transportPending !== undefined ? mInfo.transportPending : (student.transportFee || 500)) : (student.transportFee || 500));
+        }, 0)
+      : 0;
+
+    setAmount((tuitionPending + transportPending).toString());
+  }, [selectedMonths, includeTransport, student]);
   const [classSummary, setClassSummary] = useState(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [schoolStats, setSchoolStats] = useState(null);
@@ -170,7 +201,7 @@ const FeeCollection = () => {
     setLoading(true);
 
     try {
-      const res = await api.get(`/fees/${selectedClass}/${searchQuery}`);
+      const res = await api.get(`/fees/${selectedClass}/${searchQuery}?academicYear=${academicYear}`);
       if (res.data.success) {
         const {
           student: s,
@@ -187,16 +218,20 @@ const FeeCollection = () => {
           dueFee: feeSummary.dueFee,
           class: s.class,
           ledger: ledger,
+          transportMode: s.transportMode || 'Private',
+          transportFee: s.transportFee || 0
         });
         setTransactions(txs || []);
+        setIncludeTransport(false);
 
         // Auto-select first unpaid month
         const firstUnpaid = ledger?.monthlyBreakdown.find(
           (m) => m.status !== "PAID",
         );
         if (firstUnpaid) {
-          setSelectedMonth(firstUnpaid.month);
-          setAmount(firstUnpaid.pending.toString());
+          setSelectedMonths([firstUnpaid.month]);
+        } else {
+          setSelectedMonths([]);
         }
 
         addToast("Student record accessed", "success");
@@ -210,12 +245,47 @@ const FeeCollection = () => {
     }
   };
 
+  const handleMonthClick = (clickedMonth) => {
+    if (selectedMonths.includes(clickedMonth)) {
+      setSelectedMonths(selectedMonths.filter(m => m !== clickedMonth));
+    } else {
+      setSelectedMonths([...selectedMonths, clickedMonth]);
+    }
+  };
+
+  const handleUpdateTransportFee = async () => {
+    const feeVal = parseFloat(tempTransportFee);
+    if (isNaN(feeVal) || feeVal < 0) {
+      addToast("Please enter a valid transport fee", "error");
+      return;
+    }
+
+    setIsUpdatingFee(true);
+    try {
+      const res = await api.put(`/fees/student/${student.id}/transport-fee`, {
+        transportFee: feeVal,
+        academicYear: academicYear
+      });
+
+      if (res.data.success) {
+        addToast("Transport fee updated successfully", "success");
+        setIsEditingTransportFee(false);
+        handleSearch();
+      }
+    } catch (error) {
+      console.error("Error updating transport fee:", error);
+      addToast("Failed to update transport fee", "error");
+    } finally {
+      setIsUpdatingFee(false);
+    }
+  };
+
   const handlePayment = async (e) => {
     if (e) e.preventDefault();
     if (!amount || amount <= 0) return;
 
-    if (!selectedMonth) {
-      addToast("Please select a month to pay", "error");
+    if (selectedMonths.length === 0) {
+      addToast("Please select at least one month to pay", "error");
       return;
     }
 
@@ -226,11 +296,12 @@ const FeeCollection = () => {
         amount: parseFloat(amount),
         type: "Tuition",
         paymentMode: paymentMode,
-        month: selectedMonth,
+        month: selectedMonths,
+        includeTransport: includeTransport,
         academicYear: academicYear,
         transactionId:
           "TXN-" + Math.random().toString(36).substring(2, 9).toUpperCase(),
-        remarks: `Fee paid for ${selectedMonth} via Finance Portal`,
+        remarks: `Fee paid for ${selectedMonths.join(', ')} via Finance Portal` + (includeTransport ? ' (Includes Transport)' : ''),
       });
 
       if (res.data.success) {
@@ -609,6 +680,69 @@ const FeeCollection = () => {
                           {student.ledger?.monthlyBreakdown?.filter((m) => m.status !== "PAID").length || 0}
                         </span>
                       </div>
+
+                      <div className="flex justify-between items-center text-xs border-t border-gray-50 pt-3">
+                        <span className="text-gray-400 font-bold uppercase tracking-tight">Transport Mode</span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[10px] font-black uppercase",
+                          student.transportMode === 'School Bus'
+                            ? "bg-indigo-50 text-indigo-600"
+                            : "bg-gray-50 text-gray-500"
+                        )}>
+                          {student.transportMode || 'Private'}
+                        </span>
+                      </div>
+
+                      {student.transportMode === 'School Bus' && (
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-400 font-bold uppercase tracking-tight">Transport Fee Base</span>
+                          {isEditingTransportFee ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-gray-400 font-black">₹</span>
+                              <input
+                                type="number"
+                                value={tempTransportFee}
+                                onChange={(e) => setTempTransportFee(e.target.value)}
+                                className="w-16 px-1.5 py-0.5 border border-gray-200 rounded text-center text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-100"
+                                placeholder="500"
+                                disabled={isUpdatingFee}
+                              />
+                              <button
+                                type="button"
+                                onClick={handleUpdateTransportFee}
+                                disabled={isUpdatingFee}
+                                className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded text-[9px] font-black uppercase transition-colors"
+                              >
+                                {isUpdatingFee ? "..." : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingTransportFee(false)}
+                                disabled={isUpdatingFee}
+                                className="px-2 py-0.5 bg-gray-50 hover:bg-gray-100 text-gray-400 rounded text-[9px] font-black uppercase transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-900 font-black">
+                                {formatToINR(student.transportFee || 500)} <span className="text-[10px] text-gray-400 font-bold">/ Mo</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTempTransportFee((student.transportFee || 500).toString());
+                                  setIsEditingTransportFee(true);
+                                }}
+                                className="text-[10px] text-indigo-600 hover:text-indigo-700 font-black uppercase underline transition-colors"
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="border-t border-gray-50 pt-4 flex justify-between items-center">
@@ -633,6 +767,8 @@ const FeeCollection = () => {
                               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-black uppercase">Paid</span>
                             ) : monthInfo.status === "PARTIAL" ? (
                               <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[9px] font-black uppercase">Partial</span>
+                            ) : monthInfo.status === "EXEMPTED" ? (
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-400 rounded text-[9px] font-black uppercase">Exempted</span>
                             ) : (
                               <span className="px-2 py-0.5 bg-red-50/70 text-red-500 rounded text-[9px] font-black uppercase">Pending</span>
                             )}
@@ -662,18 +798,17 @@ const FeeCollection = () => {
                           <button
                             key={m.month}
                             type="button"
-                            onClick={() => {
-                              setSelectedMonth(m.month);
-                              setAmount(m.pending.toString());
-                            }}
-                            disabled={m.status === "PAID"}
+                            onClick={() => handleMonthClick(m.month)}
+                            disabled={m.status === "PAID" || m.status === "EXEMPTED"}
                             className={cn(
                               "relative py-3.5 px-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all border text-center flex items-center justify-center cursor-pointer",
-                              selectedMonth === m.month
+                              selectedMonths.includes(m.month)
                                 ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100 scale-95"
                                 : m.status === "PAID"
                                   ? "bg-emerald-50/50 border-emerald-100/50 text-emerald-600/70 cursor-not-allowed opacity-60"
-                                  : "bg-gray-50/50 border-gray-100 text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/30",
+                                  : m.status === "EXEMPTED"
+                                    ? "bg-gray-100/50 border-gray-200/50 text-gray-300 cursor-not-allowed opacity-50"
+                                    : "bg-gray-50/50 border-gray-100 text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/30",
                             )}
                           >
                             <span>{m.month.substring(0, 3)}</span>
@@ -686,6 +821,21 @@ const FeeCollection = () => {
                         ))}
                       </div>
                     </div>
+
+                    {student.transportMode === 'School Bus' && (
+                      <div className="flex items-center gap-3 bg-indigo-50/20 border border-indigo-50/50 rounded-2xl p-4 transition-all">
+                        <input
+                          type="checkbox"
+                          id="include-transport-checkbox"
+                          checked={includeTransport}
+                          onChange={(e) => setIncludeTransport(e.target.checked)}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <label htmlFor="include-transport-checkbox" className="text-xs font-bold text-gray-700 cursor-pointer select-none">
+                          Include Transport Fee <span className="text-indigo-600 font-extrabold">(₹{student.transportFee || 500} / Month)</span>
+                        </label>
+                      </div>
+                    )}
 
                     {/* Amount & Mode Selector Row */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -734,7 +884,7 @@ const FeeCollection = () => {
                       <Button
                         onClick={() => handlePayment()}
                         loading={loading}
-                        disabled={!amount || amount <= 0 || !selectedMonth}
+                        disabled={!amount || amount <= 0 || selectedMonths.length === 0}
                         className="w-full py-4.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 active:scale-98 transition-transform"
                       >
                         Confirm payment entry & Print receipt
@@ -808,71 +958,27 @@ const FeeCollection = () => {
       <Modal
         isOpen={isSuccessModalOpen}
         onClose={() => setIsSuccessModalOpen(false)}
-        maxWidth="md"
-        className="rounded-[2.5rem] border border-gray-100 shadow-xl"
+        maxWidth="lg"
+        className="rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden"
         footer={
           <div className="flex gap-4 w-full p-2">
             <Button
               variant="secondary"
-              className="flex-1 py-3.5 rounded-2xl text-xs font-bold text-gray-600 border border-gray-100 hover:bg-gray-50 uppercase tracking-wider"
+              className="flex-1 py-3.5 rounded-2xl text-xs font-bold text-gray-600 border border-gray-100 hover:bg-gray-50 uppercase tracking-wider cursor-pointer"
               onClick={() => setIsSuccessModalOpen(false)}
             >
               Close
             </Button>
-            <Button
-              className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md shadow-indigo-100"
-              onClick={() => handleDownloadReceipt(transaction?._id)}
-            >
-              Print Receipt
-            </Button>
           </div>
         }
       >
-        <div className="text-center py-6">
-          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <CheckCircle size={28} />
-          </div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
-            Receipt Settled
-          </h2>
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-8">
-            Transaction voucher created for {student?.name}
-          </p>
-
-          <div className="bg-gray-50/50 border border-gray-100 rounded-2xl p-6 text-left space-y-4 text-xs font-bold">
-            <div className="flex justify-between items-center">
-              <span className="text-[9px] text-gray-400 font-black uppercase tracking-wider">
-                Transaction ID
-              </span>
-              <span className="font-extrabold text-gray-800 uppercase tracking-tight">
-                {transaction?._id?.toString().toUpperCase()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[9px] text-gray-400 font-black uppercase tracking-wider">
-                Amount Settled
-              </span>
-              <span className="font-black text-emerald-600 text-sm">
-                {formatToINR(transaction?.amount || 0)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[9px] text-gray-400 font-black uppercase tracking-wider">
-                Payment Period
-              </span>
-              <span className="text-gray-800 font-extrabold uppercase">
-                {transaction?.month} {transaction?.academicYear}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[9px] text-gray-400 font-black uppercase tracking-wider">
-                Payment Method
-              </span>
-              <span className="text-gray-800 font-extrabold uppercase">
-                {transaction?.paymentMode}
-              </span>
-            </div>
-          </div>
+        <div className="p-4 md:p-6 bg-gray-50 max-h-[80vh] overflow-y-auto custom-scrollbar rounded-2xl">
+          {transaction && (
+            <ReceiptPreview
+              transaction={transaction}
+              student={student}
+            />
+          )}
         </div>
       </Modal>
     </div>

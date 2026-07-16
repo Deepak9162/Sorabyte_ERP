@@ -18,7 +18,8 @@ const { successResponse, errorResponse } = require('../utils/apiResponse');
 const getFeeDetails = async (req, res, next) => {
   try {
     const { classId, rollNumber } = req.params;
-    const details = await feeService.getStudentFeeDetails(classId, rollNumber);
+    const { academicYear } = req.query;
+    const details = await feeService.getStudentFeeDetails(classId, rollNumber, academicYear || '2026-2027');
     return successResponse(res, details, 'Fee details fetched successfully');
   } catch (error) {
     if (error.message.includes('not found')) {
@@ -43,7 +44,8 @@ const recordPayment = async (req, res, next) => {
       dueDate,
       month,
       academicYear,
-      paymentMode
+      paymentMode,
+      includeTransport
     } = req.body;
 
     // Log request for debugging
@@ -68,7 +70,8 @@ const recordPayment = async (req, res, next) => {
       dueDate,
       month,
       academicYear,
-      paymentMode
+      paymentMode,
+      includeTransport
     });
 
     // Fetch student info first to get class and rollNumber
@@ -277,6 +280,31 @@ const getMonthlyFinancialSummary = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Update student transport fee
+ * @route   PUT /api/fees/student/:studentId/transport-fee
+ */
+const updateTransportFee = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+    const { transportFee, academicYear } = req.body;
+
+    if (transportFee === undefined || transportFee < 0) {
+      return errorResponse(res, 'Please provide a valid non-negative transport fee amount', 400);
+    }
+
+    const student = await feeService.updateStudentTransportFee(
+      studentId, 
+      parseFloat(transportFee), 
+      academicYear || '2026-2027'
+    );
+
+    return successResponse(res, student, 'Transport fee updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getFeeDetails,
   recordPayment,
@@ -284,4 +312,5 @@ module.exports = {
   getStudentFeesByMonth,
   getPendingFeesStudents,
   getMonthlyFinancialSummary,
+  updateTransportFee,
 };

@@ -42,6 +42,21 @@ const feeLedgerSchema = new mongoose.Schema(
         paidOn: {
           type: Date,
         },
+        transportAmount: {
+          type: Number,
+          default: 0,
+          min: [0, 'Transport amount cannot be negative'],
+        },
+        transportPaidAmount: {
+          type: Number,
+          default: 0,
+          min: [0, 'Transport paid amount cannot be negative'],
+        },
+        transportStatus: {
+          type: String,
+          enum: ["PAID", "UNPAID", "EXEMPTED"],
+          default: "UNPAID",
+        },
       },
     ],
     totalFee: {
@@ -69,6 +84,7 @@ feeLedgerSchema.index({ studentId: 1, academicYear: 1 }, { unique: true });
 feeLedgerSchema.pre('save', async function () {
   if (this.monthlyFees && this.monthlyFees.length > 0) {
     this.monthlyFees.forEach((month) => {
+      // Handle Tuition Status
       if (month.status === "EXEMPTED") {
         month.amount = 0;
         month.paidAmount = 0;
@@ -79,10 +95,22 @@ feeLedgerSchema.pre('save', async function () {
       } else {
         month.status = "UNPAID";
       }
+
+      // Handle Transport Status
+      if (month.transportStatus === "EXEMPTED") {
+        month.transportAmount = 0;
+        month.transportPaidAmount = 0;
+      } else if (month.transportPaidAmount >= month.transportAmount) {
+        month.transportStatus = "PAID";
+      } else if (month.transportPaidAmount > 0) {
+        month.transportStatus = "PARTIAL";
+      } else {
+        month.transportStatus = "UNPAID";
+      }
     });
 
-    this.totalFee = this.monthlyFees.reduce((acc, curr) => acc + curr.amount, 0);
-    this.totalPaid = this.monthlyFees.reduce((acc, curr) => acc + (curr.paidAmount || 0), 0);
+    this.totalFee = this.monthlyFees.reduce((acc, curr) => acc + curr.amount + (curr.transportAmount || 0), 0);
+    this.totalPaid = this.monthlyFees.reduce((acc, curr) => acc + (curr.paidAmount || 0) + (curr.transportPaidAmount || 0), 0);
     this.pendingAmount = this.totalFee - this.totalPaid;
   }
 });

@@ -19,15 +19,119 @@ class FeeService {
     const FeeLedger = require('../models/FeeLedger');
     let ledger = await FeeLedger.findOne({ studentId, academicYear });
 
+    if (ledger) {
+      // Synchronize ledger with student's current profile settings (admission date, discount, transport)
+      const student = await Student.findById(studentId);
+      if (student) {
+        const discount = student.discountPercentage || 0;
+        const finalTuitionFee = Math.round(tuitionFee * (1 - (discount / 100)));
+        const studentAdmissionDate = student.admissionDate || student.createdAt || null;
+        const hasSchoolBus = student.transportMode === 'School Bus';
+        const startYear = parseInt(academicYear.split('-')[0]);
+
+        const monthMapping = {
+          'April': { idx: 3, offset: 0 },
+          'May': { idx: 4, offset: 0 },
+          'June': { idx: 5, offset: 0 },
+          'July': { idx: 6, offset: 0 },
+          'August': { idx: 7, offset: 0 },
+          'September': { idx: 8, offset: 0 },
+          'October': { idx: 9, offset: 0 },
+          'November': { idx: 10, offset: 0 },
+          'December': { idx: 11, offset: 0 },
+          'January': { idx: 0, offset: 1 },
+          'February': { idx: 1, offset: 1 },
+          'March': { idx: 2, offset: 1 }
+        };
+
+        let modified = false;
+
+        ledger.monthlyFees.forEach(m => {
+          let shouldBeExempted = false;
+
+          if (studentAdmissionDate && !isNaN(startYear)) {
+            const mapping = monthMapping[m.month];
+            const monthYear = startYear + mapping.offset;
+            const monthIdx = mapping.idx;
+
+            const admDate = new Date(studentAdmissionDate);
+            const admYear = admDate.getFullYear();
+            const admMonth = admDate.getMonth(); // 0-indexed
+
+            if (monthYear < admYear || (monthYear === admYear && monthIdx < admMonth)) {
+              shouldBeExempted = true;
+            }
+          }
+
+          if (shouldBeExempted) {
+            // Recalculate to EXEMPTED if not already
+            if (m.status !== 'EXEMPTED' || m.transportStatus !== 'EXEMPTED') {
+              m.status = 'EXEMPTED';
+              m.amount = 0;
+              m.paidAmount = 0;
+              m.transportStatus = 'EXEMPTED';
+              m.transportAmount = 0;
+              m.transportPaidAmount = 0;
+              modified = true;
+            }
+          } else {
+            // It should NOT be exempted.
+            // If it is currently EXEMPTED, restore it to UNPAID and set standard fees
+            if (m.status === 'EXEMPTED') {
+              m.status = 'UNPAID';
+              m.amount = finalTuitionFee;
+              m.paidAmount = 0;
+              modified = true;
+            } else {
+              // Even if not exempted, make sure amount aligns with tuition base (in case discount was updated)
+              if (m.status === 'UNPAID' && m.amount !== finalTuitionFee) {
+                m.amount = finalTuitionFee;
+                modified = true;
+              }
+            }
+
+            // Sync Transport
+            if (hasSchoolBus) {
+              const expectedTransportFee = student.transportFee !== undefined ? student.transportFee : 500;
+              if (m.transportStatus === 'EXEMPTED') {
+                m.transportStatus = 'UNPAID';
+                m.transportAmount = expectedTransportFee;
+                m.transportPaidAmount = 0;
+                modified = true;
+              } else if (m.transportStatus === 'UNPAID' && m.transportAmount !== expectedTransportFee) {
+                m.transportAmount = expectedTransportFee;
+                modified = true;
+              }
+            } else {
+              // No school bus, so transport should be exempted
+              if (m.transportStatus !== 'EXEMPTED') {
+                m.transportStatus = 'EXEMPTED';
+                m.transportAmount = 0;
+                m.transportPaidAmount = 0;
+                modified = true;
+              }
+            }
+          }
+        });
+
+        if (modified) {
+          ledger.markModified('monthlyFees');
+          await ledger.save();
+        }
+      }
+    }
+
     if (!ledger) {
       let finalTuitionFee = tuitionFee;
       let studentAdmissionDate = null;
-
+      let hasSchoolBus = false;
+ 
       const student = await Student.findById(studentId);
       if (student) {
         const discount = student.discountPercentage || 0;
         finalTuitionFee = Math.round(tuitionFee * (1 - (discount / 100)));
         studentAdmissionDate = student.admissionDate || student.createdAt || null;
+        hasSchoolBus = student.transportMode === 'School Bus';
       }
 
       const months = [
@@ -55,28 +159,38 @@ class FeeService {
       const monthlyFees = months.map(m => {
         let status = 'UNPAID';
         let amount = finalTuitionFee;
-
+ 
         if (studentAdmissionDate && !isNaN(startYear)) {
           const mapping = monthMapping[m];
           const monthYear = startYear + mapping.offset;
           const monthIdx = mapping.idx;
-
+ 
           const admDate = new Date(studentAdmissionDate);
           const admYear = admDate.getFullYear();
           const admMonth = admDate.getMonth(); // 0-indexed
-
+ 
           // If the month-year is BEFORE the student's admission month-year
           if (monthYear < admYear || (monthYear === admYear && monthIdx < admMonth)) {
             status = 'EXEMPTED';
             amount = 0;
           }
         }
-
+ 
+        let transportAmountVal = hasSchoolBus ? (student.transportFee !== undefined ? student.transportFee : 500) : 0;
+        let transportStatusVal = hasSchoolBus ? 'UNPAID' : 'EXEMPTED';
+        if (status === 'EXEMPTED') {
+          transportAmountVal = 0;
+          transportStatusVal = 'EXEMPTED';
+        }
+ 
         return {
           month: m,
           amount,
           paidAmount: 0,
-          status
+          status,
+          transportAmount: transportAmountVal,
+          transportPaidAmount: 0,
+          transportStatus: transportStatusVal
         };
       });
 
@@ -97,7 +211,7 @@ class FeeService {
   /**
    * Fetch student fee summary using class and roll number
    */
-  async getStudentFeeDetails(classId, rollNumber) {
+  async getStudentFeeDetails(classId, rollNumber, academicYear = '2026-2027') {
     const FeeLedger = require('../models/FeeLedger');
     
     // 1. Find student and populate class info
@@ -109,7 +223,6 @@ class FeeService {
     }
 
     // 2. Fetch or initialize Fee Ledger for the student
-    const academicYear = student.session || '2026-2027'; 
     const ledger = await this.ensureFeeLedger(
       student._id, 
       academicYear, 
@@ -127,7 +240,9 @@ class FeeService {
         id: student._id,
         fullName: student.fullName,
         class: student.class.name,
-        rollNumber: student.rollNumber
+        rollNumber: student.rollNumber,
+        transportMode: student.transportMode || 'Private',
+        transportFee: student.transportFee !== undefined ? student.transportFee : 0
       },
       feeSummary: ledger ? {
         totalFee: ledger.totalFee,
@@ -145,7 +260,11 @@ class FeeService {
           amount: m.amount,
           paidAmount: m.paidAmount,
           pending: m.amount - m.paidAmount,
-          status: m.status
+          status: m.status,
+          transportAmount: m.transportAmount || 0,
+          transportPaidAmount: m.transportPaidAmount || 0,
+          transportPending: (m.transportAmount || 0) - (m.transportPaidAmount || 0),
+          transportStatus: m.transportStatus || 'EXEMPTED'
         }))
       } : null,
       transactions: transactions
@@ -158,9 +277,34 @@ class FeeService {
   async processPayment(studentId, paymentData) {
     const mongoose = require('mongoose');
     const FeeLedger = require('../models/FeeLedger');
-    const { amount, type, transactionId, remarks, dueDate, month, academicYear, paymentMode } = paymentData;
+    const { amount, type, transactionId, remarks, dueDate, month, academicYear, paymentMode, includeTransport } = paymentData;
 
     try {
+      // Normalize month to a string for FeeTransaction database record and target months array
+      let monthDbValue = '';
+      let targetMonths = [];
+      if (Array.isArray(month)) {
+        targetMonths = month;
+        monthDbValue = month.join(', ');
+      } else if (typeof month === 'string') {
+        if (month.includes(',')) {
+          targetMonths = month.split(',').map(m => m.trim());
+          monthDbValue = month;
+        } else {
+          targetMonths = [month];
+          monthDbValue = month;
+        }
+      }
+
+      // Sort selected months chronologically based on academic year
+      const academicMonthOrder = [
+        'April', 'May', 'June', 'July', 'August', 'September',
+        'October', 'November', 'December', 'January', 'February', 'March'
+      ];
+      targetMonths.sort((a, b) => {
+        return academicMonthOrder.indexOf(a) - academicMonthOrder.indexOf(b);
+      });
+
       // 1. Generate unique receipt number
       const receiptNumber = await generateReceiptNumber();
 
@@ -174,7 +318,7 @@ class FeeService {
         dueDate: dueDate || new Date(),
         transactionId,
         receiptNumber,
-        month,
+        month: monthDbValue,
         academicYear,
         remarks,
         paymentMode
@@ -185,28 +329,81 @@ class FeeService {
       const tuitionFee = student?.class?.tuitionFee || 0;
       const ledger = await this.ensureFeeLedger(studentId, academicYear, tuitionFee);
 
-      // Find the month entry in the array
-      const monthIndex = ledger.monthlyFees.findIndex(m => m.month === month);
-      if (monthIndex === -1) {
-        throw new Error(`Month ${month} not found in the fee ledger`);
+      let remainingAmount = amount;
+      let totalTransportPaid = 0;
+
+      for (const mName of targetMonths) {
+        const monthEntry = ledger.monthlyFees.find(m => m.month === mName);
+        if (!monthEntry) {
+          throw new Error(`Month ${mName} not found in the fee ledger`);
+        }
+
+        // Skip processing if the month status is EXEMPTED
+        if (monthEntry.status === 'EXEMPTED') {
+          continue;
+        }
+
+        // A. Pay Transport first for this month if included and student uses School Bus
+        if (includeTransport && student.transportMode === 'School Bus' && monthEntry.transportStatus !== 'EXEMPTED') {
+          const tPending = Math.max(0, (monthEntry.transportAmount || 500) - (monthEntry.transportPaidAmount || 0));
+          if (tPending > 0 && remainingAmount > 0) {
+            if (remainingAmount >= tPending) {
+              monthEntry.transportPaidAmount = (monthEntry.transportPaidAmount || 0) + tPending;
+              monthEntry.transportStatus = 'PAID';
+              totalTransportPaid += tPending;
+              remainingAmount -= tPending;
+            } else {
+              monthEntry.transportPaidAmount = (monthEntry.transportPaidAmount || 0) + remainingAmount;
+              monthEntry.transportStatus = 'UNPAID';
+              totalTransportPaid += remainingAmount;
+              remainingAmount = 0;
+            }
+          }
+        }
+
+        // B. Pay Tuition for this month
+        const pending = Math.max(0, monthEntry.amount - monthEntry.paidAmount);
+
+        if (pending > 0 && remainingAmount > 0) {
+          if (remainingAmount >= pending) {
+            monthEntry.paidAmount += pending;
+            monthEntry.status = 'PAID';
+            monthEntry.paidOn = new Date();
+            remainingAmount -= pending;
+          } else {
+            monthEntry.paidAmount += remainingAmount;
+            monthEntry.status = 'PARTIAL';
+            monthEntry.paidOn = new Date();
+            remainingAmount = 0;
+          }
+        }
       }
 
-      // Check if already paid to prevent duplicate charges
-      if (ledger.monthlyFees[monthIndex].status === 'PAID') {
-        throw new Error(`Fee for ${month} is already fully paid`);
+      // If there's still remaining amount (overpayment), apply it to the last selected non-exempted month
+      if (remainingAmount > 0 && targetMonths.length > 0) {
+        let lastNonExemptedEntry = null;
+        for (let i = targetMonths.length - 1; i >= 0; i--) {
+          const mEntry = ledger.monthlyFees.find(m => m.month === targetMonths[i]);
+          if (mEntry && mEntry.status !== 'EXEMPTED') {
+            lastNonExemptedEntry = mEntry;
+            break;
+          }
+        }
+        if (lastNonExemptedEntry) {
+          lastNonExemptedEntry.paidAmount += remainingAmount;
+          lastNonExemptedEntry.status = 'PAID';
+          lastNonExemptedEntry.paidOn = new Date();
+        }
       }
 
-      // Update the month's payment details
-      ledger.monthlyFees[monthIndex].paidAmount += amount;
-      
-      // Determine new status based on amount comparison
-      if (ledger.monthlyFees[monthIndex].paidAmount >= ledger.monthlyFees[monthIndex].amount) {
-        ledger.monthlyFees[monthIndex].status = 'PAID';
-      } else if (ledger.monthlyFees[monthIndex].paidAmount > 0) {
-        ledger.monthlyFees[monthIndex].status = 'PARTIAL';
+      // Save transportAmount on the transaction record if any transport fee was settled
+      if (totalTransportPaid > 0) {
+        transaction.transportAmount = totalTransportPaid;
+        await transaction.save();
       }
-      
-      ledger.monthlyFees[monthIndex].paidOn = new Date();
+
+      // Mark the array modified so Mongoose saves changes
+      ledger.markModified('monthlyFees');
 
       // 4. Save the ledger (this triggers the pre-save hook to recalculate totals)
       await ledger.save();
@@ -259,82 +456,170 @@ class FeeService {
     doc.moveTo(40, 95).lineTo(555, 95).stroke('#e5e7eb');
 
     // 2. Receipt Identification
-    doc.y = 110;
-    doc.fillColor('#111827').fontSize(16).text('FEE COLLECTION RECEIPT', { align: 'center', weight: 'bold' });
-    doc.moveDown(1);
+    doc.y = 105;
+    doc.fillColor('#111827').fontSize(14).text('FEE COLLECTION RECEIPT', { align: 'center', weight: 'bold' });
+    doc.moveDown(0.5);
 
     // Metadata Grid
-    doc.fontSize(10);
+    doc.fontSize(9);
     const metaY = doc.y;
-    doc.text(`Receipt No: ${transaction.receiptNumber || transaction._id}`, 40, metaY);
-    doc.text(`Date: ${transaction.paymentDate ? transaction.paymentDate.toLocaleDateString() : 'N/A'}`, 420, metaY);
-    doc.text(`Academic Year: 2025 - 2026`, 40, metaY + 15);
-    doc.text(`Status: SUCCESSFUL`, 420, metaY + 15);
+    doc.fillColor('#4b5563').text('Receipt Number:', 40, metaY);
+    doc.fillColor('#111827').text(transaction.receiptNumber || transaction._id.toString().toUpperCase(), 120, metaY, { weight: 'bold' });
     
-    doc.moveDown(3);
+    doc.fillColor('#4b5563').text('Payment Date:', 320, metaY);
+    doc.fillColor('#111827').text(transaction.paymentDate ? transaction.paymentDate.toLocaleDateString('en-IN') : 'N/A', 400, metaY);
+    
+    doc.fillColor('#4b5563').text('Academic Session:', 40, metaY + 15);
+    doc.fillColor('#111827').text(transaction.academicYear || '2026 - 2027', 120, metaY + 15);
+    
+    doc.fillColor('#4b5563').text('Payment Status:', 320, metaY + 15);
+    doc.fillColor('#059669').text('SUCCESSFUL / PAID', 400, metaY + 15, { weight: 'bold' });
+    
+    doc.fillColor('#4b5563').text('Payment Mode:', 320, metaY + 30);
+    doc.fillColor('#1e40af').text((transaction.paymentMode || 'CASH').toUpperCase(), 400, metaY + 30, { weight: 'bold' });
 
-    // 3. Student Details (2-column format)
-    doc.rect(40, doc.y, 515, 25).fill('#f9fafb');
-    doc.fillColor('#1f2937').fontSize(10).text('STUDENT INFORMATION', 50, doc.y + 7, { weight: 'bold' });
-    doc.moveDown(1.5);
+    doc.moveDown(2.5);
+
+    // 3. Student Details Card
+    doc.rect(40, doc.y, 515, 20).fill('#f3f4f6');
+    doc.fillColor('#1f2937').fontSize(9).text('STUDENT INFORMATION', 50, doc.y + 6, { weight: 'bold' });
+    doc.moveDown(1);
 
     const studentY = doc.y;
-    doc.fillColor('#4b5563').text('ID Number:', 50, studentY);
-    doc.fillColor('#111827').text(`LFES-${transaction.student.rollNumber}`, 150, studentY);
+    doc.fillColor('#6b7280').text('Student Name:', 50, studentY);
+    doc.fillColor('#111827').text((transaction.student.name || "").toUpperCase(), 130, studentY, { weight: 'bold' });
     
-    doc.fillColor('#4b5563').text('Full Name:', 50, studentY + 20);
-    doc.fillColor('#111827').text((transaction.student.name || "").toUpperCase(), 150, studentY + 20, { weight: 'bold' });
+    doc.fillColor('#6b7280').text('Admission ID:', 320, studentY);
+    doc.fillColor('#111827').text(transaction.student.studentId || `LFES-${transaction.student.rollNumber}`, 400, studentY);
     
-    doc.fillColor('#4b5563').text('Class/Section:', 320, studentY);
-    doc.fillColor('#111827').text(transaction.student.class.name, 420, studentY);
+    doc.fillColor('#6b7280').text('Class / Section:', 50, studentY + 18);
+    doc.fillColor('#111827').text(`${transaction.student.class?.name || 'N/A'} - ${transaction.student.section || 'A'}`, 130, studentY + 18);
     
-    doc.fillColor('#4b5563').text('Payment Mode:', 320, studentY + 20);
-    doc.fillColor('#111827').text(transaction.paymentMode || 'ONLINE/CASH', 420, studentY + 20);
+    doc.fillColor('#6b7280').text('Roll Number:', 320, studentY + 18);
+    doc.fillColor('#111827').text(transaction.student.rollNumber || 'N/A', 400, studentY + 18);
+
+    doc.fillColor('#6b7280').text('Father Name:', 50, studentY + 36);
+    doc.fillColor('#111827').text((transaction.student.fatherName || 'N/A').toUpperCase(), 130, studentY + 36);
+    
+    doc.fillColor('#6b7280').text('Contact Phone:', 320, studentY + 36);
+    doc.fillColor('#111827').text(transaction.student.phone || 'N/A', 400, studentY + 36);
 
     doc.moveDown(3);
 
     // 4. Financial breakdown
-    doc.rect(40, doc.y, 515, 25).fill('#f9fafb');
-    doc.fillColor('#1f2937').text('PAYMENT DETAILS', 50, doc.y + 7, { weight: 'bold' });
-    doc.moveDown(1.5);
+    doc.rect(40, doc.y, 515, 20).fill('#f3f4f6');
+    doc.fillColor('#1f2937').text('PAYMENT PARTICULARS', 50, doc.y + 6, { weight: 'bold' });
+    doc.moveDown(1);
 
     const tableY = doc.y;
-    doc.fillColor('#111827').text('PARTICULARS', 50, tableY, { weight: 'bold' });
-    doc.text('AMOUNT (INR)', 450, tableY, { weight: 'bold' });
+    doc.fillColor('#111827').text('FEE COMPONENT PARTICULARS', 50, tableY, { weight: 'bold' });
+    doc.text('BILL PERIOD', 250, tableY, { weight: 'bold' });
+    doc.text('AMOUNT PAID', 450, tableY, { weight: 'bold' });
     
-    doc.moveTo(40, tableY + 15).lineTo(555, tableY + 15).stroke('#eeeeee');
+    doc.moveTo(40, tableY + 12).lineTo(555, tableY + 12).stroke('#e5e7eb');
     
-    doc.text(transaction.type + ' Fee (Current Installment)', 50, tableY + 25);
-    doc.text(`INR ${transaction.amount.toLocaleString('en-IN')}.00`, 420, tableY + 25, { align: 'right', width: 100 });
+    const transportPaid = transaction.transportAmount || 0;
+    const tuitionPaid = transaction.amount - transportPaid;
+    const billMonth = transaction.month || 'Current Installment';
     
-    doc.moveTo(40, tableY + 45).lineTo(555, tableY + 45).stroke('#eeeeee');
+    let currentY = tableY + 20;
+    
+    if (transportPaid > 0) {
+      // Row 1: Tuition
+      doc.rect(40, currentY - 4, 515, 18).fill('#ffffff');
+      doc.fillColor('#374151').fontSize(8.5).text('Tuition Fee', 50, currentY);
+      doc.text(billMonth, 250, currentY);
+      doc.fillColor('#111827').text(`INR ${tuitionPaid.toLocaleString('en-IN')}.00`, 420, currentY, { align: 'right', width: 100 });
+      doc.moveTo(40, currentY + 12).lineTo(555, currentY + 12).stroke('#f3f4f6');
+      
+      currentY += 18;
+      
+      // Row 2: Transport
+      doc.rect(40, currentY - 4, 515, 18).fill('#f9fafb');
+      doc.fillColor('#374151').text('Transport Fee', 50, currentY);
+      doc.text(billMonth, 250, currentY);
+      doc.fillColor('#111827').text(`INR ${transportPaid.toLocaleString('en-IN')}.00`, 420, currentY, { align: 'right', width: 100 });
+      doc.moveTo(40, currentY + 12).lineTo(555, currentY + 12).stroke('#f3f4f6');
+      
+      currentY += 18;
+    } else {
+      // Single Tuition Row
+      doc.rect(40, currentY - 4, 515, 18).fill('#ffffff');
+      doc.fillColor('#374151').fontSize(8.5).text(`${transaction.type || 'Tuition'} Fee`, 50, currentY);
+      doc.text(billMonth, 250, currentY);
+      doc.fillColor('#111827').text(`INR ${transaction.amount.toLocaleString('en-IN')}.00`, 420, currentY, { align: 'right', width: 100 });
+      doc.moveTo(40, currentY + 12).lineTo(555, currentY + 12).stroke('#f3f4f6');
+      
+      currentY += 18;
+    }
+
+    doc.y = currentY + 10;
 
     // Total section
-    doc.moveDown(2);
-    doc.rect(40, doc.y, 515, 40).fill('#eff6ff');
-    doc.fillColor('#1e40af').fontSize(14).text('TOTAL PAID:', 60, doc.y + 12, { weight: 'bold' });
-    doc.text(`INR ${transaction.amount.toLocaleString('en-IN')}.00`, 380, doc.y - 14, { weight: 'bold', align: 'right', width: 150 });
+    doc.rect(40, doc.y, 515, 30).fill('#eff6ff');
+    doc.fillColor('#1e40af').fontSize(11).text('GRAND TOTAL PAID:', 60, doc.y + 10, { weight: 'bold' });
+    doc.text(`INR ${transaction.amount.toLocaleString('en-IN')}.00`, 380, doc.y - 11, { weight: 'bold', align: 'right', width: 150 });
     
     doc.moveDown(2);
-    doc.fillColor('#4b5563').fontSize(9).text(`Amount in words: ${this.numberToWords(transaction.amount)} Rupees Only`, { italic: true });
+    doc.fillColor('#4b5563').fontSize(8).text(`Amount in words: ${this.numberToWords(transaction.amount)}`, { italic: true });
 
-    // 5. Digital Verification
-    doc.moveDown(4);
+    // 5. Digital Verification & Signature/Stamp Grid
+    doc.moveDown(2.5);
     const verifyY = doc.y;
     
-    // QR Box placeholder
-    doc.rect(40, verifyY, 80, 80).stroke('#d1d5db');
-    doc.fontSize(7).fillColor('#9ca3af').text('DIGITAL\nVERIFICATION\nQR CODE', 45, verifyY + 25, { width: 70, align: 'center' });
+    // QR Code async buffer resolution
+    let qrBuffer = null;
+    try {
+      const qrPayload = JSON.stringify({
+        receiptNo: transaction.receiptNumber || transaction._id.toString().toUpperCase(),
+        studentName: transaction.student.name,
+        amount: transaction.amount,
+        date: transaction.paymentDate ? transaction.paymentDate.toLocaleDateString('en-IN') : 'N/A',
+        session: transaction.academicYear || "2026 - 2027"
+      });
+      const axios = require('axios');
+      const qrRes = await axios.get(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`, {
+        responseType: 'arraybuffer',
+        timeout: 2000
+      });
+      qrBuffer = Buffer.from(qrRes.data);
+    } catch (e) {
+      console.log("Failed to fetch QR Code image, drawing fallback box:", e.message);
+    }
+
+    if (qrBuffer) {
+      doc.image(qrBuffer, 40, verifyY, { width: 75, height: 75 });
+    } else {
+      doc.rect(40, verifyY, 75, 75).stroke('#d1d5db');
+      doc.fontSize(6).fillColor('#9ca3af').text('DIGITAL\nVERIFICATION\nQR CODE', 42, verifyY + 25, { width: 70, align: 'center' });
+    }
     
-    doc.fillColor('#059669').fontSize(10).text('VERIFIED DIGITALLY', 140, verifyY + 10, { weight: 'bold' });
-    doc.fillColor('#6b7280').fontSize(8).text('Transaction Hash: ' + transaction._id.toString().toUpperCase(), 140, verifyY + 25);
+    doc.fillColor('#059669').fontSize(9).text('VERIFIED DIGITALLY', 130, verifyY + 10, { weight: 'bold' });
+    doc.fillColor('#6b7280').fontSize(7.5).text('Digital Ledger Hash: ' + (transaction.receiptNumber || transaction._id.toString().toUpperCase()), 130, verifyY + 22);
+    doc.text('Verification available via QR Code scanner.', 130, verifyY + 32);
     
-    // Registrar Signature
-    doc.fillColor('#111827').fontSize(10).text('AUTHORIZED REGISTRAR', 400, verifyY + 60, { align: 'center' });
-    doc.moveTo(380, verifyY + 55).lineTo(530, verifyY + 55).stroke('#9ca3af');
+    // Registrar / Principal Signature with overlapping stamp
+    const signaturePath = path.join(__dirname, '../assets/official/principal-signature.png');
+    const stampPath = path.join(__dirname, '../assets/official/school-stamp.png');
+    
+    // Draw signature
+    if (fs.existsSync(signaturePath)) {
+      doc.image(signaturePath, 410, verifyY + 2, { width: 95, height: 35 });
+    }
+    
+    // Draw stamp overlapping signature (20-30% overlap, 75% opacity)
+    if (fs.existsSync(stampPath)) {
+      doc.save();
+      doc.opacity(0.75);
+      doc.image(stampPath, 375, verifyY - 15, { width: 75, height: 75 });
+      doc.restore();
+    }
+
+    doc.fillColor('#111827').fontSize(9).text('Principal', 400, verifyY + 50, { align: 'center', width: 120 });
+    doc.fontSize(7.5).fillColor('#6b7280').text('Little Flower English School', 400, verifyY + 60, { align: 'center', width: 120 });
 
     // 6. Footer
-    doc.fontSize(8).fillColor('#9ca3af').text(
+    doc.fontSize(7.5).fillColor('#9ca3af').text(
       'This is a system-generated receipt for Little Flower English School and does not require a physical signature.',
       40, 780, { align: 'center' }
     );
@@ -361,6 +646,29 @@ class FeeService {
     }
     
     return convert(num);
+  }
+
+  async updateStudentTransportFee(studentId, newFee, academicYear = '2026-2027') {
+    const Student = require('../models/Student');
+    const FeeLedger = require('../models/FeeLedger');
+
+    // 1. Update Student profile
+    const student = await Student.findByIdAndUpdate(studentId, { transportFee: newFee }, { new: true });
+    if (!student) throw new Error('Student not found');
+
+    // 2. Update all UNPAID months in their current ledger to use this new fee
+    const ledger = await FeeLedger.findOne({ studentId, academicYear });
+    if (ledger) {
+      ledger.monthlyFees.forEach(m => {
+        if (m.transportStatus === 'UNPAID') {
+          m.transportAmount = newFee;
+        }
+      });
+      ledger.markModified('monthlyFees');
+      await ledger.save();
+    }
+
+    return student;
   }
 }
 

@@ -1,22 +1,4 @@
 --- Starting Fee Management Verification ---
 
 [1] Logging in Admin...
-Admin logged in.
-
-[2] Setting Class Tuition Fee...
-Created Test Class: 699eec767d200b9bf111d1dd with Fee: 50000
-
-[3] Creating Test Student...
-Created Student: 699eec767d200b9bf111d1e0
-
-[4] Initial Fee Check...
-Initial Summary: {"totalFee":50000,"paidFee":0,"dueFee":50000}
-
-[5] Recording Partial Payment (15,000)...
-Payment 1 Status: 201
-
-[6] Recording Second Partial Payment (10,000)...
-
-[7] Verifying Final Fee Summary...
-Final Summary: {"totalFee":50000,"paidFee":25000,"dueFee":25000}
-Total Transactions: 2
+Admin login failed.

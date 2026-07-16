@@ -263,8 +263,8 @@ const AdmissionRequestList = () => {
         </div>
       )}
 
-      {/* Filters Bar */}
-      <div className="bg-white p-6 rounded-[2rem] border border-gray-200 shadow-sm space-y-4">
+      {/* Desktop Filters Bar */}
+      <div className="hidden md:block bg-white p-6 rounded-[2rem] border border-gray-200 shadow-sm space-y-4">
         <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1 relative">
@@ -331,6 +331,70 @@ const AdmissionRequestList = () => {
         </form>
       </div>
 
+      {/* Mobile Filters Bar */}
+      <div className="md:hidden bg-white p-3 rounded-2xl border border-gray-150 shadow-sm space-y-3">
+        <form onSubmit={handleSearchSubmit} className="space-y-3">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-150 text-gray-905 text-xs rounded-xl pl-9 pr-4 py-2.5 outline-none focus:bg-white focus:border-indigo-600 transition-all font-semibold"
+            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Status Chip */}
+            <div className="relative inline-block">
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                className="bg-indigo-50/70 border border-indigo-100/80 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-full px-3 py-1.5 appearance-none outline-none cursor-pointer"
+              >
+                <option value="all">All Status</option>
+                <option value="Draft">Draft</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Under Review">Under Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+
+            {/* Class Filter Chip */}
+            <div className="relative inline-block">
+              <select
+                value={classFilter}
+                onChange={(e) => { setClassFilter(e.target.value); setPage(1); }}
+                className="bg-indigo-50/70 border border-indigo-100/80 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-full px-3 py-1.5 appearance-none outline-none cursor-pointer"
+              >
+                <option value="all">All Classes</option>
+                {classesList.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {/* Sort Chip */}
+            <div className="relative inline-block">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-indigo-50/70 border border-indigo-100/80 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-full px-3 py-1.5 appearance-none outline-none cursor-pointer"
+              >
+                <option value="latest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="alphabetical">A-Z</option>
+                <option value="status">Status</option>
+              </select>
+            </div>
+
+            <Button type="submit" variant="secondary" className="rounded-full px-4 py-1.5 h-[28px] flex items-center justify-center font-black text-[10px] uppercase tracking-wider border border-gray-250 bg-white hover:bg-gray-50 text-gray-700">
+              Apply
+            </Button>
+          </div>
+        </form>
+      </div>
+
       {/* Grid / List Results */}
       <div className="bg-white rounded-[2rem] border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
@@ -341,120 +405,219 @@ const AdmissionRequestList = () => {
             description="Adjust your search query or create a new request form if you are a teacher."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-gray-150 bg-gray-55/30">
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Student Details</th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Class Info</th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Parent/Phone</th>
-                  {user.role === 'admin' && (
-                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Submitted By</th>
-                  )}
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {requests.map((req) => (
-                  <tr key={req._id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center font-black text-indigo-700 uppercase">
-                          {req.studentInfo.fullName.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-gray-900">{req.studentInfo.fullName}</p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{req.studentInfo.gender}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-gray-700">Class {req.studentInfo.admissionClass}</p>
-                      {req.studentInfo.section && (
-                        <p className="text-[10px] text-gray-400 font-bold mt-0.5">Section: {req.studentInfo.section}</p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-gray-700">{req.parentInfo.fatherName}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{req.parentInfo.phone}</p>
-                    </td>
+          <>
+            {/* Desktop View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-150 bg-gray-50/30">
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Student Details</th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Class Info</th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Parent/Phone</th>
                     {user.role === 'admin' && (
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-semibold text-gray-700">
-                          {req.teacher ? `${req.teacher.firstName} ${req.teacher.lastName}` : "System Admin"}
-                        </p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Teacher</p>
-                      </td>
+                      <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Submitted By</th>
                     )}
-                    <td className="px-6 py-4 text-xs font-medium text-gray-500">
-                      {new Date(req.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "inline-flex items-center px-3 py-1 rounded-full text-xs font-black tracking-wide border",
-                        getStatusBadgeClass(req.status)
-                      )}>
-                        {getStatusIcon(req.status)}
-                        {req.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end items-center gap-2">
-                        {/* Always show View Details */}
-                        <button
-                          onClick={() => navigate(`/admissions/requests/details/${req._id}`)}
-                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          title="View Details"
-                        >
-                          <Eye size={18} />
-                        </button>
-
-                        {/* Teacher actions for draft */}
-                        {user.role === 'teacher' && req.status === 'Draft' && (
-                          <>
-                            <button
-                              onClick={() => handleSubmitClick(req)}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                              title="Submit Request"
-                            >
-                              <Send size={18} />
-                            </button>
-                            <button
-                              onClick={() => navigate(`/admissions/requests/edit/${req._id}`)}
-                              className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
-                              title="Edit Request"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(req)}
-                              className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                              title="Delete Draft"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </>
-                        )}
-
-                        {/* Teacher action duplicate on rejected */}
-                        {user.role === 'teacher' && req.status === 'Rejected' && (
-                          <button
-                            onClick={() => handleDuplicate(req)}
-                            className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                            title="Duplicate & Re-apply"
-                          >
-                            <UserCheck size={18} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {requests.map((req) => (
+                    <tr key={req._id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center font-black text-indigo-700 uppercase">
+                            {req.studentInfo.fullName.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-gray-900">{req.studentInfo.fullName}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{req.studentInfo.gender}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-bold text-gray-700">Class {req.studentInfo.admissionClass}</p>
+                        {req.studentInfo.section && (
+                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">Section: {req.studentInfo.section}</p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-semibold text-gray-700">{req.parentInfo.fatherName}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{req.parentInfo.phone}</p>
+                      </td>
+                      {user.role === 'admin' && (
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-semibold text-gray-700">
+                            {req.teacher ? `${req.teacher.firstName} ${req.teacher.lastName}` : "System Admin"}
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Teacher</p>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 text-xs font-medium text-gray-500">
+                        {new Date(req.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "inline-flex items-center px-3 py-1 rounded-full text-xs font-black tracking-wide border",
+                          getStatusBadgeClass(req.status)
+                        )}>
+                          {getStatusIcon(req.status)}
+                          {req.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          {/* Always show View Details */}
+                          <button
+                            onClick={() => navigate(`/admissions/requests/details/${req._id}`)}
+                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="View Details"
+                          >
+                            <Eye size={18} />
+                          </button>
+
+                          {/* Teacher actions for draft */}
+                          {user.role === 'teacher' && req.status === 'Draft' && (
+                            <>
+                              <button
+                                onClick={() => handleSubmitClick(req)}
+                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                title="Submit Request"
+                              >
+                                <Send size={18} />
+                              </button>
+                              <button
+                                onClick={() => navigate(`/admissions/requests/edit/${req._id}`)}
+                                className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                title="Edit Request"
+                              >
+                                <Edit2 size={18} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(req)}
+                                className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                title="Delete Draft"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </>
+                          )}
+
+                          {/* Teacher action duplicate on rejected */}
+                          {user.role === 'teacher' && req.status === 'Rejected' && (
+                            <button
+                              onClick={() => handleDuplicate(req)}
+                              className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              title="Duplicate & Re-apply"
+                            >
+                              <UserCheck size={18} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View */}
+            <div className="md:hidden divide-y divide-gray-150">
+              {requests.map((req) => (
+                <div key={req._id} className="p-4 space-y-3 bg-white">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-center font-black text-indigo-700 uppercase text-xs">
+                        {req.studentInfo.fullName.charAt(0)}
+                      </div>
+                      <div>
+                        <h5 className="font-black text-gray-900 text-sm">{req.studentInfo.fullName}</h5>
+                        <p className="text-[10px] text-gray-450 font-bold uppercase tracking-wider mt-0.5">
+                          Class {req.studentInfo.admissionClass} • {req.studentInfo.gender}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={cn(
+                      "inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide border uppercase",
+                      getStatusBadgeClass(req.status)
+                    )}>
+                      {getStatusIcon(req.status)}
+                      {req.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs border-t border-gray-50 pt-2 text-gray-600">
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase font-bold block">Parent</span>
+                      <span className="font-bold text-gray-800">{req.parentInfo.fatherName}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase font-bold block">Phone</span>
+                      <span className="font-bold text-gray-800">{req.parentInfo.phone}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase font-bold block">Applied Date</span>
+                      <span className="font-bold text-gray-800">
+                        {new Date(req.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                    {user.role === 'admin' && (
+                      <div>
+                        <span className="text-[9px] text-gray-400 uppercase font-bold block">Submitted By</span>
+                        <span className="font-bold text-gray-800 truncate block">
+                          {req.teacher ? `${req.teacher.firstName} ${req.teacher.lastName.charAt(0)}.` : "System Admin"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-1.5 pt-2 border-t border-gray-50">
+                    <button
+                      onClick={() => navigate(`/admissions/requests/details/${req._id}`)}
+                      className="h-9 px-3 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-750 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer border border-indigo-100/50"
+                    >
+                      <Eye size={14} />
+                      View
+                    </button>
+                    {user.role === 'teacher' && req.status === 'Draft' && (
+                      <>
+                        <button
+                          onClick={() => handleSubmitClick(req)}
+                          className="h-9 px-3 text-xs bg-blue-50 hover:bg-blue-100 text-blue-750 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer border border-blue-100/50"
+                        >
+                          <Send size={14} />
+                          Submit
+                        </button>
+                        <button
+                          onClick={() => navigate(`/admissions/requests/edit/${req._id}`)}
+                          className="h-9 px-3 text-xs bg-amber-50 hover:bg-amber-100 text-amber-750 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer border border-amber-100/50"
+                        >
+                          <Edit2 size={14} />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(req)}
+                          className="h-9 w-9 text-xs bg-rose-50 hover:bg-rose-100 text-rose-750 rounded-lg flex items-center justify-center font-bold transition-all cursor-pointer border border-rose-100/50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                    {user.role === 'teacher' && req.status === 'Rejected' && (
+                      <button
+                        onClick={() => handleDuplicate(req)}
+                        className="h-9 px-3 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-755 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer border border-emerald-100/50"
+                      >
+                        <UserCheck size={14} />
+                        Re-apply
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Pagination */}

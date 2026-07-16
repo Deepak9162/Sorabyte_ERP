@@ -154,20 +154,20 @@ const MyAttendance = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
-            <Calendar className="text-indigo-600" size={28} />
-            My Attendance History
+          <h1 className="text-xl md:text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
+            <Calendar className="text-indigo-605" size={24} />
+            My Attendance
           </h1>
-          <p className="text-sm font-medium text-gray-500 mt-1">
+          <p className="hidden md:block text-sm font-medium text-gray-500 mt-1">
             View your daily attendance records and monthly statistics
           </p>
         </div>
         
         {data && data.overallAttendance && (
-          <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
             {getAttendanceAction()}
             <div className="bg-white px-5 py-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
               <div>
@@ -178,6 +178,34 @@ const MyAttendance = () => {
           </div>
         )}
       </div>
+
+      {/* Quick Summary Grid (Mobile) */}
+      {data && data.records && (
+        <div className="md:hidden grid grid-cols-2 gap-3">
+          <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[75px]">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Today's Action</span>
+            <div className="mt-1">{getAttendanceAction()}</div>
+          </div>
+          <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[75px]">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Overall Rate</span>
+            <span className="text-lg font-black text-indigo-700 mt-1">
+              {data.overallAttendance?.percentage || "0"}%
+            </span>
+          </div>
+          <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[75px]">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Presents</span>
+            <span className="text-lg font-black text-emerald-600 mt-1">
+              {getCalendarRecords().filter(r => r.status === 'Present').length} Days
+            </span>
+          </div>
+          <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between min-h-[75px]">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Absents</span>
+            <span className="text-lg font-black text-rose-600 mt-1">
+              {getCalendarRecords().filter(r => r.status === 'Absent').length} Days
+            </span>
+          </div>
+        </div>
+      )}
 
       {data && data.records ? (
         <AttendanceCalendar records={getCalendarRecords()} />

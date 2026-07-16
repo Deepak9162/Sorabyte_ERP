@@ -284,16 +284,16 @@ const Layout = ({ children }) => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top Navbar */}
-        <header className="h-20 sm:h-24 bg-white/90 border-b border-gray-200 flex items-center justify-between px-4 sm:px-10 z-20 sticky top-0 backdrop-blur-xl">
-          <div className="flex items-center gap-2 sm:gap-6">
+        <header className="h-16 md:h-24 bg-white/90 border-b border-gray-200 flex items-center justify-between px-3 md:px-10 z-20 sticky top-0 backdrop-blur-xl">
+          <div className="flex items-center gap-2 md:gap-6">
             <button
               onClick={toggleMobileMenu}
-              className="md:hidden p-3 text-gray-500 hover:bg-gray-50 rounded-2xl transition-all active:scale-90"
+              className="md:hidden p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-all active:scale-90"
             >
-              <Menu size={28} />
+              <Menu className="w-6 h-6" />
             </button>
             <div className="flex flex-col">
-              <h1 className="text-lg sm:text-2xl font-black text-gray-900 capitalize tracking-tight flex items-center gap-2">
+              <h1 className="text-base md:text-2xl font-black text-gray-900 capitalize tracking-tight flex items-center gap-1.5 md:gap-2">
                 <span className="hidden lg:inline text-gray-300">/</span>
                 {getPageTitle()}
               </h1>
@@ -303,13 +303,13 @@ const Layout = ({ children }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-8">
+          <div className="flex items-center gap-1.5 md:gap-8">
             <NotificationDropdown />
 
-            <div className="h-10 w-px bg-gray-100 hidden lg:block"></div>
+            <div className="h-8 w-px bg-gray-100 hidden lg:block"></div>
 
-            <div className="flex items-center gap-2 sm:gap-4 group cursor-pointer bg-gray-50/50 p-1.5 pr-4 rounded-[1.5rem] border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black border-2 border-indigo-50 shadow-xl shadow-indigo-100 group-hover:scale-105 transition-transform text-lg uppercase">
+            <div className="flex items-center gap-1.5 md:gap-4 group cursor-pointer bg-gray-50/50 p-1 md:p-1.5 md:pr-4 rounded-full md:rounded-[1.5rem] border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
+              <div className="w-8 h-8 md:w-12 md:h-12 bg-indigo-600 text-white rounded-xl md:rounded-2xl flex items-center justify-center font-black border-2 border-indigo-50 shadow-xl shadow-indigo-100 group-hover:scale-105 transition-transform text-sm md:text-lg uppercase">
                 {user.name.charAt(0)}
               </div>
               <div className="text-right hidden sm:block">
@@ -325,10 +325,10 @@ const Layout = ({ children }) => {
               </div>
               <button
                 onClick={logout}
-                className="ml-2 p-2.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-90"
+                className="ml-1 md:ml-2 p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-90"
                 title="Secure Logout"
               >
-                <LogOut size={20} />
+                <LogOut className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>

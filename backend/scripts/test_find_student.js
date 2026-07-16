@@ -9,16 +9,24 @@ const run = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("Connected to DB.");
+    const Student = require('../models/Student');
+    const Class = require('../models/Class');
+    const FeeLedger = require('../models/FeeLedger');
+    const feeService = require('../services/feeService');
 
-    const cls = await Class.findOne({ name: "4" });
-    const classId = cls._id.toString();
-    const rollNumber = "01";
+    const student = await Student.findOne({ fullName: "Vivek Kumari" });
+    if (student) {
+      await FeeLedger.deleteMany({ studentId: student._id });
+      console.log("Deleted existing fee ledgers for Vivek Kumari");
 
-    console.log(`Querying student with class: "${classId}" and rollNumber: "${rollNumber}"`);
-
-    // Try manual query
-    const studentManual = await Student.findOne({ class: classId, rollNumber })
-      .populate('class', 'name tuitionFee');
+      const classId = student.class.toString();
+      const details = await feeService.getStudentFeeDetails(classId, student.rollNumber);
+      console.log("Clean reconstructed ledger monthly breakdown transport details:");
+      console.log(details.ledger.monthlyBreakdown.map(m => `${m.month}: amount=${m.amount}, transportAmount=${m.transportAmount}, transportStatus=${m.transportStatus}`));
+    } else {
+      console.log("Vivek Kumari not found");
+    }
+    process.exit(0);
 
     console.log("Manual query student:", studentManual);
 

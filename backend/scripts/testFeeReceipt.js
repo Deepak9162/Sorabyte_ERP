@@ -22,19 +22,10 @@ const testReceipt = async () => {
         });
     }
 
-    // 2. Create a mock student
-    let student = await Student.findOne({ email: 'bitu@test.com' });
+    // 2. Retrieve an existing student
+    const student = await Student.findOne();
     if (!student) {
-        student = await Student.create({
-            firstName: 'Bitu',
-            lastName: 'Kumar',
-            email: 'bitu@test.com',
-            rollNumber: '478',
-            grade: '5',
-            class: cls._id,
-            parentName: 'Ramesh Kumar',
-            parentPhone: '9876543210'
-        });
+        throw new Error('No students found in database to run receipt test.');
     }
 
     // 3. Create a mock transaction

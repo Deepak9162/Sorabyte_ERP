@@ -148,6 +148,11 @@ const studentSchema = new mongoose.Schema(
       },
       default: 'Private',
     },
+    transportFee: {
+      type: Number,
+      default: 0,
+      min: [0, 'Transport fee cannot be negative'],
+    },
     hostelRequired: {
       type: Boolean,
       default: false,
