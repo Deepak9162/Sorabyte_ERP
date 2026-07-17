@@ -41,8 +41,8 @@ class AdminService {
       };
     }
 
-    const [studentCount, teacherCount, classCount, feeStats] = await Promise.all([
-      Student.countDocuments(),
+    const [students, teacherCount, classCount, feeStats] = await Promise.all([
+      Student.find({ status: 'Active' }).populate('class'),
       Teacher.countDocuments(),
       Class.countDocuments(),
       FeeTransaction.aggregate([
@@ -52,51 +52,78 @@ class AdminService {
     ]);
 
     const FeeLedger = require('../models/FeeLedger');
-    const ledgers = await FeeLedger.find();
+    const ledgers = await FeeLedger.find({ academicYear: '2026-2027' });
+    const ledgerMap = new Map();
+    ledgers.forEach(l => {
+      ledgerMap.set(l.studentId.toString(), l);
+    });
 
-    const feeService = require('./feeService');
-    const monthlyFeeDueDate = await feeService.getMonthlyFeeDueDate();
     const currentDate = new Date();
+    const calendarMonth = currentDate.getMonth();
+    const currentAcademicMonthIdx = (calendarMonth >= 3) ? (calendarMonth - 3) : (calendarMonth + 9);
+
+    const monthOrder = [
+      'April', 'May', 'June', 'July', 'August', 'September',
+      'October', 'November', 'December', 'January', 'February', 'March'
+    ];
 
     let totalFeesCollected = feeStats.length > 0 ? feeStats[0].total : 0;
     let currentDueAmount = 0;
     let upcomingFeeAmount = 0;
 
-    ledgers.forEach(l => {
-      const startYear = parseInt(l.academicYear.split('-')[0]);
+    students.forEach(student => {
+      const ledger = ledgerMap.get(student._id.toString());
+      if (ledger) {
+        ledger.monthlyFees.forEach(m => {
+          const monthIdx = monthOrder.indexOf(m.month);
+          const tuitionPending = m.status === 'EXEMPTED' ? 0 : Math.max(0, m.amount - m.paidAmount);
+          const transportPending = m.transportStatus === 'EXEMPTED' ? 0 : Math.max(0, m.transportAmount - m.transportPaidAmount);
+          const monthPending = tuitionPending + transportPending;
 
-      l.monthlyFees.forEach(m => {
-        const monthMapping = {
-          'April': { idx: 3, offset: 0 },
-          'May': { idx: 4, offset: 0 },
-          'June': { idx: 5, offset: 0 },
-          'July': { idx: 6, offset: 0 },
-          'August': { idx: 7, offset: 0 },
-          'September': { idx: 8, offset: 0 },
-          'October': { idx: 9, offset: 0 },
-          'November': { idx: 10, offset: 0 },
-          'December': { idx: 11, offset: 0 },
-          'January': { idx: 0, offset: 1 },
-          'February': { idx: 1, offset: 1 },
-          'March': { idx: 2, offset: 1 }
-        };
-        const mapping = monthMapping[m.month];
-        if (!mapping) return;
+          if (monthIdx <= currentAcademicMonthIdx) {
+            currentDueAmount += monthPending;
+          } else {
+            upcomingFeeAmount += monthPending;
+          }
+        });
+      } else {
+        const tuitionFee = student.class?.tuitionFee || 0;
+        const discount = student.discountPercentage || 0;
+        const tuitionBase = Math.round(tuitionFee * (1 - (discount / 100)));
+        const transportBase = (student.transportMode === 'School Bus' ? (student.transportFee || 0) : 0);
+        const admissionDate = student.admissionDate || student.createdAt || new Date();
+        const startYear = 2026;
 
-        const monthYear = startYear + mapping.offset;
-        const monthIdx = mapping.idx;
-        const dueDate = new Date(monthYear, monthIdx, monthlyFeeDueDate, 23, 59, 59, 999);
+        monthOrder.forEach((mName, mIdx) => {
+          const monthMapping = {
+            'April': { idx: 3, offset: 0 },
+            'May': { idx: 4, offset: 0 },
+            'June': { idx: 5, offset: 0 },
+            'July': { idx: 6, offset: 0 },
+            'August': { idx: 7, offset: 0 },
+            'September': { idx: 8, offset: 0 },
+            'October': { idx: 9, offset: 0 },
+            'November': { idx: 10, offset: 0 },
+            'December': { idx: 11, offset: 0 },
+            'January': { idx: 0, offset: 1 },
+            'February': { idx: 1, offset: 1 },
+            'March': { idx: 2, offset: 1 }
+          };
+          const mapping = monthMapping[mName];
+          const monthYear = startYear + mapping.offset;
+          const monthIdxVal = mapping.idx;
+          const monthEndDate = new Date(monthYear, monthIdxVal + 1, 0, 23, 59, 59, 999);
 
-        const tuitionPending = m.status === 'EXEMPTED' ? 0 : Math.max(0, m.amount - m.paidAmount);
-        const transportPending = m.transportStatus === 'EXEMPTED' ? 0 : Math.max(0, m.transportAmount - m.transportPaidAmount);
-        const pending = tuitionPending + transportPending;
-
-        if (currentDate >= dueDate) {
-          currentDueAmount += pending;
-        } else {
-          upcomingFeeAmount += pending;
-        }
-      });
+          const isExempted = admissionDate > monthEndDate;
+          if (!isExempted) {
+            if (mIdx <= currentAcademicMonthIdx) {
+              currentDueAmount += tuitionBase + transportBase;
+            } else {
+              upcomingFeeAmount += tuitionBase + transportBase;
+            }
+          }
+        });
+      }
     });
 
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -114,7 +141,7 @@ class AdminService {
     const collectedThisMonth = collectedThisMonthStats.length > 0 ? collectedThisMonthStats[0].total : 0;
 
     const statsData = {
-      totalStudents: studentCount,
+      totalStudents: students.length,
       totalTeachers: teacherCount,
       totalClasses: classCount,
       totalFeesCollected,
@@ -383,60 +410,121 @@ class AdminService {
     const targetClass = await Class.findById(classId);
     if (!targetClass) throw new Error('Class not found');
 
-    const students = await Student.find({ class: classId });
+    const students = await Student.find({ class: classId, status: 'Active' });
     const studentIds = students.map(s => s._id);
     const studentCount = students.length;
 
     const FeeLedger = require('../models/FeeLedger');
-    const ledgers = await FeeLedger.find({ studentId: { $in: studentIds } });
+    const ledgers = await FeeLedger.find({ studentId: { $in: studentIds }, academicYear: '2026-2027' });
+    const ledgerMap = new Map();
+    ledgers.forEach(l => {
+      ledgerMap.set(l.studentId.toString(), l);
+    });
 
-    const feeService = require('./feeService');
-    const monthlyFeeDueDate = await feeService.getMonthlyFeeDueDate();
     const currentDate = new Date();
+    const calendarMonth = currentDate.getMonth();
+    const currentAcademicMonthIdx = (calendarMonth >= 3) ? (calendarMonth - 3) : (calendarMonth + 9);
 
-    let totalPaid = 0;
+    const monthOrder = [
+      'April', 'May', 'June', 'July', 'August', 'September',
+      'October', 'November', 'December', 'January', 'February', 'March'
+    ];
+
     let totalExpectedDue = 0;
     let totalCollectedDue = 0;
+    let totalCollectedAllTime = 0;
+    let advanceCollections = 0;
 
-    ledgers.forEach(l => {
-      totalPaid += (l.totalPaid || 0);
-      const startYear = parseInt(l.academicYear.split('-')[0]);
+    // Get payments for these class students recorded in the current calendar month
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
-      l.monthlyFees.forEach(m => {
-        const monthMapping = {
-          'April': { idx: 3, offset: 0 },
-          'May': { idx: 4, offset: 0 },
-          'June': { idx: 5, offset: 0 },
-          'July': { idx: 6, offset: 0 },
-          'August': { idx: 7, offset: 0 },
-          'September': { idx: 8, offset: 0 },
-          'October': { idx: 9, offset: 0 },
-          'November': { idx: 10, offset: 0 },
-          'December': { idx: 11, offset: 0 },
-          'January': { idx: 0, offset: 1 },
-          'February': { idx: 1, offset: 1 },
-          'March': { idx: 2, offset: 1 }
-        };
-        const mapping = monthMapping[m.month];
-        if (!mapping) return;
-
-        const monthYear = startYear + mapping.offset;
-        const monthIdx = mapping.idx;
-        const dueDate = new Date(monthYear, monthIdx, monthlyFeeDueDate, 23, 59, 59, 999);
-
-        if (currentDate >= dueDate) {
-          totalExpectedDue += m.amount + (m.transportStatus !== 'EXEMPTED' ? (m.transportAmount || 0) : 0);
-          totalCollectedDue += m.paidAmount + (m.transportStatus !== 'EXEMPTED' ? (m.transportPaidAmount || 0) : 0);
+    const FeeTransaction = require('../models/FeeTransaction');
+    const classPaymentsThisMonth = await FeeTransaction.aggregate([
+      {
+        $match: {
+          student: { $in: studentIds },
+          status: 'Paid',
+          paymentDate: { $gte: startOfMonth, $lte: endOfMonth }
         }
-      });
-    });
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$amount' }
+        }
+      }
+    ]);
+    const collectionThisMonth = classPaymentsThisMonth.length > 0 ? classPaymentsThisMonth[0].total : 0;
+
+    for (const student of students) {
+      const ledger = ledgerMap.get(student._id.toString());
+      if (ledger) {
+        totalCollectedAllTime += (ledger.totalPaid || 0);
+        ledger.monthlyFees.forEach(m => {
+          const monthIdx = monthOrder.indexOf(m.month);
+          const tuitionPending = m.status === 'EXEMPTED' ? 0 : Math.max(0, m.amount - m.paidAmount);
+          const transportPending = m.transportStatus === 'EXEMPTED' ? 0 : Math.max(0, m.transportAmount - m.transportPaidAmount);
+          const monthPending = tuitionPending + transportPending;
+
+          const tuitionExpected = m.status === 'EXEMPTED' ? 0 : m.amount;
+          const transportExpected = m.transportStatus === 'EXEMPTED' ? 0 : (m.transportAmount || 0);
+
+          if (monthIdx <= currentAcademicMonthIdx) {
+            totalExpectedDue += tuitionExpected + transportExpected;
+            totalCollectedDue += m.paidAmount + (m.transportStatus !== 'EXEMPTED' ? (m.transportPaidAmount || 0) : 0);
+          } else {
+            advanceCollections += m.paidAmount + (m.transportStatus !== 'EXEMPTED' ? (m.transportPaidAmount || 0) : 0);
+          }
+        });
+      } else {
+        const tuitionFee = student.class?.tuitionFee || targetClass.tuitionFee || 0;
+        const discount = student.discountPercentage || 0;
+        const tuitionBase = Math.round(tuitionFee * (1 - (discount / 100)));
+        const transportBase = (student.transportMode === 'School Bus' ? (student.transportFee || 0) : 0);
+        const admissionDate = student.admissionDate || student.createdAt || new Date();
+        const startYear = 2026;
+
+        monthOrder.forEach((mName, mIdx) => {
+          const monthMapping = {
+            'April': { idx: 3, offset: 0 },
+            'May': { idx: 4, offset: 0 },
+            'June': { idx: 5, offset: 0 },
+            'July': { idx: 6, offset: 0 },
+            'August': { idx: 7, offset: 0 },
+            'September': { idx: 8, offset: 0 },
+            'October': { idx: 9, offset: 0 },
+            'November': { idx: 10, offset: 0 },
+            'December': { idx: 11, offset: 0 },
+            'January': { idx: 0, offset: 1 },
+            'February': { idx: 1, offset: 1 },
+            'March': { idx: 2, offset: 1 }
+          };
+          const mapping = monthMapping[mName];
+          const monthYear = startYear + mapping.offset;
+          const monthIdxVal = mapping.idx;
+          const monthEndDate = new Date(monthYear, monthIdxVal + 1, 0, 23, 59, 59, 999);
+
+          const isExempted = admissionDate > monthEndDate;
+          if (!isExempted) {
+            if (mIdx <= currentAcademicMonthIdx) {
+              totalExpectedDue += tuitionBase + transportBase;
+            }
+          }
+        });
+      }
+    }
 
     return {
       className: targetClass.name,
       studentCount,
       totalExpected: totalExpectedDue,
-      totalCollected: totalPaid,
-      totalPending: Math.max(0, totalExpectedDue - totalCollectedDue)
+      totalCollected: totalCollectedAllTime,
+      totalCollectedThisMonth: collectionThisMonth,
+      totalPending: Math.max(0, totalExpectedDue - totalCollectedDue),
+      advanceCollections,
+      averageCollectionPerStudent: studentCount > 0 ? Math.round(totalCollectedAllTime / studentCount) : 0,
+      collectionPercentage: totalExpectedDue > 0 ? Math.round((totalCollectedDue / totalExpectedDue) * 100) : 0
     };
   }
 

@@ -615,7 +615,7 @@ const FeeCollection = () => {
     const paidStudentsCount = Math.max(0, totalStudents - dueStudentsCount);
 
     const monthlyCollection = selectedClass
-      ? (classSummary?.totalCollected || 0)
+      ? (classSummary?.totalCollectedThisMonth !== undefined ? classSummary.totalCollectedThisMonth : (classSummary?.totalCollected || 0))
       : (schoolStats?.collectedThisMonth || 0);
 
     return {
