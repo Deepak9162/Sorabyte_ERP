@@ -18,6 +18,7 @@ import { cn } from "../utils/cn";
 import Skeleton, { TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import Button from "../components/ui/Button";
+import AppCombobox from "../components/ui/AppCombobox";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -26,7 +27,13 @@ const ClassAttendanceReport = () => {
   const navigate = useNavigate();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState("students");
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("attendance_analytics_active_tab") || "students";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("attendance_analytics_active_tab", activeTab);
+  }, [activeTab]);
 
   // Student Analytics States
   const [classes, setClasses] = useState([]);
@@ -73,7 +80,7 @@ const ClassAttendanceReport = () => {
     } catch (error) {
       console.error("Error fetching attendance report:", error);
     } finally {
-      setTimeout(() => setLoading(false), 800);
+      setTimeout(() => setLoading(false), 500);
     }
   };
 
@@ -87,7 +94,7 @@ const ClassAttendanceReport = () => {
     } catch (error) {
       console.error("Error fetching staff summary report:", error);
     } finally {
-      setTimeout(() => setStaffLoading(false), 800);
+      setTimeout(() => setStaffLoading(false), 500);
     }
   };
 
@@ -131,72 +138,67 @@ const ClassAttendanceReport = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-6 animate-in fade-in duration-700 max-w-[1600px] mx-auto px-1 py-1">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
         <div>
-          <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-            <BarChart3 className="text-indigo-600" size={32} />
+          <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <BarChart3 className="text-indigo-600" size={24} />
             Attendance Analytics
           </h2>
-          <p className="text-gray-500 font-medium mt-1">
-            Detailed attendance performance and summary statistics for students and faculty.
+          <p className="text-xs text-gray-500 font-semibold uppercase tracking-widest mt-0.5">
+            Student & Faculty Performance Reports
           </p>
         </div>
 
-        {/* Tab Selector (Admin Only) */}
-        {user?.role === "admin" && (
-          <div className="flex bg-gray-100/80 p-1 rounded-2xl border border-gray-200/50 shadow-inner w-fit select-none">
-            <button
-              onClick={() => setActiveTab("students")}
-              className={cn(
-                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
-                activeTab === "students"
-                  ? "bg-white text-indigo-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-900"
-              )}
-            >
-              <ClipboardList size={14} />
-              Students
-            </button>
-            <button
-              onClick={() => setActiveTab("staff")}
-              className={cn(
-                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
-                activeTab === "staff"
-                  ? "bg-white text-indigo-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-900"
-              )}
-            >
-              <UserCheck size={14} />
-              Staff
-            </button>
-          </div>
-        )}
-
-        {/* Student Class Filter (Only in Student Tab) */}
-        {activeTab === "students" && (
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <Filter
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-600 transition-colors"
-                size={18}
-              />
-              <select
-                value={selectedClassId}
-                onChange={handleClassChange}
-                className="pl-12 pr-10 py-3.5 bg-white border border-gray-200 rounded-[1.25rem] text-sm font-bold text-gray-700 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer shadow-sm hover:shadow-md min-w-[200px]"
+        {/* Tab Selector & Filter Controls Row */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Tab Selector (Admin Only) */}
+          {user?.role === "admin" && (
+            <div className="flex bg-gray-100 p-0.5 rounded-xl border border-gray-200/50 shadow-inner w-fit select-none">
+              <button
+                onClick={() => setActiveTab("students")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+                  activeTab === "students"
+                    ? "bg-white text-indigo-650 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
               >
-                <option value="">Select Class Group</option>
-                {classes.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    Class {c.name}
-                  </option>
-                ))}
-              </select>
+                <ClipboardList size={13} />
+                Students
+              </button>
+              <button
+                onClick={() => setActiveTab("staff")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+                  activeTab === "staff"
+                    ? "bg-white text-indigo-650 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                <UserCheck size={13} />
+                Staff
+              </button>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Student Class Filter (Only in Student Tab) */}
+          {activeTab === "students" && (
+            <AppCombobox
+              placeholder="Select Class"
+              searchPlaceholder="Search class..."
+              emptyText="No classes found"
+              value={selectedClassId}
+              onChange={(val) => handleClassChange({ target: { value: val } })}
+              options={classes.map((c) => ({
+                value: c._id,
+                label: `Class ${c.name}`,
+              }))}
+              containerClassName="min-w-[160px]"
+            />
+          )}
+        </div>
       </div>
 
       {/* STUDENT TAB CONTENT */}
@@ -204,126 +206,123 @@ const ClassAttendanceReport = () => {
         <>
           {/* Summary Cards */}
           {report && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-                <div className="relative z-10">
-                  <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-indigo-100">
-                    <GraduationCap size={24} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+                    <GraduationCap size={18} />
                   </div>
-                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">
-                    TOTAL SESSIONS
-                  </p>
-                  <h3 className="text-4xl font-black text-gray-900 leading-none">
-                    {report.totalClasses}
-                  </h3>
-                  <p className="text-xs text-gray-400 font-bold mt-4">
-                    Conducted in this session group
-                  </p>
+                  <div>
+                    <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">
+                      TOTAL SESSIONS
+                    </p>
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+                      {report.totalClasses} <span className="text-xs text-zinc-400 font-bold">Classes</span>
+                    </h3>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-                <div className="relative z-10">
-                  <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-100">
-                    <TrendingUp size={24} />
+              <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                    <TrendingUp size={18} />
                   </div>
-                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">
-                    AVERAGE ATTENDANCE
-                  </p>
-                  <h3 className="text-4xl font-black text-gray-900 leading-none">
-                    {report.students.length > 0
-                      ? (
-                          report.students.reduce(
-                            (acc, s) => acc + parseFloat(s.attendancePercentage),
-                            0
-                          ) / report.students.length
-                        ).toFixed(1)
-                      : 0}
-                    %
-                  </h3>
-                  <p className="text-xs text-gray-400 font-bold mt-4">
-                    Across all students
-                  </p>
+                  <div>
+                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                      AVERAGE ATTENDANCE
+                    </p>
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+                      {report.students.length > 0
+                        ? (
+                            report.students.reduce(
+                              (acc, s) => acc + parseFloat(s.attendancePercentage),
+                              0
+                            ) / report.students.length
+                          ).toFixed(1)
+                        : 0}
+                      %
+                    </h3>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-                <div className="relative z-10">
-                  <div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-rose-100">
-                    <TrendingDown size={24} />
+              <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50/50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center shrink-0">
+                    <TrendingDown size={18} />
                   </div>
-                  <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">
-                    CRITICAL WATCH
-                  </p>
-                  <h3 className="text-4xl font-black text-gray-900 leading-none">
-                    {
-                      report.students.filter(
-                        (s) => parseFloat(s.attendancePercentage) < 60
-                      ).length
-                    }
-                  </h3>
-                  <p className="text-xs text-rose-400 font-bold mt-4 tracking-tight">
-                    Students below 60% attendance
-                  </p>
+                  <div>
+                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">
+                      CRITICAL WATCH
+                    </p>
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+                      {
+                        report.students.filter(
+                          (s) => parseFloat(s.attendancePercentage) < 60
+                        ).length
+                      } <span className="text-xs text-zinc-400 font-bold">Students</span>
+                    </h3>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {/* Student List Matrix */}
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
-            <div className="p-8 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h3 className="text-xl font-black text-gray-900 tracking-tight">
+          <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden min-h-[350px]">
+            <div className="px-5 py-4 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h3 className="text-xs font-black text-zinc-750 uppercase tracking-wider">
                 Student Performance Matrix
               </h3>
-              <div className="relative group max-w-sm w-full">
+              <div className="relative group max-w-xs w-full">
                 <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors"
-                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={14}
                 />
                 <input
                   type="text"
                   placeholder="Search student or roll no..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-6 py-3 bg-gray-50/50 border border-transparent rounded-2xl text-sm font-medium focus:bg-white focus:border-indigo-100 transition-all outline-none"
+                  className="w-full pl-9 pr-4 py-1.5 bg-zinc-50/50 border border-zinc-200 hover:border-zinc-250 rounded-xl text-xs font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-50"
                 />
               </div>
             </div>
 
             <div className="overflow-x-auto">
               {loading ? (
-                <div className="p-8">
+                <div className="p-6">
                   <TableSkeleton rows={5} />
                 </div>
               ) : filteredStudents.length > 0 ? (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50/50">
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 w-28">
+                    <tr className="bg-zinc-50/50">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 w-24">
                         Roll No
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
                         Student Name
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center w-40">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-center w-36">
                         Classes Present
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center w-40">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-center w-36">
                         Classes Absent
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center w-48">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-center w-40">
                         Attendance %
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-right w-28">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-right w-24">
                         Action
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-50">
                     {filteredStudents.map((s) => (
                       <tr
                         key={s.studentId}
@@ -334,34 +333,34 @@ const ClassAttendanceReport = () => {
                           )
                         }
                       >
-                        <td className="px-8 py-5 border-b border-gray-50 font-black text-gray-400 text-xs">
+                        <td className="px-5 py-3.5 border-b border-zinc-50 font-black text-zinc-400 text-xs">
                           #{s.rollNo}
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner uppercase">
+                        <td className="px-5 py-3.5 border-b border-zinc-50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-indigo-50 text-indigo-650 rounded-lg flex items-center justify-center font-bold text-xs shadow-inner uppercase">
                               {s.name ? s.name.charAt(0) : "S"}
                             </div>
-                            <span className="font-bold text-gray-700 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
+                            <span className="font-bold text-zinc-700 group-hover:text-indigo-600 transition-colors uppercase tracking-tight text-xs">
                               {s.name || "N/A"}
                             </span>
                           </div>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50 text-center">
-                          <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold">
+                        <td className="px-5 py-3.5 border-b border-zinc-50 text-center">
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-xs font-bold border border-emerald-100">
                             {s.presentCount}
                           </span>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50 text-center">
-                          <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold">
+                        <td className="px-5 py-3.5 border-b border-zinc-50 text-center">
+                          <span className="px-2 py-0.5 bg-rose-50 text-rose-600 rounded-md text-xs font-bold border border-rose-100">
                             {s.absentCount}
                           </span>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50">
-                          <div className="flex flex-col items-center gap-2">
+                        <td className="px-5 py-3.5 border-b border-zinc-50">
+                          <div className="flex flex-col items-center gap-1.5">
                             <div
                               className={cn(
-                                "px-4 py-1.5 rounded-xl text-xs font-black border transition-all",
+                                "px-2.5 py-0.5 rounded-lg text-xs font-black border transition-all",
                                 getPercentageColor(
                                   parseFloat(s.attendancePercentage)
                                 )
@@ -369,7 +368,7 @@ const ClassAttendanceReport = () => {
                             >
                               {s.attendancePercentage}%
                             </div>
-                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="w-20 h-1 bg-zinc-100 rounded-full overflow-hidden">
                               <div
                                 className={cn(
                                   "h-full rounded-full transition-all duration-1000",
@@ -384,9 +383,9 @@ const ClassAttendanceReport = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50 text-right">
-                          <button className="p-2 text-gray-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 rounded-xl transition-all active:scale-90">
-                            <ArrowRight size={20} />
+                        <td className="px-5 py-3.5 border-b border-zinc-50 text-right">
+                          <button className="p-1.5 text-zinc-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 rounded-lg transition-all active:scale-90">
+                            <ArrowRight size={16} />
                           </button>
                         </td>
                       </tr>
@@ -394,7 +393,7 @@ const ClassAttendanceReport = () => {
                   </tbody>
                 </table>
               ) : (
-                <div className="flex flex-col items-center justify-center p-20">
+                <div className="flex flex-col items-center justify-center p-12">
                   <EmptyState
                     title="No Student Records Found"
                     description="Choose a different class or check if students are assigned to this group."
@@ -412,114 +411,111 @@ const ClassAttendanceReport = () => {
         <>
           {/* Summary Cards */}
           {staffReport && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-                <div className="relative z-10">
-                  <div className="w-12 h-12 bg-orange-500 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-100">
-                    <UserCheck size={24} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-orange-50/50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center shrink-0">
+                    <UserCheck size={18} />
                   </div>
-                  <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">
-                    TOTAL SESSIONS MARKED
-                  </p>
-                  <h3 className="text-4xl font-black text-gray-900 leading-none">
-                    {staffReport.totalDays}
-                  </h3>
-                  <p className="text-xs text-gray-400 font-bold mt-4">
-                    Academic days calculated
-                  </p>
+                  <div>
+                    <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest">
+                      TOTAL SESSIONS MARKED
+                    </p>
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+                      {staffReport.totalDays} <span className="text-xs text-zinc-400 font-bold">Days</span>
+                    </h3>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-                <div className="relative z-10">
-                  <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-100">
-                    <TrendingUp size={24} />
+              <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                    <TrendingUp size={18} />
                   </div>
-                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">
-                    AVG FACULTY RATIO
-                  </p>
-                  <h3 className="text-4xl font-black text-gray-900 leading-none">
-                    {getAverageStaffAttendance()}%
-                  </h3>
-                  <p className="text-xs text-gray-400 font-bold mt-4">
-                    Average presence across staff
-                  </p>
+                  <div>
+                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                      AVG FACULTY RATIO
+                    </p>
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+                      {getAverageStaffAttendance()}%
+                    </h3>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-                <div className="relative z-10">
-                  <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-amber-100">
-                    <History size={24} />
+              <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50/50 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-110" />
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
+                    <History size={18} />
                   </div>
-                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">
-                    TOTAL LEAVES GRANTED
-                  </p>
-                  <h3 className="text-4xl font-black text-gray-900 leading-none">
-                    {staffReport.staff.reduce((acc, t) => acc + t.leaveCount, 0)}
-                  </h3>
-                  <p className="text-xs text-gray-400 font-bold mt-4">
-                    Leaves taken by teachers
-                  </p>
+                  <div>
+                    <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">
+                      TOTAL LEAVES GRANTED
+                    </p>
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+                      {staffReport.staff.reduce((acc, t) => acc + t.leaveCount, 0)} <span className="text-xs text-zinc-400 font-bold">Leaves</span>
+                    </h3>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {/* Staff List Matrix */}
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
-            <div className="p-8 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h3 className="text-xl font-black text-gray-900 tracking-tight">
+          <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden min-h-[350px]">
+            <div className="px-5 py-4 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h3 className="text-xs font-black text-zinc-750 uppercase tracking-wider">
                 Faculty Performance Matrix
               </h3>
-              <div className="relative group max-w-sm w-full">
+              <div className="relative group max-w-xs w-full">
                 <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors"
-                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={14}
                 />
                 <input
                   type="text"
                   placeholder="Search faculty or subject..."
                   value={staffSearchQuery}
                   onChange={(e) => setStaffSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-6 py-3 bg-gray-50/50 border border-transparent rounded-2xl text-sm font-medium focus:bg-white focus:border-indigo-100 transition-all outline-none"
+                  className="w-full pl-9 pr-4 py-1.5 bg-zinc-50/50 border border-zinc-200 hover:border-zinc-250 rounded-xl text-xs font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-50"
                 />
               </div>
             </div>
 
             <div className="overflow-x-auto">
               {staffLoading ? (
-                <div className="p-8">
+                <div className="p-6">
                   <TableSkeleton rows={5} />
                 </div>
               ) : filteredStaff.length > 0 ? (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50/50">
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                    <tr className="bg-zinc-50/50">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
                         Faculty Name & details
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center w-36">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-center w-36">
                         Present Days
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center w-36">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-center w-36">
                         Absent Days
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center w-36">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-center w-36">
                         Leaves
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-center w-48">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-center w-40">
                         Attendance Ratio
                       </th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 text-right w-28">
+                      <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100 text-right w-24">
                         Action
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-50">
                     {filteredStaff.map((t) => (
                       <tr
                         key={t.teacherId}
@@ -530,41 +526,41 @@ const ClassAttendanceReport = () => {
                           )
                         }
                       >
-                        <td className="px-8 py-5 border-b border-gray-50">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner uppercase">
+                        <td className="px-5 py-3.5 border-b border-zinc-50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-orange-50 text-orange-655 rounded-lg flex items-center justify-center font-bold text-xs shadow-inner uppercase">
                               {t.name ? t.name.charAt(0) : "T"}
                             </div>
                             <div>
-                              <span className="font-bold text-gray-700 group-hover:text-orange-600 transition-colors uppercase tracking-tight block">
+                              <span className="font-bold text-zinc-700 group-hover:text-orange-600 transition-colors uppercase tracking-tight text-xs block">
                                 {t.name || "N/A"}
                               </span>
-                              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mt-0.5">
+                              <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider block mt-0.5">
                                 Subject: {t.subject} • Phone: {t.phone}
                               </span>
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50 text-center">
-                          <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold">
+                        <td className="px-5 py-3.5 border-b border-zinc-50 text-center">
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-xs font-bold border border-emerald-100">
                             {t.presentCount}
                           </span>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50 text-center">
-                          <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold">
+                        <td className="px-5 py-3.5 border-b border-zinc-50 text-center">
+                          <span className="px-2 py-0.5 bg-rose-50 text-rose-600 rounded-md text-xs font-bold border border-rose-100">
                             {t.absentCount}
                           </span>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50 text-center">
-                          <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-lg text-xs font-bold">
+                        <td className="px-5 py-3.5 border-b border-zinc-50 text-center">
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-md text-xs font-bold border border-amber-100">
                             {t.leaveCount}
                           </span>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50">
-                          <div className="flex flex-col items-center gap-2">
+                        <td className="px-5 py-3.5 border-b border-zinc-50">
+                          <div className="flex flex-col items-center gap-1.5">
                             <div
                               className={cn(
-                                "px-4 py-1.5 rounded-xl text-xs font-black border transition-all",
+                                "px-2.5 py-0.5 rounded-lg text-xs font-black border transition-all",
                                 getPercentageColor(
                                   parseFloat(t.attendancePercentage)
                                 )
@@ -572,7 +568,7 @@ const ClassAttendanceReport = () => {
                             >
                               {t.attendancePercentage}%
                             </div>
-                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="w-20 h-1 bg-zinc-100 rounded-full overflow-hidden">
                               <div
                                 className={cn(
                                   "h-full rounded-full transition-all duration-1000",
@@ -587,9 +583,9 @@ const ClassAttendanceReport = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-5 border-b border-gray-50 text-right">
-                          <button className="p-2 text-gray-300 group-hover:text-orange-500 group-hover:bg-orange-50 rounded-xl transition-all active:scale-90">
-                            <ArrowRight size={20} />
+                        <td className="px-5 py-3.5 border-b border-zinc-50 text-right">
+                          <button className="p-1.5 text-zinc-300 group-hover:text-orange-500 group-hover:bg-orange-50 rounded-lg transition-all active:scale-90">
+                            <ArrowRight size={16} />
                           </button>
                         </td>
                       </tr>
@@ -597,7 +593,7 @@ const ClassAttendanceReport = () => {
                   </tbody>
                 </table>
               ) : (
-                <div className="flex flex-col items-center justify-center p-20">
+                <div className="flex flex-col items-center justify-center p-12">
                   <EmptyState
                     title="No Staff Summary Records Found"
                     description="Check if staff attendance records have been created in the registry."

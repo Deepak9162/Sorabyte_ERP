@@ -30,6 +30,7 @@ import {
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Modal from "../components/ui/Modal";
+import AppCombobox from "../components/ui/AppCombobox";
 import { useToast } from "../context/ToastContext";
 import { cn } from "../utils/cn";
 import { formatToINR } from "../utils/format";
@@ -728,112 +729,78 @@ const FeeCollection = () => {
             "lg:col-span-3 space-y-6 transition-all duration-300",
             isMobileFilterOpen ? "block" : "hidden lg:block"
           )}>
-            <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-6 shadow-sm">
-              <div className="flex items-center gap-3 border-b border-zinc-100 pb-4">
-                <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500">
-                  <Filter size={18} />
+            {/* ── LOOKUP CONTROLLER CARD ─────────────────────────────── */}
+            <div className="bg-white rounded-[20px] border border-zinc-200/70 shadow-sm p-5 space-y-5">
+
+              {/* ── Header ─────────────────────────────────────────────── */}
+              <div className="flex items-center gap-3 pb-4 border-b border-zinc-100/80">
+                <div className="w-9 h-9 bg-orange-50 rounded-[10px] flex items-center justify-center text-orange-500 shadow-inner shrink-0">
+                  <Filter size={16} />
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-zinc-800 uppercase tracking-tight">Lookup Controller</h4>
-                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-tight">Select target academic segment</p>
-                </div>
-              </div>
-
-
-
-
-
-              {/* Searchable Dropdown for Class */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Academic Class *</label>
-                <div className="relative">
-                  <div 
-                    className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl cursor-pointer hover:bg-white hover:border-orange-400 transition-all text-xs font-semibold text-zinc-700 outline-none"
-                    onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-                  >
-                    <span>
-                      {selectedClass 
-                        ? classes.find(c => c._id === selectedClass)?.name || "Select Class Group" 
-                        : "Select Class Group"}
-                    </span>
-                    <ChevronDown size={14} className="text-zinc-400" />
-                  </div>
-                  
-                  {isClassDropdownOpen && (
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-zinc-200 rounded-2xl shadow-xl p-2 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="relative flex items-center">
-                        <Search size={14} className="absolute left-3 text-zinc-400" />
-                        <input
-                          type="text"
-                          placeholder="Search class..."
-                          value={classSearchQuery}
-                          onChange={(e) => setClassSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-4 py-2.5 bg-zinc-50 border border-zinc-150 rounded-xl text-xs font-semibold outline-none focus:bg-white focus:ring-2 focus:ring-orange-100 text-zinc-700"
-                          onClick={(e) => e.stopPropagation()} // Prevent closing dropdown on input click
-                        />
-                      </div>
-                      <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-0.5">
-                        {filteredClassesList.length === 0 ? (
-                          <p className="text-[10px] text-zinc-400 text-center py-4 font-bold uppercase">No classes found</p>
-                        ) : (
-                          filteredClassesList.map(cls => (
-                            <div
-                              key={cls._id}
-                              onClick={() => {
-                                setSelectedClass(cls._id);
-                                setClassSearchQuery("");
-                                setIsClassDropdownOpen(false);
-                              }}
-                              className={cn(
-                                "px-3 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-colors flex justify-between items-center",
-                                selectedClass === cls._id
-                                  ? "bg-orange-50 text-orange-600"
-                                  : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
-                              )}
-                            >
-                              <span>{cls.name}</span>
-                              <span className="text-[9px] opacity-70 font-semibold bg-zinc-100 px-1.5 py-0.5 rounded">
-                                {cls.students?.length || 0} Stu
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
+                <div className="min-w-0">
+                  <h4 className="text-[15px] font-semibold text-zinc-800 leading-tight tracking-tight">
+                    Lookup Controller
+                  </h4>
+                  <p className="text-[11px] text-zinc-400 font-medium mt-0.5 tracking-tight">
+                    Select Academic Segment
+                  </p>
                 </div>
               </div>
 
-              {/* Search query input */}
+              {/* ── Academic Class Dropdown — AppCombobox ─────────────── */}
+              <AppCombobox
+                label="Academic Class"
+                placeholder="Select Class Group"
+                searchPlaceholder="Search class..."
+                emptyText="No classes found"
+                value={selectedClass}
+                onChange={(val) => setSelectedClass(val)}
+                options={classes.map((cls) => ({
+                  value: cls._id,
+                  label: cls.name,
+                  badge: `${cls.students?.length || 0} Stu`,
+                }))}
+              />
+
+              {/* ── Search Student Input ─────────────────────────────────── */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Search Student *</label>
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest ml-0.5">
+                  Search Student
+                </label>
+                <div className="relative group">
+                  <Search
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-orange-500 transition-colors duration-200"
+                    size={15}
+                  />
                   <input
                     type="text"
-                    placeholder="Roll No or Student Name..."
+                    placeholder="Roll No / Name"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                    className="w-full pl-11 pr-4 py-3.5 bg-zinc-50/50 border border-zinc-200 rounded-2xl text-xs font-semibold text-zinc-700 focus:ring-4 focus:ring-orange-100 focus:bg-white outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-[12px] text-[13px] font-medium text-zinc-700 placeholder:text-zinc-400 focus:outline-none focus:bg-white focus:border-orange-400 focus:ring-3 focus:ring-orange-50 hover:border-zinc-300 hover:bg-white transition-all duration-200"
                   />
                 </div>
-                <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-tight ml-1.5">Press Enter to search instantly</p>
+                <p className="text-[10px] text-zinc-400 font-medium ml-0.5 tracking-tight">
+                  Press Enter to search instantly
+                </p>
               </div>
 
-              {/* Action search button */}
-              <div className="pt-2">
+              {/* ── Process Billing Button ───────────────────────────────── */}
+              <div className="pt-1">
                 <Button
                   onClick={handleSearch}
                   loading={loading}
                   disabled={!selectedClass || !searchQuery}
-                  className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-orange-100 active:scale-98 transition-transform"
+                  className="w-full h-[48px] bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-zinc-200 disabled:to-zinc-200 disabled:text-zinc-400 disabled:shadow-none text-white rounded-[14px] text-[13px] font-semibold flex items-center justify-center gap-2 shadow-md shadow-orange-100 hover:shadow-lg hover:shadow-orange-100 hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm transition-all duration-200"
                 >
                   <span>Process Billing</span>
-                  <ChevronRight size={14} />
+                  <ChevronRight size={15} />
                 </Button>
               </div>
             </div>
+
+
 
             {/* RECENT STUDENTS LIST CARD */}
             {recentStudents.length > 0 && (

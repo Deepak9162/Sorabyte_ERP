@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -10,13 +10,16 @@ import {
   CheckCircle,
   XCircle,
   Hash,
-  User,
-  ChevronLeft,
-  ChevronRight,
   Phone,
   Mail,
   Clock,
   TrendingUp,
+  TrendingDown,
+  User,
+  Briefcase,
+  Layers,
+  Award,
+  Calendar,
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import api from "../services/api";
@@ -51,34 +54,94 @@ const StaffAttendanceAnalysis = () => {
     } catch (error) {
       console.error("Error fetching teacher attendance analysis:", error);
     } finally {
-      setTimeout(() => setLoading(false), 800);
+      setTimeout(() => setLoading(false), 500);
     }
   };
 
+  // Group records by month dynamically
+  const monthlySummaries = useMemo(() => {
+    if (!data || !data.records) return [];
+    const groups = {};
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    data.records.forEach(r => {
+      const date = new Date(r.date);
+      const mName = monthNames[date.getMonth()];
+      const mKey = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, "0")}`;
+      if (!groups[mKey]) {
+        groups[mKey] = {
+          monthName: mName,
+          year: date.getFullYear(),
+          workingDays: 0,
+          present: 0,
+          absent: 0,
+          leave: 0,
+          late: 0,
+          key: mKey
+        };
+      }
+      groups[mKey].workingDays++;
+      const status = r.status.toLowerCase();
+      if (status === 'present') groups[mKey].present++;
+      else if (status === 'absent') groups[mKey].absent++;
+      else if (status === 'leave') groups[mKey].leave++;
+      else if (status === 'late') groups[mKey].late++;
+    });
+
+    return Object.values(groups).map(g => {
+      const attended = g.present + g.late;
+      const percentage = g.workingDays > 0 ? ((attended / g.workingDays) * 100).toFixed(1) : "0.0";
+      return { ...g, percentage };
+    }).sort((a, b) => a.key.localeCompare(b.key));
+  }, [data]);
+
+  // Compute month-over-month trend comparison if comparison data is available
+  const trendComparison = useMemo(() => {
+    if (monthlySummaries.length < 2) return null;
+    const curMonth = monthlySummaries[monthlySummaries.length - 1];
+    const prevMonth = monthlySummaries[monthlySummaries.length - 2];
+    const diff = parseFloat(curMonth.percentage) - parseFloat(prevMonth.percentage);
+    return {
+      direction: diff >= 0 ? "up" : "down",
+      value: Math.abs(diff).toFixed(1),
+      curMonthName: curMonth.monthName,
+      prevMonthName: prevMonth.monthName
+    };
+  }, [monthlySummaries]);
+
   if (loading) {
     return (
-      <div className="space-y-8 animate-pulse">
+      <div className="space-y-5 p-4 max-w-[1600px] mx-auto animate-pulse">
         <div className="flex items-center gap-4">
-          <Skeleton className="w-10 h-10 rounded-xl" />
-          <Skeleton className="w-64 h-8 rounded-lg" />
+          <Skeleton className="w-8 h-8 rounded-xl" />
+          <Skeleton className="w-56 h-6 rounded-lg" />
         </div>
-        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm flex flex-col md:flex-row gap-8">
-          <Skeleton className="w-24 h-24 rounded-full" />
-          <div className="space-y-4 flex-1">
-            <Skeleton className="w-1/3 h-6" />
-            <Skeleton className="w-1/4 h-4" />
-            <Skeleton className="w-1/2 h-4" />
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="flex items-center gap-4 lg:col-span-2">
+            <Skeleton className="w-16 h-16 rounded-full" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="w-1/4 h-5" />
+              <Skeleton className="w-1/5 h-4" />
+            </div>
           </div>
+          <Skeleton className="w-full h-16 rounded-xl" />
         </div>
-        <CardSkeleton count={3} />
-        <TableSkeleton rows={5} />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Skeleton className="w-full h-24 rounded-2xl" />
+          <Skeleton className="w-full h-24 rounded-2xl" />
+          <Skeleton className="w-full h-24 rounded-2xl" />
+          <Skeleton className="w-full h-24 rounded-2xl" />
+        </div>
+        <TableSkeleton rows={4} />
       </div>
     );
   }
 
   if (!data || !data.teacherInfo) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
         <EmptyState
           title="Analysis Not Found"
           description="We couldn't generate the attendance analysis for this staff member. They might not exist or have no records."
@@ -97,313 +160,369 @@ const StaffAttendanceAnalysis = () => {
   const overallPercentage = parseFloat(overallAttendance.percentage);
   const isCritical = overallPercentage < 75;
 
-  // Determine the final records to display in the calendar
-  const getCalendarRecords = () => {
-    if (!data || !data.records) return [];
-    return data.records;
+  // Determine status rating and badge style
+  const getRatingInfo = (percentage) => {
+    if (percentage >= 90) return { label: "Excellent", colorClass: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    if (percentage >= 75) return { label: "Good", colorClass: "bg-teal-50 text-teal-700 border-teal-200" };
+    if (percentage >= 60) return { label: "Average", colorClass: "bg-amber-50 text-amber-700 border-amber-200" };
+    if (percentage >= 40) return { label: "Needs Attention", colorClass: "bg-orange-50 text-orange-700 border-orange-200" };
+    return { label: "Critical", colorClass: "bg-rose-50 text-rose-700 border-rose-200" };
   };
 
+  const rating = getRatingInfo(overallPercentage);
+
+  // SVG Circular progress configurations
+  const radius = 32;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (Math.min(overallPercentage, 100) / 100) * circumference;
+
   const getPercentageColor = (percentage) => {
-    if (percentage >= 75)
-      return "text-emerald-600 bg-emerald-50 border-emerald-100";
+    if (percentage >= 75) return "text-emerald-600 bg-emerald-50 border-emerald-100";
     if (percentage >= 60) return "text-amber-600 bg-amber-50 border-amber-100";
     return "text-rose-600 bg-rose-50 border-rose-100";
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-      {/* Top Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <div className="max-w-[1600px] mx-auto px-1 py-1 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
+      
+      {/* Top Breadcrumb Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="p-3 bg-white border border-gray-100 rounded-2xl text-gray-500 hover:text-orange-600 hover:bg-orange-50 hover:border-orange-100 transition-all active:scale-95 shadow-sm"
+            aria-label="Go back to Attendance Analytics"
+            className="p-2.5 bg-white border border-gray-250 hover:border-gray-300 rounded-xl text-gray-500 hover:text-orange-500 hover:bg-orange-50/50 transition-all active:scale-95 shadow-sm cursor-pointer"
           >
-            <ArrowLeft size={22} />
+            <ArrowLeft size={16} />
           </button>
           <div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-              <FileText className="text-orange-600" size={28} />
+            <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+              <FileText className="text-orange-500" size={22} />
               Staff Attendance Analysis
             </h2>
-            <p className="text-gray-500 font-medium text-sm mt-1">
-              Comprehensive attendance history & monthly calendar view
+            <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest mt-0.5">
+              Teacher Registry & Analytics Engine
             </p>
           </div>
         </div>
       </div>
 
+      {/* Critical Warnings */}
       {isCritical && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex gap-4 items-start shadow-sm animate-pulse-slow">
-          <div className="bg-white p-2 border border-rose-100 rounded-xl shadow-sm text-rose-500 shrink-0">
-            <AlertTriangle size={20} />
+        <div className="bg-rose-50/70 border border-rose-200 rounded-xl p-3 flex gap-3 items-start shadow-sm">
+          <div className="bg-white p-1.5 border border-rose-100 rounded-lg shadow-sm text-rose-505 shrink-0">
+            <AlertTriangle size={16} />
           </div>
           <div>
-            <h4 className="font-bold text-rose-800 tracking-tight">
+            <h4 className="font-bold text-rose-800 tracking-tight text-xs">
               Critical Attendance Warning
             </h4>
-            <p className="text-sm font-medium text-rose-600/90 mt-0.5 leading-relaxed">
-              Staff member has fallen below the minimum required 75% attendance.
-              Please arrange a meeting or issue a formal notice.
+            <p className="text-[10px] font-semibold text-rose-600/90 mt-0.5 leading-relaxed">
+              This staff member has fallen below the minimum required 75% attendance.
             </p>
           </div>
         </div>
       )}
 
-      {/* Teacher Profile Card */}
-      <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50/50 rounded-full -mr-24 -mt-24 transition-transform duration-700 group-hover:scale-110" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
-          <div className="w-28 h-28 bg-gradient-to-br from-orange-500 to-rose-600 rounded-3xl flex items-center justify-center shadow-xl shadow-orange-200 text-white shrink-0 transform transition-transform group-hover:-translate-y-1">
-            <span className="text-4xl font-black tracking-tighter">
-              {teacherInfo.name.charAt(0)}
-              {teacherInfo.name.split(" ")[1]?.[0] || ""}
-            </span>
-          </div>
-
-          <div className="text-center md:text-left flex-1 min-w-0">
-            <h3 className="text-3xl font-black text-gray-900 tracking-tight truncate">
-              {teacherInfo.name}
-            </h3>
-            <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
-                <BookOpen className="text-gray-400" size={16} />
-                <span className="text-sm font-bold text-gray-700">
-                  {teacherInfo.subject}
-                </span>
+      {/* 1. PROFILE & DETAILS COMPREHENSIVE VIEW */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Profile Card & Info Panel (Left 8 cols) */}
+        <div className="lg:col-span-8 space-y-5">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-zinc-200/80 shadow-sm relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-orange-50/40 rounded-full -mr-16 -mt-16 transition-transform duration-700 group-hover:scale-110" />
+            
+            <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-6">
+              {/* Initials Avatar */}
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-rose-500 rounded-2xl flex items-center justify-center shadow-md shadow-orange-100 text-white font-black text-xl tracking-tighter shrink-0">
+                {teacherInfo.name ? teacherInfo.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "ST"}
               </div>
-              {teacherInfo.phone && teacherInfo.phone !== "N/A" && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-orange-50/50 rounded-xl border border-orange-50">
-                  <Phone className="text-orange-400" size={16} />
-                  <span className="text-sm font-bold text-orange-700">
-                    {teacherInfo.phone}
+
+              {/* Basic Meta Details */}
+              <div className="text-center sm:text-left flex-1 space-y-2 min-w-0">
+                <div>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <h3 className="text-lg font-bold text-gray-900 tracking-tight uppercase">
+                      {teacherInfo.name}
+                    </h3>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border",
+                      teacherInfo.isActive !== false ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-zinc-100 text-zinc-500 border-zinc-200"
+                    )}>
+                      {teacherInfo.isActive !== false ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                    Employee Code: {teacherInfo.employeeId}
+                  </p>
+                </div>
+
+                {/* Subject & Department Badges */}
+                <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] font-bold text-zinc-650">
+                    <BookOpen size={12} className="text-orange-500" />
+                    Subject: {teacherInfo.subject}
+                  </span>
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-zinc-50 border border-zinc-200 rounded-lg text-[10px] font-bold text-zinc-650">
+                    <Briefcase size={12} className="text-indigo-500" />
+                    Department: Academics
                   </span>
                 </div>
-              )}
-              {teacherInfo.email && teacherInfo.email !== "N/A" && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-rose-50/50 rounded-xl border border-rose-50">
-                  <Mail className="text-rose-400" size={16} />
-                  <span className="text-sm font-bold text-rose-700">
-                    {teacherInfo.email}
-                  </span>
+              </div>
+            </div>
+
+            {/* Comprehensive Info Grid (Structured Employee Panel) */}
+            <div className="mt-5 pt-4 border-t border-zinc-100 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="flex items-center gap-2.5 p-2.5 bg-zinc-50/50 rounded-xl border border-zinc-150/50">
+                <Mail size={14} className="text-zinc-405 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">Email Address</p>
+                  <p className="text-xs font-bold text-zinc-700 truncate">{teacherInfo.email}</p>
                 </div>
-              )}
-              <div className="flex items-center gap-2 px-4 py-2 bg-purple-50/50 rounded-xl border border-purple-50">
-                <Hash className="text-purple-400" size={16} />
-                <span className="text-sm font-bold text-purple-700">
-                  ID: {teacherInfo.employeeId}
-                </span>
+              </div>
+              <div className="flex items-center gap-2.5 p-2.5 bg-zinc-50/50 rounded-xl border border-zinc-150/50">
+                <Phone size={14} className="text-zinc-450 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">Phone Number</p>
+                  <p className="text-xs font-bold text-zinc-700 truncate">{teacherInfo.phone}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 p-2.5 bg-zinc-50/50 rounded-xl border border-zinc-150/50">
+                <Award size={14} className="text-zinc-450 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">Highest Qualification</p>
+                  <p className="text-xs font-bold text-zinc-700 truncate">{teacherInfo.qualification || "N/A"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 p-2.5 bg-zinc-50/50 rounded-xl border border-zinc-150/50">
+                <Calendar size={14} className="text-zinc-450 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">Date of Joining</p>
+                  <p className="text-xs font-bold text-zinc-700 truncate">
+                    {teacherInfo.joiningDate ? new Date(teacherInfo.joiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A"}
+                  </p>
+                </div>
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-2.5 p-2.5 bg-zinc-50/50 rounded-xl border border-zinc-150/50">
+                <Layers size={14} className="text-zinc-450 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">Assigned Class Groups</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {teacherInfo.assignedClasses && teacherInfo.assignedClasses.length > 0 ? (
+                      teacherInfo.assignedClasses.map((cls, idx) => (
+                        <span key={idx} className="px-1.5 py-0.5 bg-white border border-zinc-200 text-zinc-650 rounded text-[9px] font-bold uppercase">
+                          Class {cls}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs font-bold text-zinc-500 italic">No assigned classes</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Overall Attendance Summary */}
-          <div className="w-full md:w-auto mt-6 md:mt-0 flex flex-col items-center md:items-end justify-center bg-gray-50/50 md:bg-transparent rounded-2xl p-6 md:p-0">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-              Overall Standing
-            </p>
-            <div className="flex items-baseline gap-2">
-              <h1
-                className={cn(
-                  "text-5xl font-black tracking-tighter",
-                  overallPercentage >= 75
-                    ? "text-emerald-500"
-                    : overallPercentage >= 60
-                      ? "text-amber-500"
-                      : "text-rose-500",
-                )}
-              >
-                {overallAttendance.percentage}%
-              </h1>
-            </div>
-            <div className="mt-3 flex gap-4 text-xs font-bold text-gray-500">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-orange-200" />
-                Total: {overallAttendance.totalDays}
+        {/* Circular Progress Overview Card (Right 4 cols) */}
+        <div className="lg:col-span-4">
+          <div className="bg-white rounded-2xl p-5 border border-zinc-200/80 shadow-sm flex flex-col items-center justify-center text-center space-y-4">
+            <h4 className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">
+              Overall Standings
+            </h4>
+
+            {/* Circular Progress SVG */}
+            <div className="relative flex items-center justify-center">
+              <svg className="w-24 h-24 transform -rotate-90">
+                <circle
+                  cx="48"
+                  cy="48"
+                  r={radius}
+                  stroke="#F4F4F5"
+                  strokeWidth="8"
+                  fill="transparent"
+                />
+                <circle
+                  cx="48"
+                  cy="48"
+                  r={radius}
+                  stroke={overallPercentage >= 75 ? "#10B981" : overallPercentage >= 60 ? "#F59E0B" : "#EF4444"}
+                  strokeWidth="8"
+                  fill="transparent"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  className="transition-all duration-1000"
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center justify-center">
+                <span className="text-lg font-black text-zinc-800 tracking-tight">
+                  {overallAttendance.percentage}%
+                </span>
+                <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">
+                  Attendance
+                </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                Present: {overallAttendance.presentCount}
+            </div>
+
+            {/* Info Metrics */}
+            <div className="w-full grid grid-cols-2 gap-4 border-t border-zinc-100 pt-4">
+              <div className="text-center">
+                <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">Duties Logged</p>
+                <p className="text-sm font-black text-zinc-800 mt-0.5">{overallAttendance.totalDays} Days</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">Standing Rating</p>
+                <div className="mt-0.5">
+                  <span className={cn(
+                    "px-2 py-0.5 border rounded-lg text-[9px] font-black uppercase tracking-wider",
+                    rating.colorClass
+                  )}>
+                    {rating.label}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tab Selector */}
-      <div className="flex bg-gray-100/80 p-1.5 rounded-2xl border border-gray-200/50 shadow-inner w-fit select-none mx-2">
+      {/* View Switch Tab Selector */}
+      <div className="flex bg-zinc-100 p-0.5 rounded-xl border border-zinc-200/50 shadow-inner w-fit select-none">
         <button
           onClick={() => setActiveView("overview")}
           className={cn(
-            "flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+            "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
             activeView === "overview"
-              ? "bg-white text-orange-600 shadow-md font-bold"
-              : "text-gray-500 hover:text-gray-900"
+              ? "bg-white text-orange-655 shadow-sm"
+              : "text-zinc-500 hover:text-zinc-900"
           )}
         >
-          <Target size={14} />
+          <Target size={13} />
           Overview
         </button>
         <button
           onClick={() => setActiveView("calendar")}
           className={cn(
-            "flex items-center gap-2.5 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+            "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
             activeView === "calendar"
-              ? "bg-white text-orange-600 shadow-md font-bold"
-              : "text-gray-500 hover:text-gray-900"
+              ? "bg-white text-orange-655 shadow-sm"
+              : "text-zinc-500 hover:text-zinc-900"
           )}
         >
-          <CalendarDays size={14} />
-          Yearly Attendance Calendar
+          <CalendarDays size={13} />
+          Yearly Calendar
         </button>
       </div>
 
+      {/* 2. OVERVIEW VIEW */}
       {activeView === "overview" ? (
-        <>
+        <div className="space-y-6">
+          
           {/* Stats Summary Cards */}
-          <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3 pt-4 px-2">
-            <TrendingUp className="text-gray-400" size={24} />
-            Attendance Summary
-          </h3>
+          <div className="space-y-3">
+            <h3 className="text-sm font-black text-gray-900 tracking-tight uppercase flex items-center gap-1.5">
+              <TrendingUp className="text-zinc-450" size={18} />
+              Attendance Summary
+            </h3>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
-            {[
-              {
-                label: "Present",
-                value: overallAttendance.presentCount,
-                color: "emerald",
-                icon: CheckCircle,
-                sub: `${overallAttendance.totalDays > 0 ? ((overallAttendance.presentCount / overallAttendance.totalDays) * 100).toFixed(1) : 0}% of total`,
-              },
-              {
-                label: "Absent",
-                value: overallAttendance.absentCount,
-                color: "rose",
-                icon: XCircle,
-                sub: `${overallAttendance.totalDays > 0 ? ((overallAttendance.absentCount / overallAttendance.totalDays) * 100).toFixed(1) : 0}% of total`,
-              },
-              {
-                label: "Late",
-                value: overallAttendance.lateCount,
-                color: "indigo",
-                icon: Clock,
-                sub: `${overallAttendance.totalDays > 0 ? ((overallAttendance.lateCount / overallAttendance.totalDays) * 100).toFixed(1) : 0}% of total`,
-              },
-              {
-                label: "Leave",
-                value: overallAttendance.leaveCount,
-                color: "amber",
-                icon: CalendarDays,
-                sub: `${overallAttendance.totalDays > 0 ? ((overallAttendance.leaveCount / overallAttendance.totalDays) * 100).toFixed(1) : 0}% of total`,
-              },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all duration-300"
-              >
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                {
+                  label: "Present",
+                  value: overallAttendance.presentCount,
+                  color: "emerald",
+                  icon: CheckCircle,
+                  subtitle: "Active duty days",
+                  pct: `${overallAttendance.totalDays > 0 ? ((overallAttendance.presentCount / overallAttendance.totalDays) * 100).toFixed(1) : 0}%`,
+                  colorClass: "bg-emerald-50 border-emerald-100 text-emerald-600"
+                },
+                {
+                  label: "Absent",
+                  value: overallAttendance.absentCount,
+                  color: "rose",
+                  icon: XCircle,
+                  subtitle: "Unexcused Absence",
+                  pct: `${overallAttendance.totalDays > 0 ? ((overallAttendance.absentCount / overallAttendance.totalDays) * 100).toFixed(1) : 0}%`,
+                  colorClass: "bg-rose-50 border-rose-100 text-rose-600"
+                },
+                {
+                  label: "Late",
+                  value: overallAttendance.lateCount,
+                  color: "indigo",
+                  icon: Clock,
+                  subtitle: "Tardy Clock-ins",
+                  pct: `${overallAttendance.totalDays > 0 ? ((overallAttendance.lateCount / overallAttendance.totalDays) * 100).toFixed(1) : 0}%`,
+                  colorClass: "bg-indigo-50 border-indigo-100 text-indigo-600"
+                },
+                {
+                  label: "Leave",
+                  value: overallAttendance.leaveCount,
+                  color: "amber",
+                  icon: CalendarDays,
+                  subtitle: "Approved Time-off",
+                  pct: `${overallAttendance.totalDays > 0 ? ((overallAttendance.leaveCount / overallAttendance.totalDays) * 100).toFixed(1) : 0}%`,
+                  colorClass: "bg-amber-50 border-amber-100 text-amber-600"
+                },
+              ].map((stat) => (
                 <div
-                  className={cn(
-                    "absolute top-0 right-0 w-24 h-24 rounded-full -mr-8 -mt-8 opacity-10 transition-transform group-hover:scale-125",
-                    stat.color === "emerald" && "bg-emerald-500",
-                    stat.color === "rose" && "bg-rose-500",
-                    stat.color === "indigo" && "bg-indigo-500",
-                    stat.color === "amber" && "bg-amber-500",
-                  )}
-                />
-                <div className="relative z-10">
-                  <div
-                    className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center mb-4",
-                      stat.color === "emerald" && "bg-emerald-50 text-emerald-600",
-                      stat.color === "rose" && "bg-rose-50 text-rose-600",
-                      stat.color === "indigo" && "bg-indigo-50 text-indigo-600",
-                      stat.color === "amber" && "bg-amber-50 text-amber-600",
-                    )}
-                  >
-                    <stat.icon size={22} />
+                  key={stat.label}
+                  className="bg-white rounded-2xl p-4 border border-zinc-200/80 shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300"
+                >
+                  <div className="relative z-10 flex flex-col justify-between h-full">
+                    <div className="flex justify-between items-start">
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-inner", stat.colorClass)}>
+                        <stat.icon size={16} />
+                      </div>
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                        {stat.pct}
+                      </span>
+                    </div>
+                    
+                    <div className="mt-3.5 space-y-0.5">
+                      <p className="text-xl font-black text-gray-900 tracking-tight">
+                        {stat.value} Days
+                      </p>
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                        {stat.label}
+                      </p>
+                      <p className="text-[8px] font-bold text-gray-400 italic">
+                        {stat.subtitle}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-4xl font-black text-gray-900 tracking-tight">
-                    {stat.value}
-                  </p>
-                  <p className="font-black text-gray-500 text-sm mt-1 uppercase tracking-wider">
-                    {stat.label}
-                  </p>
-                  <p className="text-xs font-bold text-gray-400 mt-1">{stat.sub}</p>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Overall Progress bar */}
-          <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  Overall Attendance Rate
-                </p>
-                <h4 className="text-2xl font-black text-gray-900 tracking-tight mt-1">
-                  {overallAttendance.percentage}%
-                </h4>
-              </div>
-              <div
-                className={cn(
-                  "px-4 py-2 rounded-2xl text-sm font-black border",
-                  getPercentageColor(overallPercentage)
-                )}
-              >
-                {overallPercentage >= 75
-                  ? "Good Standing"
-                  : overallPercentage >= 60
-                    ? "Needs Attention"
-                    : "Critical"}
-              </div>
-            </div>
-            <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-1000",
-                  overallPercentage >= 75
-                    ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
-                    : overallPercentage >= 60
-                      ? "bg-gradient-to-r from-amber-400 to-amber-500"
-                      : "bg-gradient-to-r from-rose-400 to-rose-500"
-                )}
-                style={{ width: `${Math.min(overallPercentage, 100)}%` }}
-              />
-            </div>
-            <div className="flex gap-6 mt-4 text-xs font-bold text-gray-400">
-              <span>Total Working Days: {overallAttendance.totalDays}</span>
-              <span className="text-emerald-600">Present: {overallAttendance.presentCount}</span>
-              <span className="text-rose-600">Absent: {overallAttendance.absentCount}</span>
-            </div>
-          </div>
+
 
           {/* Recent Records Table */}
           {data.records && data.records.length > 0 ? (
-            <>
-              <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3 pt-2 px-2">
-                <CalendarDays className="text-gray-400" size={24} />
-                Recent Attendance Records
+            <div className="space-y-3">
+              <h3 className="text-sm font-black text-gray-900 tracking-tight uppercase flex items-center gap-1.5">
+                <CalendarDays className="text-zinc-450" size={18} />
+                Recent Attendance Log
               </h3>
-              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-gray-50/80">
-                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 w-16 text-center">
+                      <tr className="bg-zinc-50/80">
+                        <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-150 w-16 text-center">
                           Sr
                         </th>
-                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                        <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-150">
                           Date
                         </th>
-                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                        <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-150">
                           Day
                         </th>
-                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                        <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-150">
                           Status
                         </th>
-                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                        <th className="px-5 py-3 text-[9px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-150">
                           Remarks
                         </th>
                       </tr>
@@ -421,21 +540,21 @@ const StaffAttendanceAnalysis = () => {
                         return (
                           <tr
                             key={idx}
-                            className="hover:bg-gray-50/50 transition-colors group"
+                            className="hover:bg-zinc-50/50 transition-colors group"
                           >
-                            <td className="px-8 py-5 border-b border-gray-50 font-black text-gray-300 text-center text-xs">
+                            <td className="px-5 py-2.5 border-b border-zinc-100 font-black text-zinc-300 text-center text-xs">
                               {(idx + 1).toString().padStart(2, "0")}
                             </td>
-                            <td className="px-8 py-5 border-b border-gray-50 font-bold text-gray-700">
+                            <td className="px-5 py-2.5 border-b border-zinc-100 font-bold text-zinc-700 text-xs">
                               {dateStr}
                             </td>
-                            <td className="px-8 py-5 border-b border-gray-50 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                            <td className="px-5 py-2.5 border-b border-zinc-100 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
                               {dayStr}
                             </td>
-                            <td className="px-8 py-5 border-b border-gray-50">
+                            <td className="px-5 py-2.5 border-b border-zinc-100">
                               <span
                                 className={cn(
-                                  "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 border",
+                                  "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1 border",
                                   status === "Present" && "bg-emerald-50 text-emerald-600 border-emerald-100",
                                   status === "Absent" && "bg-rose-50 text-rose-600 border-rose-100",
                                   status === "Leave" && "bg-amber-50 text-amber-600 border-amber-100",
@@ -454,8 +573,8 @@ const StaffAttendanceAnalysis = () => {
                                 {status}
                               </span>
                             </td>
-                            <td className="px-8 py-5 border-b border-gray-50 text-xs text-gray-400 font-medium">
-                              {record.remarks || <span className="italic text-gray-200">—</span>}
+                            <td className="px-5 py-2.5 border-b border-zinc-100 text-xs text-zinc-450 font-semibold">
+                              {record.remarks || <span className="italic text-zinc-200">—</span>}
                             </td>
                           </tr>
                         );
@@ -464,23 +583,23 @@ const StaffAttendanceAnalysis = () => {
                   </table>
                 </div>
                 {data.records.length > 15 && (
-                  <div className="px-8 py-4 border-t border-gray-50 bg-gray-50/30">
-                    <p className="text-xs font-bold text-gray-400 text-center">
+                  <div className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/30">
+                    <p className="text-xs font-bold text-gray-405 text-center">
                       Showing 15 most recent records · Switch to{" "}
                       <button
                         onClick={() => setActiveView("calendar")}
-                        className="text-orange-600 underline-offset-2 underline"
+                        className="text-orange-650 underline-offset-2 underline cursor-pointer font-bold"
                       >
-                        Monthly Calendar
+                        Yearly Calendar
                       </button>{" "}
                       to view all {data.records.length} records
                     </p>
                   </div>
                 )}
               </div>
-            </>
+            </div>
           ) : (
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-12">
+            <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-sm p-10 text-center">
               <EmptyState
                 title="No Attendance Records"
                 description="No attendance records found for this staff member yet."
@@ -488,10 +607,12 @@ const StaffAttendanceAnalysis = () => {
               />
             </div>
           )}
-        </>
+        </div>
       ) : (
-        <div className="max-w-4xl mx-auto">
-          <AttendanceCalendar records={getCalendarRecords()} />
+        <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-sm p-4 sm:p-6">
+          <div className="max-w-4xl mx-auto">
+            <AttendanceCalendar records={data.records || []} />
+          </div>
         </div>
       )}
     </div>

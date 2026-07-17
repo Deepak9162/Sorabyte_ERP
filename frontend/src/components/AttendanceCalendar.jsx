@@ -111,7 +111,7 @@ const AttendanceCalendar = ({ records = [] }) => {
           ))}
           
           {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-            <div key={`empty-${i}`} className="h-11 md:h-24 bg-gray-50/50 rounded-lg border border-gray-100 border-dashed" />
+            <div key={`empty-${i}`} className="h-12 md:h-24 bg-gray-50/30 rounded-xl border border-gray-105 border-dashed" />
           ))}
           
           {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -120,12 +120,17 @@ const AttendanceCalendar = ({ records = [] }) => {
             const status = record?.status;
             const markedAt = record?.markedAt;
 
+            const tooltipText = status 
+              ? `${status} on ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}${markedAt ? ` at ${markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : ''}`
+              : `No record for ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}`;
+
             return (
               <div 
-                key={dateNum} 
+                key={dateNum}
+                title={tooltipText}
                 className={cn(
-                  "h-11 md:h-24 p-1 md:p-2 rounded-lg border flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all",
-                  status ? getStatusColor(status) : "bg-white text-gray-400 border-gray-100 hover:border-gray-200"
+                  "h-12 md:h-24 p-1 md:p-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer",
+                  status ? getStatusColor(status) : "bg-gray-50/40 text-gray-400 border-gray-100 hover:border-gray-250 hover:bg-white"
                 )}
               >
                 <span className={cn("text-xs md:text-lg font-black", status ? "" : "opacity-50")}>{dateNum}</span>

@@ -540,7 +540,11 @@ class AttendanceService {
         subject: teacher.subject || 'N/A',
         phone: teacher.phone || 'N/A',
         email: teacher.email || 'N/A',
-        employeeId: teacher.employeeId || teacher._id.toString().slice(-8).toUpperCase()
+        employeeId: teacher.employeeId || teacher._id.toString().slice(-8).toUpperCase(),
+        joiningDate: teacher.joiningDate,
+        assignedClasses: teacher.assignedClasses || [],
+        isActive: teacher.isActive,
+        qualification: teacher.qualification || 'N/A'
       },
       overallAttendance: {
         totalDays,
