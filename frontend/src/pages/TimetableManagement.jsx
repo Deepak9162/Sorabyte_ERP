@@ -18,6 +18,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Modal from "../components/ui/Modal";
 import CopyModal from "../components/ui/CopyModal";
+import AppCombobox from "../components/ui/AppCombobox";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { useToast } from "../context/ToastContext";
 import api from "../services/api";
@@ -416,33 +417,34 @@ const TimetableManagement = () => {
           <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">
             Select Class
           </label>
-          <select
-            className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-[1.25rem] text-sm font-bold focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer"
+          <AppCombobox
+            placeholder="Choose a Class..."
+            searchPlaceholder="Search class..."
+            emptyText="No classes found"
             value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-          >
-            <option value="">Choose a Class...</option>
-            {classes.map((cls) => (
-              <option key={cls._id} value={cls._id}>
-                {cls.name}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedClass(val)}
+            options={classes.map((cls) => ({
+              value: cls._id,
+              label: cls.name,
+            }))}
+          />
         </div>
 
         <div className="space-y-1.5">
           <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">
             Academic Term
           </label>
-          <select
-            className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-[1.25rem] text-sm font-bold focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer"
+          <AppCombobox
+            placeholder="Annual Term"
+            searchable={false}
             value={selectedSemester}
-            onChange={(e) => setSelectedSemester(e.target.value)}
-          >
-            <option>Annual Term</option>
-            <option>Term 1 (Half Yearly)</option>
-            <option>Term 2 (Annual Exam)</option>
-          </select>
+            onChange={(val) => setSelectedSemester(val)}
+            options={[
+              { value: "Annual Term", label: "Annual Term" },
+              { value: "Term 1 (Half Yearly)", label: "Term 1 (Half Yearly)" },
+              { value: "Term 2 (Annual Exam)", label: "Term 2 (Annual Exam)" },
+            ]}
+          />
         </div>
 
         <div className="flex items-end">
@@ -647,33 +649,17 @@ const TimetableManagement = () => {
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
                                   Subject
                                 </label>
-                                <div className="relative group/field">
-                                  <BookOpen
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within/field:text-indigo-500 transition-colors"
-                                    size={16}
-                                  />
-                                  <select
-                                    className="w-full pl-11 pr-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all appearance-none cursor-pointer"
-                                    value={
-                                      slot.subject?._id || slot.subject || ""
-                                    }
-                                    onChange={(e) =>
-                                      updateSlot(
-                                        dayIndex,
-                                        slotIndex,
-                                        "subject",
-                                        e.target.value,
-                                      )
-                                    }
-                                  >
-                                    <option value="">Select Subject...</option>
-                                    {subjects.map((s) => (
-                                      <option key={s._id} value={s._id}>
-                                        {s.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                                <AppCombobox
+                                  placeholder="Select Subject..."
+                                  searchPlaceholder="Search subject..."
+                                  emptyText="No subjects found"
+                                  value={slot.subject?._id || slot.subject || ""}
+                                  onChange={(val) => updateSlot(dayIndex, slotIndex, "subject", val)}
+                                  options={subjects.map((s) => ({
+                                    value: s._id,
+                                    label: s.name,
+                                  }))}
+                                />
                               </div>
 
                               {/* Teacher Picker */}
@@ -681,33 +667,17 @@ const TimetableManagement = () => {
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
                                   Faculty
                                 </label>
-                                <div className="relative group/field">
-                                  <User
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within/field:text-indigo-500 transition-colors"
-                                    size={16}
-                                  />
-                                  <select
-                                    className="w-full pl-11 pr-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-xs font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all appearance-none cursor-pointer"
-                                    value={
-                                      slot.teacher?._id || slot.teacher || ""
-                                    }
-                                    onChange={(e) =>
-                                      updateSlot(
-                                        dayIndex,
-                                        slotIndex,
-                                        "teacher",
-                                        e.target.value,
-                                      )
-                                    }
-                                  >
-                                    <option value="">Select Faculty...</option>
-                                    {teachers.map((t) => (
-                                      <option key={t._id} value={t._id}>
-                                        {t.firstName} {t.lastName}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                                <AppCombobox
+                                  placeholder="Select Faculty..."
+                                  searchPlaceholder="Search teacher..."
+                                  emptyText="No teachers found"
+                                  value={slot.teacher?._id || slot.teacher || ""}
+                                  onChange={(val) => updateSlot(dayIndex, slotIndex, "teacher", val)}
+                                  options={teachers.map((t) => ({
+                                    value: t._id,
+                                    label: `${t.firstName} ${t.lastName}`,
+                                  }))}
+                                />
                               </div>
                             </div>
                           )}

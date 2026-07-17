@@ -3,6 +3,7 @@ import { Users, Loader2, Calendar } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import AttendanceCalendar from '../../components/AttendanceCalendar';
+import AppCombobox from '../../components/ui/AppCombobox';
 
 const StaffAttendanceHistory = () => {
   const [teachers, setTeachers] = useState([]);
@@ -69,25 +70,21 @@ const StaffAttendanceHistory = () => {
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <label className="block text-sm font-bold text-gray-700 mb-2">Select Staff Member</label>
-        {loadingTeachers ? (
-          <div className="flex items-center gap-2 text-gray-500 text-sm font-medium">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading staff...
-          </div>
-        ) : (
-          <select
-            value={selectedTeacherId}
-            onChange={(e) => setSelectedTeacherId(e.target.value)}
-            className="w-full md:w-96 px-4 py-2.5 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium text-gray-700 outline-none"
-          >
-            <option value="">-- Choose a staff member --</option>
-            {teachers.map(teacher => (
-              <option key={teacher._id} value={teacher._id}>
-                {teacher.firstName} {teacher.lastName} ({teacher.employeeId || 'No ID'})
-              </option>
-            ))}
-          </select>
-        )}
+        <AppCombobox
+          label="Select Staff Member"
+          placeholder="Select Staff Member..."
+          searchPlaceholder="Search by name or ID..."
+          emptyText="No staff members found"
+          loading={loadingTeachers}
+          value={selectedTeacherId}
+          onChange={(val) => setSelectedTeacherId(val)}
+          options={teachers.map((t) => ({
+            value: t._id,
+            label: `${t.firstName} ${t.lastName}`,
+            badge: t.employeeId || undefined,
+          }))}
+          containerClassName="max-w-md"
+        />
       </div>
 
       {loadingData ? (

@@ -10,6 +10,7 @@ import {
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import EmptyState from "../components/ui/EmptyState";
+import AppCombobox from "../components/ui/AppCombobox";
 import { useToast } from "../context/ToastContext";
 import api from "../services/api";
 
@@ -164,28 +165,19 @@ const ClassSubjectMapping = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {/* Top Controls Area */}
         <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-4 justify-between items-center relative z-10">
-          <div className="w-full max-w-sm space-y-1.5 ">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">
-              Select Academic Class
-            </label>
-            <div className="relative">
-              <GraduationCap
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500"
-                size={18}
-              />
-              <select
-                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold text-gray-700 shadow-sm appearance-none cursor-pointer"
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-              >
-                <option value="">-- Choose a Class --</option>
-                {classes.map((cls) => (
-                  <option key={cls?._id} value={cls?._id}>
-                    {cls?.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="w-full max-w-sm space-y-1.5">
+            <AppCombobox
+              label="Select Academic Class"
+              placeholder="Choose a Class..."
+              searchPlaceholder="Search class..."
+              emptyText="No classes found"
+              value={selectedClass}
+              onChange={(val) => setSelectedClass(val)}
+              options={classes.map((cls) => ({
+                value: cls?._id,
+                label: cls?.name,
+              }))}
+            />
           </div>
 
           <Button
@@ -321,48 +313,35 @@ const ClassSubjectMapping = () => {
                 {unmappedSubjects.length} available
               </span>
             </label>
-            <select
-              required
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm font-medium"
+            <AppCombobox
+              placeholder="Choose Subject..."
+              searchPlaceholder="Search subject..."
+              emptyText="No subjects available"
               value={formData.subjectId}
-              onChange={(e) =>
-                setFormData({ ...formData, subjectId: e.target.value })
-              }
-            >
-              <option value="">-- Choose Subject --</option>
-              {unmappedSubjects.map((sub) => (
-                <option key={sub?._id} value={sub?._id}>
-                  {sub?.name} ({sub?.code})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setFormData({ ...formData, subjectId: val })}
+              options={unmappedSubjects.map((sub) => ({
+                value: sub?._id,
+                label: sub?.name,
+                badge: sub?.code,
+              }))}
+            />
           </div>
 
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-gray-700">
               Assign Teacher
             </label>
-            <div className="relative">
-              <Users
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <select
-                required
-                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm font-medium"
-                value={formData.teacherId}
-                onChange={(e) =>
-                  setFormData({ ...formData, teacherId: e.target.value })
-                }
-              >
-                <option value="">-- Choose Teacher --</option>
-                {teachers.map((tch) => (
-                  <option key={tch?._id} value={tch?._id}>
-                    {tch?.firstName} {tch?.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <AppCombobox
+              placeholder="Choose Teacher..."
+              searchPlaceholder="Search teacher..."
+              emptyText="No teachers found"
+              value={formData.teacherId}
+              onChange={(val) => setFormData({ ...formData, teacherId: val })}
+              options={teachers.map((tch) => ({
+                value: tch?._id,
+                label: `${tch?.firstName} ${tch?.lastName}`,
+              }))}
+            />
           </div>
 
           <div className="space-y-1.5">

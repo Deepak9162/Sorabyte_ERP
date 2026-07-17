@@ -19,6 +19,7 @@ import Button from "../../components/ui/Button";
 import Skeleton, { TableSkeleton } from "../../components/ui/Skeleton";
 import EmptyState from "../../components/ui/EmptyState";
 import ConfirmModal from "../../components/ui/ConfirmModal";
+import AppCombobox from "../../components/ui/AppCombobox";
 import { useToast } from "../../context/ToastContext";
 import { cn } from "../../utils/cn";
 import { useAuth } from "../../context/AuthContext";
@@ -610,44 +611,39 @@ const StudentList = () => {
           </div>
 
           {/* Filter: Class */}
-          <div className="lg:col-span-3.5 relative group">
-            <Filter
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              size={16}
-            />
-            <select
-              className="w-full pl-11 pr-10 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-50/50 focus:bg-white outline-none appearance-none cursor-pointer transition-all"
-              value={filterClass}
-              onChange={(e) => {
-                setFilterClass(e.target.value);
+          <div className="lg:col-span-3">
+            <AppCombobox
+              placeholder="All Classes"
+              searchPlaceholder="Search class..."
+              emptyText="No classes found"
+              clearable
+              value={filterClass === "all" ? "" : filterClass}
+              onChange={(val) => {
+                setFilterClass(val || "all");
                 setCurrentPage(1);
               }}
-            >
-              <option value="all">All Classes</option>
-              {classes.map((c) => (
-                <option key={c._id} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+              options={classes.map((c) => ({
+                value: c.name,
+                label: c.name,
+              }))}
+            />
           </div>
 
           {/* Filter: Status */}
-          <div className="lg:col-span-3 relative group">
-            <select
-              className="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-50/50 focus:bg-white outline-none appearance-none cursor-pointer transition-all"
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
+          <div className="lg:col-span-2">
+            <AppCombobox
+              placeholder="All Statuses"
+              searchable={false}
+              value={filterStatus === "all" ? "" : filterStatus}
+              onChange={(val) => {
+                setFilterStatus(val || "all");
                 setCurrentPage(1);
               }}
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active Only</option>
-              <option value="inactive">Inactive Only</option>
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+              options={[
+                { value: "active", label: "Active Only" },
+                { value: "inactive", label: "Inactive Only" },
+              ]}
+            />
           </div>
 
           {/* View Mode Toggle */}

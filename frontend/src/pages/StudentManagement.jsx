@@ -24,6 +24,7 @@ import EmptyState from "../components/ui/EmptyState";
 import ConfirmModal from "../components/ui/ConfirmModal";
 import { useToast } from "../context/ToastContext";
 import { cn } from "../utils/cn";
+import AppCombobox from "../components/ui/AppCombobox";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
@@ -239,28 +240,19 @@ const StudentManagement = () => {
             className="w-full pl-14 pr-6 py-4 bg-white border border-gray-100 rounded-3xl shadow-sm text-sm font-bold focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
           />
         </div>
-        <div className="relative group">
-          <Filter
-            className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors"
-            size={20}
-          />
-          <select
-            className="w-full pl-14 pr-12 py-4 bg-white border border-gray-100 rounded-3xl shadow-sm text-sm font-bold focus:ring-4 focus:ring-indigo-50 outline-none transition-all appearance-none cursor-pointer"
-            value={filterClass}
-            onChange={(e) => setFilterClass(e.target.value)}
-          >
-            <option value="all">All Classes</option>
-            {classes.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-600 pointer-events-none transition-colors"
-            size={18}
-          />
-        </div>
+        <AppCombobox
+          placeholder="All Classes"
+          searchPlaceholder="Search class..."
+          emptyText="No classes found"
+          clearable
+          value={filterClass === "all" ? "" : filterClass}
+          onChange={(val) => setFilterClass(val || "all")}
+          options={classes.map((c) => ({
+            value: c._id,
+            label: c.name,
+          }))}
+          containerClassName="w-full"
+        />
       </div>
 
       {/* Main Content Area */}
@@ -537,31 +529,19 @@ const StudentManagement = () => {
               error={errors.rollNumber}
             />
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                Class
-              </label>
-              <select
-                className={cn(
-                  "w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-[1.25rem] text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all",
-                  errors.class && "border-red-200 bg-red-50",
-                )}
+              <AppCombobox
+                label="Class"
+                placeholder="Select Group"
+                searchPlaceholder="Search class..."
+                emptyText="No classes found"
                 value={formData.class}
-                onChange={(e) =>
-                  setFormData({ ...formData, class: e.target.value })
-                }
-              >
-                <option value="">Select Group</option>
-                {classes.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              {errors.class && (
-                <p className="text-[10px] text-red-500 font-bold ml-1">
-                  {errors.class}
-                </p>
-              )}
+                onChange={(val) => setFormData({ ...formData, class: val })}
+                error={errors.class}
+                options={classes.map((c) => ({
+                  value: c._id,
+                  label: c.name,
+                }))}
+              />
             </div>
             <Input
               label="Grade"
