@@ -73,6 +73,13 @@ const FeeCollection = () => {
   const [selectedDueDate, setSelectedDueDate] = useState(10);
   const [timelineFilter, setTimelineFilter] = useState("ALL");
 
+  // Roster, stats & mobile filter states
+  const [pendingStudents, setPendingStudents] = useState([]);
+  const [classStudents, setClassStudents] = useState([]);
+  const [isClassStudentsLoading, setIsClassStudentsLoading] = useState(false);
+  const [monthlySummary, setMonthlySummary] = useState([]);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
   // Load recent students from LocalStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem("recent_students");
@@ -193,13 +200,15 @@ const FeeCollection = () => {
     fetchClasses();
   }, []);
 
-  // Fetch school stats and configured due date day
+  // Fetch school stats, configured due date day, pending students and monthly collection summary
   useEffect(() => {
-    const fetchSchoolStatsAndDueDate = async () => {
+    const fetchInitialData = async () => {
       try {
-        const [statsRes, dueDateRes] = await Promise.all([
+        const [statsRes, dueDateRes, pendingRes, summaryRes] = await Promise.all([
           api.get("/admin/stats"),
-          api.get("/settings/fee-due-date")
+          api.get("/settings/fee-due-date"),
+          api.get("/fees/pending-students"),
+          api.get("/fees/monthly-summary")
         ]);
         if (statsRes.data.success) {
           setSchoolStats(statsRes.data.data);
@@ -208,11 +217,17 @@ const FeeCollection = () => {
           setMonthlyFeeDueDate(dueDateRes.data.data);
           setSelectedDueDate(dueDateRes.data.data);
         }
+        if (pendingRes.data.success) {
+          setPendingStudents(pendingRes.data.data || []);
+        }
+        if (summaryRes.data.success) {
+          setMonthlySummary(summaryRes.data.data.monthlyData || []);
+        }
       } catch (error) {
-        console.error("Error fetching initial statistics or settings:", error);
+        console.error("Error fetching initial dashboard statistics or settings:", error);
       }
     };
-    fetchSchoolStatsAndDueDate();
+    fetchInitialData();
   }, []);
 
   const handleSaveDueDate = async () => {
@@ -222,15 +237,25 @@ const FeeCollection = () => {
         setMonthlyFeeDueDate(res.data.data);
         addToast("Monthly due date day updated successfully", "success");
         setIsSettingsModalOpen(false);
-        // Refresh school stats and active student ledger (if loaded)
-        const statsRes = await api.get("/admin/stats");
+        // Refresh school stats, pending list, monthly summary and active student ledger (if loaded)
+        const [statsRes, pendingRes, summaryRes] = await Promise.all([
+          api.get("/admin/stats"),
+          api.get("/fees/pending-students"),
+          api.get("/fees/monthly-summary")
+        ]);
         if (statsRes.data.success) {
           setSchoolStats(statsRes.data.data);
         }
+        if (pendingRes.data.success) {
+          setPendingStudents(pendingRes.data.data || []);
+        }
+        if (summaryRes.data.success) {
+          setMonthlySummary(summaryRes.data.data.monthlyData || []);
+        }
         if (selectedClass) {
-          const summaryRes = await api.get(`/admin/classes/${selectedClass}/summary`);
-          if (summaryRes.data.success) {
-            setClassSummary(summaryRes.data.data);
+          const summaryClassRes = await api.get(`/admin/classes/${selectedClass}/summary`);
+          if (summaryClassRes.data.success) {
+            setClassSummary(summaryClassRes.data.data);
           }
         }
         if (student) {
@@ -243,29 +268,39 @@ const FeeCollection = () => {
     }
   };
 
-  // Fetch class summary when selectedClass changes
+  // Fetch class summary and class students list when selectedClass changes
   useEffect(() => {
-    const fetchClassSummary = async () => {
+    const fetchClassData = async () => {
       if (!selectedClass) {
         setClassSummary(null);
+        setClassStudents([]);
         return;
       }
       setIsSummaryLoading(true);
+      setIsClassStudentsLoading(true);
       try {
-        const res = await api.get(`/admin/classes/${selectedClass}/summary`);
-        if (res.data.success) {
-          setClassSummary(res.data.data);
+        const selectedClassName = classes.find(c => c._id === selectedClass)?.name || "";
+        const [summaryRes, studentsRes] = await Promise.all([
+          api.get(`/admin/classes/${selectedClass}/summary`),
+          api.get(`/students?class=${encodeURIComponent(selectedClassName)}&limit=1000`)
+        ]);
+        if (summaryRes.data.success) {
+          setClassSummary(summaryRes.data.data);
+        }
+        if (studentsRes.data.success) {
+          setClassStudents(studentsRes.data.data.students || []);
         }
       } catch (error) {
-        console.error("Error fetching class summary:", error);
+        console.error("Error fetching class data:", error);
       } finally {
         setIsSummaryLoading(false);
+        setIsClassStudentsLoading(false);
       }
     };
-    fetchClassSummary();
+    fetchClassData();
     setStudent(null);
     setCurrentStep("selector");
-  }, [selectedClass]);
+  }, [selectedClass, classes]);
 
   // Reactively calculate total payment amount based on selected months and transport toggle
   useEffect(() => {
@@ -559,8 +594,40 @@ const FeeCollection = () => {
     return breakdown;
   }, [student, timelineFilter]);
 
+  const selectedClassName = useMemo(() => {
+    return classes.find(c => c._id === selectedClass)?.name || "";
+  }, [selectedClass, classes]);
+
+  const classPendingStudents = useMemo(() => {
+    if (!selectedClass || !selectedClassName) return [];
+    return pendingStudents.filter(s => s.className === selectedClassName);
+  }, [pendingStudents, selectedClass, selectedClassName]);
+
+  const kpiStats = useMemo(() => {
+    const totalStudents = selectedClass 
+      ? (classSummary?.studentCount || 0) 
+      : (schoolStats?.totalStudents || 0);
+
+    const dueStudentsCount = selectedClass
+      ? classPendingStudents.length
+      : pendingStudents.length;
+
+    const paidStudentsCount = Math.max(0, totalStudents - dueStudentsCount);
+
+    const monthlyCollection = selectedClass
+      ? (classSummary?.totalCollected || 0)
+      : (schoolStats?.collectedThisMonth || 0);
+
+    return {
+      totalStudents,
+      dueStudents: dueStudentsCount,
+      paidStudents: paidStudentsCount,
+      collection: monthlyCollection
+    };
+  }, [selectedClass, classSummary, schoolStats, pendingStudents, classPendingStudents]);
+
   return (
-    <div className="min-h-screen bg-[#FAFAFA] font-sans antialiased text-zinc-900 pb-16 pt-0">
+    <div className="min-h-screen bg-[#FAFAFA] font-sans antialiased text-zinc-900 pb-16 pt-0 scroll-smooth" style={{ scrollBehavior: "smooth" }}>
       
       <div className="max-w-[1600px] mx-auto px-6 py-0 space-y-5">
         
@@ -577,68 +644,62 @@ const FeeCollection = () => {
         </div>
 
         {/* 2. TOP SUMMARY SECTION: 4 ANALYTICS CARDS */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Card 1: Total Paid */}
-          <div className="bg-white rounded-2xl border border-zinc-200/80 p-6 flex items-center justify-between shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 group">
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Paid</span>
-              <h3 className="text-2xl font-bold text-emerald-600">
-                {classSummary 
-                  ? formatToINR(classSummary.totalCollected) 
-                  : formatToINR(schoolStats?.totalFeesCollected || 0)}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* Card 1: Total Students */}
+          <div className="bg-white rounded-2xl border border-zinc-200/80 p-5 sm:p-6 flex items-center justify-between shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 group">
+            <div className="space-y-1 sm:space-y-2">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">👨‍🎓 Total Students</span>
+              <h3 className="text-xl sm:text-2xl font-black text-orange-500">
+                {kpiStats.totalStudents} <span className="text-xs text-zinc-450 font-bold">Students</span>
               </h3>
-              <p className="text-[10px] text-zinc-400 font-medium">Total fees collected</p>
+              <p className="text-[9px] text-zinc-400 font-semibold uppercase">
+                {selectedClass ? "In this class" : "Overall enrolled"}
+              </p>
             </div>
-            <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-              <Coins size={22} />
+            <div className="hidden sm:flex w-12 h-12 bg-orange-50 border border-orange-100 rounded-xl items-center justify-center text-orange-500 group-hover:scale-110 transition-transform">
+              <BookOpen size={20} />
             </div>
           </div>
 
-          {/* Card 2: Collected This Month */}
-          <div className="bg-white rounded-2xl border border-zinc-200/80 p-6 flex items-center justify-between shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 group">
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Collected This Month</span>
-              <h3 className="text-2xl font-bold text-blue-600">
-                {classSummary 
-                  ? formatToINR(classSummary.collectedThisMonth || 0) 
-                  : formatToINR(schoolStats?.collectedThisMonth || 0)}
+          {/* Card 2: Current Month Due */}
+          <div className="bg-white rounded-2xl border border-zinc-200/80 p-5 sm:p-6 flex items-center justify-between shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 group">
+            <div className="space-y-1 sm:space-y-2">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">💰 Current Month Due</span>
+              <h3 className="text-xl sm:text-2xl font-black text-red-505">
+                {kpiStats.dueStudents} <span className="text-xs text-zinc-450 font-bold">Students</span>
               </h3>
-              <p className="text-[10px] text-zinc-400 font-medium">Current calendar month</p>
+              <p className="text-[9px] text-zinc-400 font-semibold uppercase">Pending payment</p>
             </div>
-            <div className="w-12 h-12 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-              <CheckCircle size={22} />
+            <div className="hidden sm:flex w-12 h-12 bg-red-50 border border-red-100 rounded-xl items-center justify-center text-red-550 group-hover:scale-110 transition-transform">
+              <AlertCircle size={20} />
             </div>
           </div>
 
-          {/* Card 3: Outstanding Till Today */}
-          <div className="bg-white rounded-2xl border border-zinc-200/80 p-6 flex items-center justify-between shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 group">
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Outstanding Till Today</span>
-              <h3 className="text-2xl font-bold text-red-500">
-                {classSummary 
-                  ? formatToINR(classSummary.totalPending) 
-                  : formatToINR(schoolStats?.currentDueAmount || 0)}
+          {/* Card 3: Current Month Paid */}
+          <div className="bg-white rounded-2xl border border-zinc-200/80 p-5 sm:p-6 flex items-center justify-between shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 group">
+            <div className="space-y-1 sm:space-y-2">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">✅ Current Month Paid</span>
+              <h3 className="text-xl sm:text-2xl font-black text-emerald-650">
+                {kpiStats.paidStudents} <span className="text-xs text-zinc-450 font-bold">Students</span>
               </h3>
-              <p className="text-[10px] text-zinc-400 font-medium">Overdue amount only</p>
+              <p className="text-[9px] text-zinc-400 font-semibold uppercase">Fees settled</p>
             </div>
-            <div className="w-12 h-12 bg-red-50 border border-red-100 rounded-xl flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
-              <AlertCircle size={22} />
+            <div className="hidden sm:flex w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-xl items-center justify-center text-emerald-650 group-hover:scale-110 transition-transform">
+              <CheckCircle size={20} />
             </div>
           </div>
 
-          {/* Card 4: Upcoming Fee Amount */}
-          <div className="bg-white rounded-2xl border border-zinc-200/80 p-6 flex items-center justify-between shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 group">
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Upcoming Fee Amount</span>
-              <h3 className="text-2xl font-bold text-indigo-600">
-                {classSummary 
-                  ? formatToINR(classSummary.upcomingFeeAmount || 0) 
-                  : formatToINR(schoolStats?.upcomingFeeAmount || 0)}
+          {/* Card 4: Current Month Collection */}
+          <div className="bg-white rounded-2xl border border-zinc-200/80 p-5 sm:p-6 flex items-center justify-between shadow-sm hover:shadow-md hover:translate-y-[-2px] transition-all duration-300 group">
+            <div className="space-y-1 sm:space-y-2">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">₹ Monthly Collection</span>
+              <h3 className="text-xl sm:text-2xl font-black text-blue-600">
+                {formatToINR(kpiStats.collection)}
               </h3>
-              <p className="text-[10px] text-zinc-400 font-medium">Future pending installments</p>
+              <p className="text-[9px] text-zinc-400 font-semibold uppercase">Total collected</p>
             </div>
-            <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
-              <Clock size={22} />
+            <div className="hidden sm:flex w-12 h-12 bg-blue-50 border border-blue-100 rounded-xl items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+              <Coins size={20} />
             </div>
           </div>
         </section>
@@ -646,8 +707,27 @@ const FeeCollection = () => {
         {/* 3. MAIN WORKSPACE CONTAINER */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
+          {/* Mobile Filter Toggle button */}
+          <div className="lg:hidden w-full">
+            <button
+              onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+              className="w-full flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm text-xs font-bold text-zinc-705 cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Filter size={16} className="text-orange-505" />
+                <span>Roster Lookup & Filters</span>
+              </span>
+              <span className="px-2.5 py-1 bg-orange-50 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                {isMobileFilterOpen ? "Close Filters" : "Open Filters"}
+              </span>
+            </button>
+          </div>
+
           {/* LEFT PANEL: Class & Student Selection (3 cols) */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className={cn(
+            "lg:col-span-3 space-y-6 transition-all duration-300",
+            isMobileFilterOpen ? "block" : "hidden lg:block"
+          )}>
             <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-6 shadow-sm">
               <div className="flex items-center gap-3 border-b border-zinc-100 pb-4">
                 <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500">
@@ -658,6 +738,8 @@ const FeeCollection = () => {
                   <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-tight">Select target academic segment</p>
                 </div>
               </div>
+
+
 
 
 
@@ -830,48 +912,49 @@ const FeeCollection = () => {
                 ) : classSummary ? (
                   <div className="space-y-8 animate-in fade-in duration-300">
                     
-                    {/* Expected vs Collected Analytics details */}
-                    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-8">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-100 pb-5 mb-6">
+                    {/* Redesigned Class Overview Card */}
+                    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 sm:p-8 space-y-6">
+                      <div className="flex justify-between items-center border-b border-zinc-100 pb-4">
                         <div>
-                          <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest">Selected Segment Overview</span>
-                          <h3 className="text-xl font-bold text-zinc-900 tracking-tight mt-0.5">
-                            Class {classSummary.className} Status
+                          <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Class Summary</span>
+                          <h3 className="text-lg font-extrabold text-zinc-900 tracking-tight mt-0.5">
+                            Class {classSummary.className} Overview
                           </h3>
                         </div>
-                        <div>
-                          <span className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
-                            Active Session
-                          </span>
+                        <span className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
+                          Active Session
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                        <div className="p-4 bg-zinc-50 border border-zinc-150 rounded-xl space-y-1">
+                          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Students</p>
+                          <p className="text-xl font-extrabold text-zinc-800">{classSummary.studentCount}</p>
+                        </div>
+                        <div className="p-4 bg-emerald-50/20 border border-emerald-100 rounded-xl space-y-1">
+                          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Paid</p>
+                          <p className="text-xl font-extrabold text-emerald-600">
+                            {Math.max(0, classSummary.studentCount - classPendingStudents.length)}
+                          </p>
+                        </div>
+                        <div className="p-4 bg-red-50/20 border border-red-100 rounded-xl space-y-1">
+                          <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Due</p>
+                          <p className="text-xl font-extrabold text-red-500">{classPendingStudents.length}</p>
+                        </div>
+                        <div className="p-4 bg-blue-50/20 border border-blue-100 rounded-xl space-y-1">
+                          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Collection</p>
+                          <p className="text-xl font-extrabold text-blue-600">{formatToINR(classSummary.totalCollected)}</p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="p-5 bg-zinc-50/50 border border-zinc-200 rounded-xl">
-                          <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Expected Revenue</p>
-                          <h4 className="text-xl font-bold text-zinc-900 mt-1">{formatToINR(classSummary.totalExpected)}</h4>
-                        </div>
-
-                        <div className="p-5 bg-emerald-50/20 border border-emerald-100 rounded-xl">
-                          <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Total Collected</p>
-                          <h4 className="text-xl font-bold text-emerald-600 mt-1">{formatToINR(classSummary.totalCollected)}</h4>
-                        </div>
-
-                        <div className="p-5 bg-amber-50/20 border border-amber-100 rounded-xl">
-                          <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest">Outstanding Balance</p>
-                          <h4 className="text-xl font-bold text-amber-600 mt-1">{formatToINR(classSummary.totalPending)}</h4>
-                        </div>
-                      </div>
-
-                      {/* Progress representation */}
-                      <div className="mt-8 pt-6 border-t border-zinc-100 space-y-3">
+                      <div className="pt-4 border-t border-zinc-100 space-y-2">
                         <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                          <span>Collection progress ratio</span>
-                          <span className="text-orange-500 font-extrabold text-xs">
-                            {((classSummary.totalCollected / classSummary.totalExpected) * 100 || 0).toFixed(1)}% Completed
+                          <span>Collection Progress</span>
+                          <span className="text-orange-500 font-extrabold">
+                            {((classSummary.totalCollected / classSummary.totalExpected) * 100 || 0).toFixed(0)}%
                           </span>
                         </div>
-                        <div className="h-2.5 w-full bg-zinc-100 rounded-full overflow-hidden p-0.5 border border-zinc-100">
+                        <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden p-0.5 border border-zinc-100">
                           <div
                             className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all duration-1000"
                             style={{
@@ -882,21 +965,263 @@ const FeeCollection = () => {
                       </div>
                     </div>
 
-                    {/* Active Instruction Block */}
-                    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-8 flex flex-col sm:flex-row items-center gap-6">
-                      <div className="w-14 h-14 bg-orange-50 border border-orange-100 rounded-xl flex items-center justify-center text-orange-500 shrink-0">
-                        <BookOpen size={22} />
+                    {/* Student List Table */}
+                    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 space-y-4">
+                      <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
+                        <div>
+                          <h4 className="text-xs font-bold text-zinc-800 uppercase tracking-wider">Student Roster</h4>
+                          <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider mt-0.5">Select a student to manage billing</p>
+                        </div>
+                        <span className="text-[9px] font-black text-zinc-450 uppercase tracking-wider bg-zinc-50 border border-zinc-200 px-2 py-0.5 rounded-lg">
+                          {classStudents.length} Enrolled
+                        </span>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-zinc-800 uppercase tracking-tight">Record Student Fee Ledger Entry</h4>
-                        <p className="text-xs text-zinc-500 font-medium leading-relaxed mt-1">
-                          Use the Lookup Controller sidebar to type the Roll Number or student name in class <strong>{classSummary.className}</strong>. Confirm the billing entry and print receipts.
-                        </p>
-                      </div>
+
+                      {isClassStudentsLoading ? (
+                        <div className="py-12 flex flex-col items-center justify-center text-zinc-400">
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500 mb-3"></div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Loading Class Roster...</span>
+                        </div>
+                      ) : classStudents.length === 0 ? (
+                        <div className="py-12 text-center text-zinc-400 font-bold uppercase text-[10px]">
+                          No enrolled students found.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto custom-scrollbar">
+                          {/* Desktop Table View */}
+                          <table className="w-full text-left border-collapse hidden sm:table">
+                            <thead>
+                              <tr className="text-[10px] font-bold text-zinc-400 border-b border-zinc-100 uppercase tracking-wider">
+                                <th className="py-3 px-3">Roll</th>
+                                <th className="py-3 px-3">Student Name</th>
+                                <th className="py-3 px-3">Status</th>
+                                <th className="py-3 px-3">Amount Pending</th>
+                                <th className="py-3 px-3 text-right">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-50 text-xs text-zinc-700">
+                              {classStudents.map((stud) => {
+                                const isPending = classPendingStudents.find(p => p.rollNumber === stud.rollNumber);
+                                return (
+                                  <tr key={stud._id} className="hover:bg-zinc-50/50 transition-all font-semibold">
+                                    <td className="py-3.5 px-3 text-zinc-400">{stud.rollNumber}</td>
+                                    <td className="py-3.5 px-3 font-bold text-zinc-800">{stud.fullName}</td>
+                                    <td className="py-3.5 px-3">
+                                      {isPending ? (
+                                        <span className="px-2 py-0.5 bg-red-50 text-red-500 rounded text-[9px] font-bold uppercase border border-red-100">
+                                          Due
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-bold uppercase border border-emerald-100">
+                                          Paid
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-3.5 px-3 text-zinc-900 font-bold">
+                                      {isPending ? formatToINR(isPending.pendingAmount) : "₹0"}
+                                    </td>
+                                    <td className="py-3.5 px-3 text-right">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          setSearchQuery(stud.rollNumber);
+                                          setLoading(true);
+                                          try {
+                                            const res = await api.get(`/fees/${selectedClass}/${stud.rollNumber}?academicYear=2026-2027`);
+                                            if (res.data.success) {
+                                              const { student: sData, feeSummary, ledger, transactions: txs } = res.data.data;
+                                              const activeStudent = {
+                                                id: sData.id,
+                                                name: sData.fullName,
+                                                roll: sData.rollNumber,
+                                                totalFee: feeSummary.totalFee,
+                                                paidFee: feeSummary.paidFee,
+                                                dueFee: feeSummary.dueFee,
+                                                upcomingFee: feeSummary.upcomingFee || 0,
+                                                class: sData.class?.name || sData.class,
+                                                ledger: ledger,
+                                                transportMode: sData.transportMode || 'Private',
+                                                transportFee: sData.transportFee || 0
+                                              };
+                                              setStudent(activeStudent);
+                                              setTransactions(txs || []);
+                                              setIncludeTransport(false);
+                                              const firstUnpaid = (ledger?.monthlyBreakdown || []).find(m => m.status !== "PAID" && m.status !== "EXEMPTED");
+                                              if (firstUnpaid) {
+                                                setSelectedMonths([firstUnpaid.month]);
+                                              } else {
+                                                setSelectedMonths([]);
+                                              }
+                                              setCurrentStep("active");
+                                            }
+                                          } catch (error) {
+                                            console.error(error);
+                                            addToast("Failed to load student details", "error");
+                                          } finally {
+                                            setLoading(false);
+                                          }
+                                        }}
+                                        className="px-3 py-1 bg-orange-50 hover:bg-orange-100 border border-orange-100 hover:border-orange-200 text-orange-600 rounded-lg transition-colors font-bold uppercase text-[9px] cursor-pointer"
+                                      >
+                                        Select & Pay
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+
+                          {/* Mobile Cards View */}
+                          <div className="block sm:hidden space-y-3">
+                            {classStudents.map((stud) => {
+                              const isPending = classPendingStudents.find(p => p.rollNumber === stud.rollNumber);
+                              return (
+                                <div key={stud._id} className="p-4 bg-zinc-50 border border-zinc-150 rounded-xl space-y-3">
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-black text-zinc-400">R.{stud.rollNumber}</span>
+                                      <span className="font-extrabold text-zinc-800 text-xs">{stud.fullName}</span>
+                                    </div>
+                                    {isPending ? (
+                                      <span className="px-2 py-0.5 bg-red-50 text-red-500 rounded text-[8px] font-bold uppercase border border-red-100">
+                                        Due
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[8px] font-bold uppercase border border-emerald-100">
+                                        Paid
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex justify-between items-center pt-2 border-t border-zinc-100 text-[10px] font-bold">
+                                    <span className="text-zinc-400 uppercase tracking-wider">Pending Amount:</span>
+                                    <span className="text-zinc-900 font-extrabold">{isPending ? formatToINR(isPending.pendingAmount) : "₹0"}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setSearchQuery(stud.rollNumber);
+                                      setLoading(true);
+                                      try {
+                                        const res = await api.get(`/fees/${selectedClass}/${stud.rollNumber}?academicYear=2026-2027`);
+                                        if (res.data.success) {
+                                          const { student: sData, feeSummary, ledger, transactions: txs } = res.data.data;
+                                          const activeStudent = {
+                                            id: sData.id,
+                                            name: sData.fullName,
+                                            roll: sData.rollNumber,
+                                            totalFee: feeSummary.totalFee,
+                                            paidFee: feeSummary.paidFee,
+                                            dueFee: feeSummary.dueFee,
+                                            upcomingFee: feeSummary.upcomingFee || 0,
+                                            class: sData.class?.name || sData.class,
+                                            ledger: ledger,
+                                            transportMode: sData.transportMode || 'Private',
+                                            transportFee: sData.transportFee || 0
+                                          };
+                                          setStudent(activeStudent);
+                                          setTransactions(txs || []);
+                                          setIncludeTransport(false);
+                                          const firstUnpaid = (ledger?.monthlyBreakdown || []).find(m => m.status !== "PAID" && m.status !== "EXEMPTED");
+                                          if (firstUnpaid) {
+                                            setSelectedMonths([firstUnpaid.month]);
+                                          } else {
+                                            setSelectedMonths([]);
+                                          }
+                                          setCurrentStep("active");
+                                        }
+                                      } catch (error) {
+                                        console.error(error);
+                                        addToast("Failed to load student details", "error");
+                                      } finally {
+                                        setLoading(false);
+                                      }
+                                    }}
+                                    className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-center text-xs font-bold uppercase transition-colors cursor-pointer"
+                                  >
+                                    Select & Pay
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                   </div>
                 ) : null}
+
+                {/* Secondary Analytics & Trend Charts (Below the fold) */}
+                <div className="border-t border-zinc-200/60 pt-8 space-y-6">
+                  <div>
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Secondary Analytics & Trend Charts</h4>
+                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mt-0.5">Yearly projections, pending offsets, and historical collection patterns</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="p-5 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-2">
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Expected Yearly Revenue</span>
+                      <h4 className="text-xl font-extrabold text-zinc-800">{formatToINR(overallCollectionStats.expected)}</h4>
+                      <p className="text-[9px] text-zinc-450 font-medium">Computed yearly base</p>
+                    </div>
+
+                    <div className="p-5 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-2">
+                      <span className="text-[9px] font-bold text-amber-605 uppercase tracking-widest">Outstanding Balance</span>
+                      <h4 className="text-xl font-extrabold text-amber-605">{formatToINR(overallCollectionStats.pending)}</h4>
+                      <p className="text-[9px] text-zinc-450 font-medium">Overdue fees till today</p>
+                    </div>
+
+                    <div className="p-5 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-2">
+                      <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Upcoming Collection</span>
+                      <h4 className="text-xl font-extrabold text-indigo-650">{formatToINR(schoolStats?.upcomingFeeAmount || 0)}</h4>
+                      <p className="text-[9px] text-zinc-450 font-medium">Future installment ledger</p>
+                    </div>
+                  </div>
+
+                  {/* Monthly Collection Trend representation */}
+                  {monthlySummary && monthlySummary.length > 0 && (
+                    <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-6 space-y-6">
+                      <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
+                        <span className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Historical Monthly Collection Trends</span>
+                        <span className="text-[9px] font-black text-zinc-450 uppercase tracking-wider">Academic Year 2026-2027</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                        {monthlySummary.map((m) => {
+                          const percent = Math.min(100, Math.round((m.collected / (m.expected || 1)) * 100)) || 0;
+                          return (
+                            <div key={m.month} className="p-3 bg-zinc-50 border border-zinc-150 rounded-xl space-y-2.5 hover:border-orange-200 transition-colors">
+                              <span className="text-[10px] font-black text-zinc-650 uppercase tracking-wider block">{m.month}</span>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[9px] font-semibold text-zinc-400">
+                                  <span>Collected:</span>
+                                  <span className="text-zinc-800 font-bold">{formatToINR(m.collected)}</span>
+                                </div>
+                                <div className="flex justify-between text-[9px] font-semibold text-zinc-400">
+                                  <span>Expected:</span>
+                                  <span className="text-zinc-800 font-bold">{formatToINR(m.expected)}</span>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between items-center text-[8px] font-bold text-zinc-405">
+                                  <span>Ratio:</span>
+                                  <span className="text-orange-500 font-extrabold">{percent}%</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-zinc-200 rounded-full overflow-hidden p-0">
+                                  <div
+                                    className="h-full bg-orange-500 rounded-full transition-all"
+                                    style={{ width: `${percent}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
               </div>
             ) : (
