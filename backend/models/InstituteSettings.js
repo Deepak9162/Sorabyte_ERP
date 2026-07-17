@@ -5,7 +5,12 @@ const instituteSettingsSchema = new mongoose.Schema({
     type: [String],
     default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
   },
-  // We can add other institute settings here in the future
+  monthlyFeeDueDate: {
+    type: Number,
+    default: 10,
+    min: 1,
+    max: 28
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('InstituteSettings', instituteSettingsSchema);

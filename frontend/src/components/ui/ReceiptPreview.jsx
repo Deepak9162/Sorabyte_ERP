@@ -34,21 +34,37 @@ const ReceiptPreview = ({ transaction, student, className }) => {
   };
 
   const handleDownload = async () => {
+    const element = document.getElementById("receipt-content");
+    if (!element) {
+      addToast("Receipt element not found", "error");
+      return;
+    }
+
+    // Save original styles to restore later
+    const originalWidth = element.style.width;
+    const originalMaxWidth = element.style.maxWidth;
+    const originalBoxShadow = element.style.boxShadow;
+    const originalBorder = element.style.border;
+    const originalBorderRadius = element.style.borderRadius;
+
     try {
       addToast("Generating your high-resolution receipt PDF...", "info");
 
-      const element = document.getElementById("receipt-content");
-      if (!element) {
-        throw new Error("Receipt element not found");
-      }
+      // Force standard A4 print dimensions and clear card decorations for a clean PDF copy
+      element.style.width = "794px"; 
+      element.style.maxWidth = "none";
+      element.style.boxShadow = "none";
+      element.style.border = "none";
+      element.style.borderRadius = "0px";
 
-      // Configure html2canvas options for 3x scale and CORS compatibility
+      // Configure html2canvas options for 3x scale, CORS compatibility, and desktop viewport simulation
       const options = {
         scale: 3,
         useCORS: true,
         backgroundColor: "#ffffff",
         logging: false,
         allowTaint: true,
+        windowWidth: 1024, // Simulate a desktop viewport to trigger desktop media queries
       };
 
       const canvas = await html2canvas(element, options);
@@ -62,7 +78,6 @@ const ReceiptPreview = ({ transaction, student, className }) => {
       });
 
       const imgWidth = 210;
-      const pageHeight = 297;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
       pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
@@ -96,6 +111,13 @@ const ReceiptPreview = ({ transaction, student, className }) => {
         console.error("Server-side fallback also failed:", srvError);
         addToast("Failed to download receipt", "error");
       }
+    } finally {
+      // Always restore original styles
+      element.style.width = originalWidth;
+      element.style.maxWidth = originalMaxWidth;
+      element.style.boxShadow = originalBoxShadow;
+      element.style.border = originalBorder;
+      element.style.borderRadius = originalBorderRadius;
     }
   };
 

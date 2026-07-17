@@ -134,14 +134,12 @@ const getStudentFeesByMonth = async (req, res, next) => {
   try {
     const { studentId } = req.params;
 
-    // 1. Find the student by their unique studentId string
     const student = await Student.findOne({ studentId });
 
     if (!student) {
       return errorResponse(res, 'Student not found', 404);
     }
 
-    // 2. Find the FeeLedger for this student
     const feeLedger = await FeeLedger.findOne({ studentId: student._id })
       .sort({ createdAt: -1 });
 
@@ -149,25 +147,74 @@ const getStudentFeesByMonth = async (req, res, next) => {
       return errorResponse(res, 'No fee ledger found for this student', 404);
     }
 
-    // 3. Construct response optimized for table UI
-    // Note: Schema ensures April -> March order in monthlyFees array
+    const feeService = require('../services/feeService');
+    const monthlyFeeDueDate = await feeService.getMonthlyFeeDueDate();
+    const currentDate = new Date();
+
+    let duePending = 0;
+    let upcomingPending = 0;
+
+    const monthlyBreakdown = [];
+    for (const item of feeLedger.monthlyFees) {
+      const dynamicStatus = await feeService.getStatusForMonth(
+        item.month,
+        feeLedger.academicYear,
+        item.status,
+        monthlyFeeDueDate,
+        currentDate
+      );
+
+      const tuitionPending = item.status === 'EXEMPTED' ? 0 : Math.max(0, item.amount - item.paidAmount);
+      const transportPending = item.transportStatus === 'EXEMPTED' ? 0 : Math.max(0, item.transportAmount - item.transportPaidAmount);
+      const pending = tuitionPending + transportPending;
+
+      const startYear = parseInt(feeLedger.academicYear.split('-')[0]);
+      const monthMapping = {
+        'April': { idx: 3, offset: 0 },
+        'May': { idx: 4, offset: 0 },
+        'June': { idx: 5, offset: 0 },
+        'July': { idx: 6, offset: 0 },
+        'August': { idx: 7, offset: 0 },
+        'September': { idx: 8, offset: 0 },
+        'October': { idx: 9, offset: 0 },
+        'November': { idx: 10, offset: 0 },
+        'December': { idx: 11, offset: 0 },
+        'January': { idx: 0, offset: 1 },
+        'February': { idx: 1, offset: 1 },
+        'March': { idx: 2, offset: 1 }
+      };
+      const mapping = monthMapping[item.month];
+      const monthYear = startYear + mapping.offset;
+      const monthIdx = mapping.idx;
+      const dueDate = new Date(monthYear, monthIdx, monthlyFeeDueDate, 23, 59, 59, 999);
+
+      if (currentDate >= dueDate) {
+        duePending += pending;
+      } else {
+        upcomingPending += pending;
+      }
+
+      monthlyBreakdown.push({
+        month: item.month,
+        amount: item.amount,
+        paidAmount: item.paidAmount,
+        pending: tuitionPending,
+        status: dynamicStatus,
+        paidOn: item.paidOn || null
+      });
+    }
+
     const response = {
       academicYear: feeLedger.academicYear,
-      studentName: student.name,
+      studentName: student.fullName || student.name,
       studentId: student.studentId,
       summary: {
         totalFee: feeLedger.totalFee,
         totalPaid: feeLedger.totalPaid,
-        pendingAmount: feeLedger.pendingAmount
+        pendingAmount: duePending,
+        upcomingAmount: upcomingPending
       },
-      monthlyBreakdown: feeLedger.monthlyFees.map(item => ({
-        month: item.month,
-        amount: item.amount,
-        paidAmount: item.paidAmount,
-        pending: item.amount - item.paidAmount,
-        status: item.status,
-        paidOn: item.paidOn || null
-      }))
+      monthlyBreakdown
     };
 
     return successResponse(res, response, 'Student fees fetched successfully');
@@ -183,30 +230,72 @@ const getStudentFeesByMonth = async (req, res, next) => {
  */
 const getPendingFeesStudents = async (req, res, next) => {
   try {
-    const ledgers = await FeeLedger.find({ pendingAmount: { $gt: 0 } })
+    const ledgers = await FeeLedger.find()
       .populate({
         path: 'studentId',
-        select: 'fullName rollNumber class studentId fatherName emergencyContact email',
+        select: 'fullName rollNumber class studentId fatherName emergencyContact email status',
         populate: {
           path: 'class',
           select: 'name'
         }
       });
 
-    const students = ledgers
-      .filter(l => l.studentId !== null && l.studentId !== undefined)
-      .map(ledger => ({
-        id: ledger.studentId._id,
-        studentId: ledger.studentId.studentId,
-        fullName: ledger.studentId.fullName,
-        rollNumber: ledger.studentId.rollNumber,
-        className: ledger.studentId.class ? ledger.studentId.class.name : ledger.studentId.className || 'N/A',
-        parentName: ledger.studentId.fatherName,
-        parentPhone: ledger.studentId.emergencyContact,
-        pendingAmount: ledger.pendingAmount,
-        totalFee: ledger.totalFee,
-        totalPaid: ledger.totalPaid
-      }));
+    const feeService = require('../services/feeService');
+    const monthlyFeeDueDate = await feeService.getMonthlyFeeDueDate();
+    const currentDate = new Date();
+
+    const students = [];
+
+    for (const ledger of ledgers) {
+      if (!ledger.studentId || ledger.studentId.status !== 'Active') continue;
+
+      let duePendingAmount = 0;
+      const startYear = parseInt(ledger.academicYear.split('-')[0]);
+
+      ledger.monthlyFees.forEach(m => {
+        const monthMapping = {
+          'April': { idx: 3, offset: 0 },
+          'May': { idx: 4, offset: 0 },
+          'June': { idx: 5, offset: 0 },
+          'July': { idx: 6, offset: 0 },
+          'August': { idx: 7, offset: 0 },
+          'September': { idx: 8, offset: 0 },
+          'October': { idx: 9, offset: 0 },
+          'November': { idx: 10, offset: 0 },
+          'December': { idx: 11, offset: 0 },
+          'January': { idx: 0, offset: 1 },
+          'February': { idx: 1, offset: 1 },
+          'March': { idx: 2, offset: 1 }
+        };
+        const mapping = monthMapping[m.month];
+        if (!mapping) return;
+
+        const monthYear = startYear + mapping.offset;
+        const monthIdx = mapping.idx;
+        const dueDate = new Date(monthYear, monthIdx, monthlyFeeDueDate, 23, 59, 59, 999);
+
+        if (currentDate >= dueDate) {
+          const tuitionPending = m.status === 'EXEMPTED' ? 0 : Math.max(0, m.amount - m.paidAmount);
+          const transportPending = m.transportStatus === 'EXEMPTED' ? 0 : Math.max(0, m.transportAmount - m.transportPaidAmount);
+          duePendingAmount += tuitionPending + transportPending;
+        }
+      });
+
+      if (duePendingAmount > 0) {
+        students.push({
+          id: ledger.studentId._id,
+          studentId: ledger.studentId.studentId,
+          fullName: ledger.studentId.fullName,
+          rollNumber: ledger.studentId.rollNumber,
+          className: ledger.studentId.class ? ledger.studentId.class.name : ledger.studentId.className || 'N/A',
+          parentName: ledger.studentId.fatherName,
+          parentPhone: ledger.studentId.emergencyContact,
+          pendingAmount: duePendingAmount,
+          totalFee: ledger.totalFee,
+          totalPaid: ledger.totalPaid
+        });
+      }
+    }
 
     return successResponse(res, students, 'Pending fee students fetched successfully');
   } catch (error) {

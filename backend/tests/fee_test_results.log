@@ -1,4 +1,22 @@
 --- Starting Fee Management Verification ---
 
 [1] Logging in Admin...
-Admin login failed.
+Admin logged in.
+
+[2] Setting Class Tuition Fee...
+Created Test Class: undefined with Fee: 50000
+
+[3] Creating Test Student...
+Created Student: undefined
+
+[4] Initial Fee Check...
+Initial Summary: 
+
+[5] Recording Partial Payment (15,000)...
+Payment 1 Status: 400
+
+[6] Recording Second Partial Payment (10,000)...
+
+[7] Verifying Final Fee Summary...
+Final Summary: 
+Total Transactions: 

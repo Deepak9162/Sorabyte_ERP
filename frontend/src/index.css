@@ -82,3 +82,17 @@
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Unify page header: hide duplicate page-level title/subtitle in page content */
+main .space-y-8 > .flex.flex-col.md\:flex-row.md\:items-center.justify-between.gap-6 > div > h2,
+main .space-y-8 > .flex.flex-col.md\:flex-row.md\:items-center.justify-between.gap-6 > div > p,
+main .space-y-8 > .flex.flex-col.md\:flex-row.items-start.md\:items-center.justify-between.gap-6 > div > h2,
+main .space-y-8 > .flex.flex-col.md\:flex-row.items-start.md\:items-center.justify-between.gap-6 > div > p {
+  display: none !important;
+}
+
+/* Adjust page top margin if it begins with controls or flex row without actions */
+main .space-y-8 > .flex.flex-col.md\:flex-row.md\:items-center.justify-between.gap-6:has(> *:only-child),
+main .space-y-8 > .flex.flex-col.md\:flex-row.items-start.md\:items-center.justify-between.gap-6:has(> *:only-child) {
+  display: none !important;
+}
+

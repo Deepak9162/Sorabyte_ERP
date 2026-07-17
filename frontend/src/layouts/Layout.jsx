@@ -26,6 +26,149 @@ import { cn } from "../utils/cn";
 import SchoolLogo from "../components/ui/SchoolLogo";
 import NotificationDropdown from "../components/NotificationDropdown";
 
+const routeHeaderConfig = {
+  "/dashboard": {
+    category: "ERP Admin Hub",
+    title: "Admin Dashboard",
+    description: "Welcome back! Here's a summary of the school's performance."
+  },
+  "/": {
+    category: "ERP Admin Hub",
+    title: "Admin Dashboard",
+    description: "Welcome back! Here's a summary of the school's performance."
+  },
+  "/fees": {
+    category: "ERP Finance Hub",
+    title: "Finances & Fee Center",
+    description: "Monitor class performance, expected collection ratio, and record student receipts."
+  },
+  "/classes": {
+    category: "Academic Setup",
+    title: "Class Management",
+    description: "Define class groups, sections, and monthly fee structures."
+  },
+  "/students": {
+    category: "Student Directory",
+    title: "Student Registry",
+    description: "View, search, and manage student enrollments, sections, and records."
+  },
+  "/students/new": {
+    category: "Student Directory",
+    title: "Enroll Student",
+    description: "Register and admit a new student into the school system."
+  },
+  "/students/bulk-idcards": {
+    category: "Student Directory",
+    title: "Bulk ID Cards Console",
+    description: "Generate and download student ID cards in bulk."
+  },
+  "/teachers": {
+    category: "Staff Management",
+    title: "Teacher Registry",
+    description: "Manage school teachers, roles, and profiles."
+  },
+  "/attendance": {
+    category: "Daily Attendance",
+    title: "Daily Attendance Tracker",
+    description: "Track, mark, and monitor daily student and staff attendance."
+  },
+  "/reports/attendance": {
+    category: "Reports & Analytics",
+    title: "Attendance Analytics",
+    description: "Monitor attendance metrics, absent summaries, and monthly reports."
+  },
+  "/academic/subjects": {
+    category: "Academic Setup",
+    title: "Subject Master",
+    description: "Configure subjects, subject codes, and academic curriculum."
+  },
+  "/academic/mappings": {
+    category: "Academic Setup",
+    title: "Class Mappings",
+    description: "Map subjects to classes and assign class teachers."
+  },
+  "/academic/timetable": {
+    category: "Academic Setup",
+    title: "Timetable Management",
+    description: "Create, manage, and view class and teacher schedules."
+  },
+  "/admin/credentials": {
+    category: "System Administration",
+    title: "Credentials Manager",
+    description: "Manage staff accounts, credentials, and access roles."
+  },
+  "/admissions/requests": {
+    category: "Enrollment Center",
+    title: "Admission Requests",
+    description: "Review and process student admission applications."
+  }
+};
+
+const getRouteHeader = (path, getPageTitle) => {
+  if (path.startsWith("/students/edit/")) {
+    return {
+      category: "Student Directory",
+      title: "Edit Student Profile",
+      description: "Modify the profile details of an enrolled student."
+    };
+  }
+  if (path.startsWith("/students/")) {
+    if (path.endsWith("/idcard")) {
+      return {
+        category: "Student Directory",
+        title: "ID Card Console",
+        description: "Generate and customize a student ID card."
+      };
+    }
+    return {
+      category: "Student Directory",
+      title: "Student Profile Details",
+      description: "View student academic records, ledger, and profile details."
+    };
+  }
+  if (path.startsWith("/admissions/requests/new") || path.startsWith("/admissions/requests/edit/")) {
+    return {
+      category: "Enrollment Center",
+      title: "Admission Form",
+      description: "Fill out admission request details."
+    };
+  }
+  if (path.startsWith("/admissions/requests/details/")) {
+    return {
+      category: "Enrollment Center",
+      title: "Admission Request Details",
+      description: "Review detailed admission request information."
+    };
+  }
+  if (path.startsWith("/reports/attendance/student/")) {
+    return {
+      category: "Reports & Analytics",
+      title: "Student Attendance Record",
+      description: "Detailed daily attendance breakdown for this student."
+    };
+  }
+  if (path.startsWith("/reports/attendance/analysis/student/")) {
+    return {
+      category: "Reports & Analytics",
+      title: "Student Attendance Analysis",
+      description: "Long-term attendance stats and analytics for this student."
+    };
+  }
+  if (path.startsWith("/reports/attendance/analysis/staff/")) {
+    return {
+      category: "Reports & Analytics",
+      title: "Staff Attendance Analysis",
+      description: "Long-term attendance stats and analytics for this staff member."
+    };
+  }
+  
+  return routeHeaderConfig[path] || {
+    category: "Little Flower Educational Enterprise",
+    title: getPageTitle(),
+    description: "School ERP Management Hub"
+  };
+};
+
 const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -193,6 +336,8 @@ const Layout = ({ children }) => {
     return lastSegment.replace("-", " ");
   };
 
+  const headerInfo = getRouteHeader(location.pathname, getPageTitle);
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
       {/* Mobile Sidebar Overlay */}
@@ -292,18 +437,29 @@ const Layout = ({ children }) => {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <div className="flex flex-col">
-              <h1 className="text-base md:text-2xl font-black text-gray-900 capitalize tracking-tight flex items-center gap-1.5 md:gap-2">
-                <span className="hidden lg:inline text-gray-300">/</span>
-                {getPageTitle()}
+            <div className="flex flex-col animate-in fade-in duration-300">
+              <span className={cn(
+                "text-[10px] font-bold uppercase tracking-widest leading-none",
+                location.pathname === "/fees" ? "text-orange-500" : "text-indigo-500"
+              )}>
+                {headerInfo.category}
+              </span>
+              <h1 className="text-base md:text-2xl font-bold text-gray-900 tracking-tight mt-0.5 leading-none">
+                {headerInfo.title}
               </h1>
-              <p className="hidden sm:block text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none mt-1">
-                Little Flower Educational Enterprise
+              <p className="hidden sm:block text-[10px] text-gray-500 font-semibold mt-1">
+                {headerInfo.description}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-8">
+            {location.pathname === "/fees" && (
+              <div className="hidden sm:flex px-3.5 py-1.5 bg-neutral-50 border border-gray-200 rounded-full text-[10px] font-bold text-zinc-650 uppercase tracking-wider items-center gap-1.5 shadow-sm">
+                <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping"></span>
+                Session: 2026-2027
+              </div>
+            )}
             <NotificationDropdown />
 
             <div className="h-8 w-px bg-gray-100 hidden lg:block"></div>

@@ -209,14 +209,29 @@ const updateStudent = async (req, res, next) => {
         $pull: { students: student._id }
       });
       // Add to new class
-      await Class.findByIdAndUpdate(student.class, {
-        $addToSet: { students: student._id }
-      });
-    } else if (!oldStudent.class && student.class) {
+      if (student.status === 'Active') {
+        await Class.findByIdAndUpdate(student.class, {
+          $addToSet: { students: student._id }
+        });
+      }
+    } else if (!oldStudent.class && student.class && student.status === 'Active') {
       // Add to new class
       await Class.findByIdAndUpdate(student.class, {
         $addToSet: { students: student._id }
       });
+    }
+
+    // If status has changed, update class student list accordingly
+    if (oldStudent.status !== student.status && student.class) {
+      if (student.status === 'Active') {
+        await Class.findByIdAndUpdate(student.class, {
+          $addToSet: { students: student._id }
+        });
+      } else {
+        await Class.findByIdAndUpdate(student.class, {
+          $pull: { students: student._id }
+        });
+      }
     }
 
     return successResponse(res, student, 'Student updated successfully');
@@ -226,7 +241,7 @@ const updateStudent = async (req, res, next) => {
 };
 
 /**
- * @desc    Delete a student (soft delete — sets isActive to false)
+ * @desc    Delete a student (soft delete — sets status to Inactive)
  * @route   DELETE /api/students/:id
  * @access  Public
  */
@@ -234,12 +249,19 @@ const deleteStudent = async (req, res, next) => {
   try {
     const student = await Student.findByIdAndUpdate(
       req.params.id,
-      { isActive: false },
+      { status: 'Inactive' },
       { new: true }
     );
 
     if (!student) {
       return errorResponse(res, 'Student not found', 404);
+    }
+
+    // Pull student from class.students array since they are now inactive/deleted
+    if (student.class) {
+      await Class.findByIdAndUpdate(student.class, {
+        $pull: { students: student._id }
+      });
     }
 
     return successResponse(res, student, 'Student deactivated successfully');

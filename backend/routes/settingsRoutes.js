@@ -30,4 +30,35 @@ router.put('/working-days', protect, authorize('admin'), async (req, res) => {
   }
 });
 
+router.get('/fee-due-date', protect, async (req, res) => {
+  try {
+    let settings = await InstituteSettings.findOne();
+    if (!settings) {
+      settings = await InstituteSettings.create({});
+    }
+    res.status(200).json({ success: true, data: settings.monthlyFeeDueDate || 10 });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.put('/fee-due-date', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { dueDate } = req.body;
+    const dueDay = parseInt(dueDate);
+    if (isNaN(dueDay) || dueDay < 1 || dueDay > 28) {
+      return res.status(400).json({ success: false, message: 'Invalid due date (must be between 1 and 28)' });
+    }
+    let settings = await InstituteSettings.findOne();
+    if (!settings) {
+      settings = new InstituteSettings();
+    }
+    settings.monthlyFeeDueDate = dueDay;
+    await settings.save();
+    res.status(200).json({ success: true, data: settings.monthlyFeeDueDate });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

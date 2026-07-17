@@ -188,16 +188,48 @@ const getTeacherDashboardStats = async (req, res, next) => {
     const classIds = assignedClassesList.map(c => c._id);
 
     // Fetch full Class documents for the assigned classes to calculate student counts
-    const classes = await Class.find({ _id: { $in: classIds } });
-    classes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+    const mongoose = require('mongoose');
+    const rawClasses = await Class.find({ _id: { $in: classIds } });
     
+    // Find class(es) where this teacher is the Class Teacher
+    const rawClassTeacherClasses = await Class.find({ teacher: teacher._id, isActive: true })
+      .select('name'); // We don't need the static students field
+
+    const allQueryClassIds = [
+      ...new Set([
+        ...classIds.map(id => id.toString()),
+        ...rawClassTeacherClasses.map(c => c._id.toString())
+      ])
+    ].map(id => new mongoose.Types.ObjectId(id));
+    
+    const studentGroups = await Student.aggregate([
+      { $match: { class: { $in: allQueryClassIds }, status: 'Active' } },
+      { $group: { _id: '$class', studentIds: { $push: '$_id' } } }
+    ]);
+
+    const studentMap = new Map();
+    studentGroups.forEach(g => {
+      if (g._id) {
+        studentMap.set(g._id.toString(), g.studentIds);
+      }
+    });
+
+    const classes = rawClasses.map(c => {
+      const cObj = c.toObject();
+      cObj.students = studentMap.get(c._id.toString()) || [];
+      return cObj;
+    });
+    classes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+    const classTeacherClasses = rawClassTeacherClasses.map(c => {
+      const cObj = c.toObject();
+      cObj.students = studentMap.get(c._id.toString()) || [];
+      return cObj;
+    });
+    classTeacherClasses.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
     // Total Students across all assigned classes
     const totalStudents = classes.reduce((acc, c) => acc + (c.students ? c.students.length : 0), 0);
-
-    // Find class(es) where this teacher is the Class Teacher
-    const classTeacherClasses = await Class.find({ teacher: teacher._id, isActive: true })
-      .select('name students');
-    classTeacherClasses.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
     // Today's attendance summary — scoped to Class Teacher classes only
     const classTeacherIds = classTeacherClasses.map(c => c._id);

@@ -13,7 +13,7 @@ const verifyClassSummary = async () => {
         const adminLogin = await fetch(`${BASE_URL}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'admin@lbs.com', password: 'password123' })
+            body: JSON.stringify({ email: 'admin@lfes.com', password: 'password123' })
         });
         const adminLoginData = await adminLogin.json();
         const token = adminLoginData.data?.token;

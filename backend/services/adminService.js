@@ -18,10 +18,29 @@ const StaffAttendance = require('../models/StaffAttendance');
 const mongoose = require('mongoose');
 
 class AdminService {
+  dashboardStatsCache = {
+    data: null,
+    timestamp: 0
+  };
+
+  invalidateDashboardStatsCache() {
+    this.dashboardStatsCache.data = null;
+    this.dashboardStatsCache.timestamp = 0;
+  }
+
   /**
    * Get overall dashboard statistics
    */
   async getDashboardStats() {
+    const nowTime = Date.now();
+    // Cache for 10 seconds to optimize frequent dashboard loads
+    if (this.dashboardStatsCache.data && (nowTime - this.dashboardStatsCache.timestamp < 10000)) {
+      return {
+        ...this.dashboardStatsCache.data,
+        isCached: true
+      };
+    }
+
     const [studentCount, teacherCount, classCount, feeStats] = await Promise.all([
       Student.countDocuments(),
       Teacher.countDocuments(),
@@ -32,14 +51,82 @@ class AdminService {
       ])
     ]);
 
-    return {
+    const FeeLedger = require('../models/FeeLedger');
+    const ledgers = await FeeLedger.find();
+
+    const feeService = require('./feeService');
+    const monthlyFeeDueDate = await feeService.getMonthlyFeeDueDate();
+    const currentDate = new Date();
+
+    let totalFeesCollected = feeStats.length > 0 ? feeStats[0].total : 0;
+    let currentDueAmount = 0;
+    let upcomingFeeAmount = 0;
+
+    ledgers.forEach(l => {
+      const startYear = parseInt(l.academicYear.split('-')[0]);
+
+      l.monthlyFees.forEach(m => {
+        const monthMapping = {
+          'April': { idx: 3, offset: 0 },
+          'May': { idx: 4, offset: 0 },
+          'June': { idx: 5, offset: 0 },
+          'July': { idx: 6, offset: 0 },
+          'August': { idx: 7, offset: 0 },
+          'September': { idx: 8, offset: 0 },
+          'October': { idx: 9, offset: 0 },
+          'November': { idx: 10, offset: 0 },
+          'December': { idx: 11, offset: 0 },
+          'January': { idx: 0, offset: 1 },
+          'February': { idx: 1, offset: 1 },
+          'March': { idx: 2, offset: 1 }
+        };
+        const mapping = monthMapping[m.month];
+        if (!mapping) return;
+
+        const monthYear = startYear + mapping.offset;
+        const monthIdx = mapping.idx;
+        const dueDate = new Date(monthYear, monthIdx, monthlyFeeDueDate, 23, 59, 59, 999);
+
+        const tuitionPending = m.status === 'EXEMPTED' ? 0 : Math.max(0, m.amount - m.paidAmount);
+        const transportPending = m.transportStatus === 'EXEMPTED' ? 0 : Math.max(0, m.transportAmount - m.transportPaidAmount);
+        const pending = tuitionPending + transportPending;
+
+        if (currentDate >= dueDate) {
+          currentDueAmount += pending;
+        } else {
+          upcomingFeeAmount += pending;
+        }
+      });
+    });
+
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const collectedThisMonthStats = await FeeTransaction.aggregate([
+      { 
+        $match: { 
+          status: 'Paid',
+          paymentDate: { $gte: startOfMonth, $lte: endOfMonth }
+        } 
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const collectedThisMonth = collectedThisMonthStats.length > 0 ? collectedThisMonthStats[0].total : 0;
+
+    const statsData = {
       totalStudents: studentCount,
       totalTeachers: teacherCount,
       totalClasses: classCount,
-      totalFeesCollected: feeStats.length > 0 ? feeStats[0].total : 0,
-      // For the "change" indicators in UI, we can return some mock or calculated growth
-      // For now, let's keep it simple
+      totalFeesCollected,
+      currentDueAmount,
+      upcomingFeeAmount,
+      collectedThisMonth
     };
+
+    this.dashboardStatsCache.data = statsData;
+    this.dashboardStatsCache.timestamp = nowTime;
+
+    return statsData;
   }
 
   /**
@@ -116,12 +203,32 @@ class AdminService {
   }
 
   /**
-   * Fetch all classes with teacher details
+   * Fetch all classes with teacher details and dynamic student list
    */
   async getAllClasses() {
     const classes = await Class.find().populate('teacher', 'firstName lastName email');
-    classes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-    return classes;
+    
+    // Dynamically retrieve active student ObjectIds for each class to keep counts 100% accurate
+    const studentGroups = await Student.aggregate([
+      { $match: { status: 'Active' } },
+      { $group: { _id: '$class', studentIds: { $push: '$_id' } } }
+    ]);
+    
+    const studentMap = new Map();
+    studentGroups.forEach(g => {
+      if (g._id) {
+        studentMap.set(g._id.toString(), g.studentIds);
+      }
+    });
+    
+    const updatedClasses = classes.map(cls => {
+      const clsObj = cls.toObject();
+      clsObj.students = studentMap.get(cls._id.toString()) || [];
+      return clsObj;
+    });
+
+    updatedClasses.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+    return updatedClasses;
   }
 
   async getClassAttendanceReport(classId) {
@@ -272,9 +379,6 @@ class AdminService {
     };
   }
 
-  /**
-   * Get dynamic summary for a specific class (total students, fee stats)
-   */
   async getClassSummary(classId) {
     const targetClass = await Class.findById(classId);
     if (!targetClass) throw new Error('Class not found');
@@ -286,24 +390,53 @@ class AdminService {
     const FeeLedger = require('../models/FeeLedger');
     const ledgers = await FeeLedger.find({ studentId: { $in: studentIds } });
 
-    const totalPaid = ledgers.reduce((acc, curr) => acc + (curr.totalPaid || 0), 0);
-    
-    // Calculate total expected: use ledger totalFee if exists, otherwise class tuitionFee
-    let totalExpected = 0;
-    const ledgerMap = new Map();
-    ledgers.forEach(l => ledgerMap.set(l.studentId.toString(), l.totalFee));
+    const feeService = require('./feeService');
+    const monthlyFeeDueDate = await feeService.getMonthlyFeeDueDate();
+    const currentDate = new Date();
 
-    students.forEach(s => {
-      const studentLedgerFee = ledgerMap.get(s._id.toString());
-      totalExpected += (studentLedgerFee !== undefined) ? studentLedgerFee : (targetClass.tuitionFee || 0);
+    let totalPaid = 0;
+    let totalExpectedDue = 0;
+    let totalCollectedDue = 0;
+
+    ledgers.forEach(l => {
+      totalPaid += (l.totalPaid || 0);
+      const startYear = parseInt(l.academicYear.split('-')[0]);
+
+      l.monthlyFees.forEach(m => {
+        const monthMapping = {
+          'April': { idx: 3, offset: 0 },
+          'May': { idx: 4, offset: 0 },
+          'June': { idx: 5, offset: 0 },
+          'July': { idx: 6, offset: 0 },
+          'August': { idx: 7, offset: 0 },
+          'September': { idx: 8, offset: 0 },
+          'October': { idx: 9, offset: 0 },
+          'November': { idx: 10, offset: 0 },
+          'December': { idx: 11, offset: 0 },
+          'January': { idx: 0, offset: 1 },
+          'February': { idx: 1, offset: 1 },
+          'March': { idx: 2, offset: 1 }
+        };
+        const mapping = monthMapping[m.month];
+        if (!mapping) return;
+
+        const monthYear = startYear + mapping.offset;
+        const monthIdx = mapping.idx;
+        const dueDate = new Date(monthYear, monthIdx, monthlyFeeDueDate, 23, 59, 59, 999);
+
+        if (currentDate >= dueDate) {
+          totalExpectedDue += m.amount + (m.transportStatus !== 'EXEMPTED' ? (m.transportAmount || 0) : 0);
+          totalCollectedDue += m.paidAmount + (m.transportStatus !== 'EXEMPTED' ? (m.transportPaidAmount || 0) : 0);
+        }
+      });
     });
 
     return {
       className: targetClass.name,
       studentCount,
-      totalExpected,
+      totalExpected: totalExpectedDue,
       totalCollected: totalPaid,
-      totalPending: totalExpected - totalPaid
+      totalPending: Math.max(0, totalExpectedDue - totalCollectedDue)
     };
   }
 

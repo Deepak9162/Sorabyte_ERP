@@ -11,6 +11,50 @@ const { generateReceiptNumber } = require('../utils/receiptGenerator');
 
 class FeeService {
 
+  async getMonthlyFeeDueDate() {
+    const InstituteSettings = require('../models/InstituteSettings');
+    let settings = await InstituteSettings.findOne();
+    if (!settings) {
+      settings = await InstituteSettings.create({});
+    }
+    return settings.monthlyFeeDueDate || 10;
+  }
+
+  async getStatusForMonth(monthName, academicYear, dbStatus, monthlyFeeDueDate = 10, currentDate = new Date()) {
+    if (dbStatus === 'PAID') return 'PAID';
+    if (dbStatus === 'EXEMPTED') return 'EXEMPTED';
+
+    const startYear = parseInt(academicYear.split('-')[0]); // e.g. 2026
+    const monthMapping = {
+      'April': { idx: 3, offset: 0 },
+      'May': { idx: 4, offset: 0 },
+      'June': { idx: 5, offset: 0 },
+      'July': { idx: 6, offset: 0 },
+      'August': { idx: 7, offset: 0 },
+      'September': { idx: 8, offset: 0 },
+      'October': { idx: 9, offset: 0 },
+      'November': { idx: 10, offset: 0 },
+      'December': { idx: 11, offset: 0 },
+      'January': { idx: 0, offset: 1 },
+      'February': { idx: 1, offset: 1 },
+      'March': { idx: 2, offset: 1 }
+    };
+
+    const mapping = monthMapping[monthName];
+    if (!mapping) return dbStatus;
+
+    const monthYear = startYear + mapping.offset;
+    const monthIdx = mapping.idx;
+
+    const dueDate = new Date(monthYear, monthIdx, monthlyFeeDueDate, 23, 59, 59, 999);
+
+    if (currentDate >= dueDate) {
+      return dbStatus === 'PARTIAL' ? 'PARTIAL' : 'DUE';
+    } else {
+      return dbStatus === 'PARTIAL' ? 'PARTIAL' : 'UPCOMING';
+    }
+  }
+
   /**
    * Helper: Ensure a student has a fee ledger for the given academic year.
    * Creates one if it doesn't exist.
@@ -235,6 +279,67 @@ class FeeService {
       status: 'Paid' 
     }).sort({ createdAt: -1 });
 
+    const monthlyFeeDueDate = await this.getMonthlyFeeDueDate();
+    const currentDate = new Date();
+
+    let dueFeeTotal = 0;
+    let upcomingFeeTotal = 0;
+
+    const monthlyBreakdown = [];
+
+    if (ledger) {
+      for (const m of ledger.monthlyFees) {
+        const dynamicStatus = await this.getStatusForMonth(m.month, ledger.academicYear, m.status, monthlyFeeDueDate, currentDate);
+        
+        let dynamicTransportStatus = m.transportStatus;
+        if (m.transportStatus !== 'EXEMPTED') {
+          dynamicTransportStatus = await this.getStatusForMonth(m.month, ledger.academicYear, m.transportStatus, monthlyFeeDueDate, currentDate);
+        }
+
+        const tuitionPending = m.status === 'EXEMPTED' ? 0 : Math.max(0, m.amount - m.paidAmount);
+        const transportPending = m.transportStatus === 'EXEMPTED' ? 0 : Math.max(0, m.transportAmount - m.transportPaidAmount);
+        const monthPending = tuitionPending + transportPending;
+
+        const startYear = parseInt(ledger.academicYear.split('-')[0]);
+        const monthMapping = {
+          'April': { idx: 3, offset: 0 },
+          'May': { idx: 4, offset: 0 },
+          'June': { idx: 5, offset: 0 },
+          'July': { idx: 6, offset: 0 },
+          'August': { idx: 7, offset: 0 },
+          'September': { idx: 8, offset: 0 },
+          'October': { idx: 9, offset: 0 },
+          'November': { idx: 10, offset: 0 },
+          'December': { idx: 11, offset: 0 },
+          'January': { idx: 0, offset: 1 },
+          'February': { idx: 1, offset: 1 },
+          'March': { idx: 2, offset: 1 }
+        };
+        const mapping = monthMapping[m.month];
+        const monthYear = startYear + mapping.offset;
+        const monthIdx = mapping.idx;
+        const dueDate = new Date(monthYear, monthIdx, monthlyFeeDueDate, 23, 59, 59, 999);
+
+        if (currentDate >= dueDate) {
+          dueFeeTotal += monthPending;
+        } else {
+          upcomingFeeTotal += monthPending;
+        }
+
+        monthlyBreakdown.push({
+          month: m.month,
+          amount: m.amount,
+          paidAmount: m.paidAmount,
+          pending: tuitionPending,
+          status: dynamicStatus,
+          transportAmount: m.transportAmount || 0,
+          transportPaidAmount: m.transportPaidAmount || 0,
+          transportPending: transportPending,
+          transportStatus: dynamicTransportStatus
+        });
+      }
+    }
+
     return {
       student: {
         id: student._id,
@@ -247,25 +352,17 @@ class FeeService {
       feeSummary: ledger ? {
         totalFee: ledger.totalFee,
         paidFee: ledger.totalPaid,
-        dueFee: ledger.pendingAmount
+        dueFee: dueFeeTotal,
+        upcomingFee: upcomingFeeTotal
       } : {
-        totalFee: student.class.tuitionFee || 0,
+        totalFee: (student.class.tuitionFee || 0) * 12,
         paidFee: 0,
-        dueFee: student.class.tuitionFee || 0
+        dueFee: 0,
+        upcomingFee: (student.class.tuitionFee || 0) * 12
       },
       ledger: ledger ? {
         academicYear: ledger.academicYear,
-        monthlyBreakdown: ledger.monthlyFees.map(m => ({
-          month: m.month,
-          amount: m.amount,
-          paidAmount: m.paidAmount,
-          pending: m.amount - m.paidAmount,
-          status: m.status,
-          transportAmount: m.transportAmount || 0,
-          transportPaidAmount: m.transportPaidAmount || 0,
-          transportPending: (m.transportAmount || 0) - (m.transportPaidAmount || 0),
-          transportStatus: m.transportStatus || 'EXEMPTED'
-        }))
+        monthlyBreakdown: monthlyBreakdown
       } : null,
       transactions: transactions
     };
@@ -408,6 +505,10 @@ class FeeService {
       // 4. Save the ledger (this triggers the pre-save hook to recalculate totals)
       await ledger.save();
 
+      // Invalidate dashboard stats cache to force live updates on next reload
+      const adminService = require('./adminService');
+      adminService.invalidateDashboardStatsCache();
+
       return transaction; // Return the created transaction object
 
     } catch (error) {
@@ -443,13 +544,13 @@ class FeeService {
       doc.restore();
       
       doc.fillColor('#1e3a8a').fontSize(18).text('LITTLE FLOWER ENGLISH SCHOOL', 100, 40, { weight: 'bold' });
-      doc.fontSize(9).fillColor('#4b5563').text('Meerut Road, Little Flower Campus, Uttar Pradesh, India', 100, 58);
-      doc.fontSize(8).text('Website: www.littleflowerschool.edu.in | Email: contact@littleflowerschool.edu.in', 100, 70);
+      doc.fontSize(9).fillColor('#4b5563').text('Dindayalpur, Siwan, Bihar', 100, 58);
+      doc.fontSize(8).text('Website: www.lfessiwan.in | Phone: +91 82946 80282', 100, 70);
       doc.y = 85;
     } else {
       doc.fillColor('#1e3a8a').fontSize(24).text('LITTLE FLOWER ENGLISH SCHOOL', { align: 'center', weight: 'bold' });
-      doc.fontSize(10).fillColor('#4b5563').text('Meerut Road, Little Flower Campus, Uttar Pradesh, India', { align: 'center' });
-      doc.text('Website: www.littleflowerschool.edu.in | Email: contact@littleflowerschool.edu.in', { align: 'center' });
+      doc.fontSize(10).fillColor('#4b5563').text('Dindayalpur, Siwan, Bihar', { align: 'center' });
+      doc.text('Website: www.lfessiwan.in | Phone: +91 82946 80282', { align: 'center' });
     }
     
     // Draw horizontal line
