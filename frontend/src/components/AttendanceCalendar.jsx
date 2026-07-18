@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { getHolidays } from '../services/holidayApi';
 
-const AttendanceCalendar = ({ records = [] }) => {
+const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [holidays, setHolidays] = useState([]);
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -27,21 +29,59 @@ const AttendanceCalendar = ({ records = [] }) => {
     return map;
   }, [records, currentYear, currentMonth]);
 
+  // Fetch holidays for the current year
+  useEffect(() => {
+    const fetchYearlyHolidays = async () => {
+      try {
+        const data = await getHolidays({ year: currentYear });
+        setHolidays(data || []);
+      } catch (err) {
+        console.error("Failed to fetch holidays", err);
+      }
+    };
+    fetchYearlyHolidays();
+  }, [currentYear]);
+
+  // Helper to check if a day is a holiday
+  const isDayHoliday = (day, month, year, type) => {
+    const date = new Date(year, month, day);
+    if (date.getDay() === 0) return true; // Sunday
+
+    return holidays.some(h => {
+      // Check if applicable to the given type
+      if (h.applicableTo !== 'Both' && h.applicableTo !== type && type !== 'Both') return false;
+      const start = new Date(h.startDate);
+      const end = new Date(h.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return date >= start && date <= end;
+    });
+  };
+
   const handlePrevMonth = () => setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
   const handleNextMonth = () => setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
   
   // Calculate stats for current month only
   const monthStats = useMemo(() => {
     let present = 0, absent = 0, leave = 0, late = 0, holiday = 0;
-    Object.values(attendanceMap).forEach(record => {
-      if (record.status === 'Present') present++;
-      if (record.status === 'Absent') absent++;
-      if (record.status === 'Leave') leave++;
-      if (record.status === 'Late') late++;
-      if (record.status === 'Holiday') holiday++;
-    });
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const record = attendanceMap[day];
+      const isHoliday = isDayHoliday(day, currentMonth, currentYear, userType);
+      
+      let status = record?.status;
+      if (!status && isHoliday) {
+        status = 'Holiday';
+      }
+      
+      if (status === 'Present') present++;
+      if (status === 'Absent') absent++;
+      if (status === 'Leave') leave++;
+      if (status === 'Late') late++;
+      if (status === 'Holiday') holiday++;
+    }
     return { present, absent, leave, late, holiday };
-  }, [attendanceMap]);
+  }, [attendanceMap, daysInMonth, currentMonth, currentYear, holidays, userType]);
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -123,8 +163,13 @@ const AttendanceCalendar = ({ records = [] }) => {
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const dateNum = i + 1;
             const record = attendanceMap[dateNum];
-            const status = record?.status;
+            let status = record?.status;
             const markedAt = record?.markedAt;
+            const isHoliday = isDayHoliday(dateNum, currentMonth, currentYear, userType);
+            
+            if (!status && isHoliday) {
+                status = "Holiday";
+            }
 
             const tooltipText = status 
               ? `${status} on ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}${markedAt ? ` at ${markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : ''}`
@@ -136,7 +181,7 @@ const AttendanceCalendar = ({ records = [] }) => {
                 title={tooltipText}
                 className={cn(
                   "h-12 md:h-24 p-1 md:p-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer",
-                  status ? getStatusColor(status) : "bg-gray-50/40 text-gray-400 border-gray-100 hover:border-gray-250 hover:bg-white"
+                  status ? getStatusColor(status) : (isHoliday ? getStatusColor('Holiday') : "bg-gray-50/40 text-gray-400 border-gray-100 hover:border-gray-250 hover:bg-white")
                 )}
               >
                 <span className={cn("text-xs md:text-lg font-black", status ? "" : "opacity-50")}>{dateNum}</span>
@@ -158,6 +203,7 @@ const AttendanceCalendar = ({ records = [] }) => {
                       status === 'Absent' && "text-red-700",
                       status === 'Leave' && "text-amber-700",
                       status === 'Late' && "text-orange-700",
+                      status === 'Holiday' && "text-blue-700",
                     )} />
                   </>
                 )}

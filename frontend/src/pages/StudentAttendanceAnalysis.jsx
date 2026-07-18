@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "../utils/cn";
 import api from "../services/api";
+import { getHolidays } from "../services/holidayApi";
 import EmptyState from "../components/ui/EmptyState";
 import Button from "../components/ui/Button";
 import Skeleton, {
@@ -32,10 +33,23 @@ const StudentAttendanceAnalysis = () => {
   const [data, setData] = useState(null);
   const [activeView, setActiveView] = useState("overview"); // overview, calendar
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [holidays, setHolidays] = useState([]);
 
   useEffect(() => {
     fetchAnalysis();
   }, [studentId]);
+
+  useEffect(() => {
+    const fetchYearlyHolidays = async () => {
+      try {
+        const data = await getHolidays({ year: selectedYear });
+        setHolidays(data || []);
+      } catch (err) {
+        console.error("Failed to fetch holidays", err);
+      }
+    };
+    fetchYearlyHolidays();
+  }, [selectedYear]);
 
   const fetchAnalysis = async () => {
     setLoading(true);
@@ -142,19 +156,54 @@ const StudentAttendanceAnalysis = () => {
     });
     if (!record) {
       const isWeekend = new Date(year, monthIndex, day).getDay() % 6 === 0;
-      return `${dateStr}: ${isWeekend ? "Weekend" : "No record"}`;
+      const isHol = isDayHoliday(day, monthIndex, year);
+      return `${dateStr}: ${isHol ? "Holiday" : (isWeekend ? "Weekend" : "No record")}`;
     }
     return `${dateStr} - ${record.status}${record.remarks ? ` (${record.remarks})` : ""}`;
   };
 
+  const isDayHoliday = (day, month, year) => {
+    const date = new Date(year, month, day);
+    if (date.getDay() === 0) return true; // Sunday
+
+    return holidays.some(h => {
+      if (h.applicableTo !== 'Both' && h.applicableTo !== 'Students') return false;
+      const start = new Date(h.startDate);
+      const end = new Date(h.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return date >= start && date <= end;
+    });
+  };
+
   // Group records by status for the selected year
-  const yearRecords = (data.records || []).filter(
-    (r) => new Date(r.date).getFullYear() === selectedYear
-  );
-  const presentCount = yearRecords.filter((r) => r.status === "Present").length;
-  const absentCount = yearRecords.filter((r) => r.status === "Absent").length;
-  const lateCount = yearRecords.filter((r) => r.status === "Late").length;
-  const leaveCount = yearRecords.filter((r) => r.status === "Leave").length;
+  // Instead of static counts, we compute stats by iterating all days in year
+  const yearStats = React.useMemo(() => {
+    let p = 0, a = 0, l = 0, t = 0, h = 0;
+    
+    for (let m = 0; m < 12; m++) {
+      const daysInMonth = new Date(selectedYear, m + 1, 0).getDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = `${selectedYear}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const record = attendanceMap[key];
+        const isHol = isDayHoliday(d, m, selectedYear);
+        
+        let status = record?.status;
+        if (!status && isHol) {
+           status = "Holiday";
+        }
+        
+        if (status === 'Present') p++;
+        if (status === 'Absent') a++;
+        if (status === 'Leave') l++;
+        if (status === 'Late') t++;
+        if (status === 'Holiday') h++;
+      }
+    }
+    return { presentCount: p, absentCount: a, leaveCount: l, lateCount: t, holidayCount: h };
+  }, [attendanceMap, selectedYear, holidays]);
+
+  const { presentCount, absentCount, leaveCount, lateCount, holidayCount } = yearStats;
 
   const getPercentageColor = (percentage) => {
     if (percentage >= 75)
@@ -515,6 +564,10 @@ const StudentAttendanceAnalysis = () => {
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
                 Leave: <span className="font-black">{leaveCount}</span>
               </div>
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100/50">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                Holiday: <span className="font-black">{holidayCount}</span>
+              </div>
             </div>
           </div>
 
@@ -524,6 +577,9 @@ const StudentAttendanceAnalysis = () => {
               const days = getMonthDaysList(selectedYear, monthIndex);
               
               // Calculate monthly stats
+              const yearRecords = (data.records || []).filter(
+                (r) => new Date(r.date).getFullYear() === selectedYear
+              );
               const monthlyRecords = yearRecords.filter(
                 (r) => new Date(r.date).getMonth() === monthIndex
               );
@@ -573,23 +629,31 @@ const StudentAttendanceAnalysis = () => {
                         return <div key={`empty-${idx}`} />;
                       }
 
-                      // Lookup attendance in map
                       const key = `${selectedYear}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                       const record = attendanceMap[key];
                       const isWeekend = isWeekendDay(selectedYear, monthIndex, day);
-                      const tooltipText = getTooltipText(day, monthIndex, selectedYear, record);
+                      const isHol = isDayHoliday(day, monthIndex, selectedYear);
+                      
+                      let status = record?.status;
+                      if (!status && isHol) {
+                        status = "Holiday";
+                      }
+                      
+                      const tooltipText = getTooltipText(day, monthIndex, selectedYear, status === "Holiday" ? null : record);
 
                       let cellStyle =
                         "w-full aspect-square rounded-xl flex items-center justify-center text-[11px] font-bold transition-all relative ";
-                      if (record) {
-                        if (record.status === "Present")
+                      if (status) {
+                        if (status === "Present")
                           cellStyle += "bg-emerald-500 text-white shadow-sm shadow-emerald-100 hover:scale-110";
-                        else if (record.status === "Absent")
+                        else if (status === "Absent")
                           cellStyle += "bg-rose-500 text-white shadow-sm shadow-rose-100 hover:scale-110";
-                        else if (record.status === "Late")
+                        else if (status === "Late")
                           cellStyle += "bg-indigo-500 text-white shadow-sm shadow-indigo-100 hover:scale-110";
-                        else if (record.status === "Leave")
+                        else if (status === "Leave")
                           cellStyle += "bg-amber-500 text-white shadow-sm shadow-amber-100 hover:scale-110";
+                        else if (status === "Holiday")
+                          cellStyle += "bg-blue-500 text-white shadow-sm shadow-blue-100 hover:scale-110";
                       } else {
                         if (isWeekend) {
                           cellStyle += "bg-gray-100/50 text-gray-400/80 font-normal hover:bg-gray-100";
