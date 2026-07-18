@@ -45,6 +45,7 @@ const announcementRoutes = require('./routes/announcementRoutes');
 const admissionRequestRoutes = require('./routes/admissionRequestRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
+const holidayRoutes = require('./routes/holidayRoutes');
 
 // Swagger
 const swaggerUi = require('swagger-ui-express');
@@ -219,6 +220,7 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/admission-requests', admissionRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/holidays', holidayRoutes);
 
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));

@@ -34,6 +34,7 @@ import MyAttendance from "./pages/teacher/MyAttendance";
 import AdmissionRequestList from "./pages/admission/AdmissionRequestList";
 import AdmissionRequestForm from "./pages/admission/AdmissionRequestForm";
 import AdmissionRequestDetails from "./pages/admission/AdmissionRequestDetails";
+import HolidayManagement from "./pages/admin/HolidayManagement";
 
 // Protected Route Wrapper
 
@@ -315,6 +316,17 @@ function App() {
                 <ProtectedRoute allowedRoles={["admin"]}>
                   <Layout>
                     <StaffAttendanceHistory />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/holidays"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Layout>
+                    <HolidayManagement />
                   </Layout>
                 </ProtectedRoute>
               }

@@ -32,27 +32,29 @@ const AttendanceCalendar = ({ records = [] }) => {
   
   // Calculate stats for current month only
   const monthStats = useMemo(() => {
-    let present = 0, absent = 0, leave = 0, late = 0;
+    let present = 0, absent = 0, leave = 0, late = 0, holiday = 0;
     Object.values(attendanceMap).forEach(record => {
       if (record.status === 'Present') present++;
       if (record.status === 'Absent') absent++;
       if (record.status === 'Leave') leave++;
       if (record.status === 'Late') late++;
+      if (record.status === 'Holiday') holiday++;
     });
-    return { present, absent, leave, late };
+    return { present, absent, leave, late, holiday };
   }, [attendanceMap]);
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Present': return 'bg-emerald-100 text-emerald-705 border-emerald-200';
-      case 'Absent': return 'bg-red-100 text-red-705 border-red-200';
-      case 'Leave': return 'bg-amber-100 text-amber-705 border-amber-200';
-      case 'Late': return 'bg-orange-100 text-orange-705 border-orange-200';
-      default: return 'bg-gray-50 text-gray-500 border-gray-100';
-    }
-  };
+    const getStatusColor = (status) => {
+      switch (status) {
+        case 'Present': return 'bg-emerald-100 text-emerald-705 border-emerald-200';
+        case 'Absent': return 'bg-red-100 text-red-705 border-red-200';
+        case 'Leave': return 'bg-amber-100 text-amber-705 border-amber-200';
+        case 'Late': return 'bg-orange-100 text-orange-705 border-orange-200';
+        case 'Holiday': return 'bg-blue-100 text-blue-700 border-blue-200';
+        default: return 'bg-gray-50 text-gray-500 border-gray-100';
+      }
+    };
 
   return (
     <div className="bg-white p-3.5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -81,7 +83,7 @@ const AttendanceCalendar = ({ records = [] }) => {
 
       {/* Month Stats Grid */}
       {!isCollapsed && (
-        <div className="grid grid-cols-4 gap-2 mb-4">
+        <div className="grid grid-cols-5 gap-2 mb-4">
           <div className="p-2 bg-emerald-50/70 rounded-xl border border-emerald-100">
             <div className="text-[9px] font-bold text-emerald-600 uppercase font-black">Present</div>
             <div className="text-base md:text-2xl font-black text-emerald-700">{monthStats.present}</div>
@@ -97,6 +99,10 @@ const AttendanceCalendar = ({ records = [] }) => {
           <div className="p-2 bg-orange-50/70 rounded-xl border border-orange-100">
             <div className="text-[9px] font-bold text-orange-600 uppercase font-black">Late</div>
             <div className="text-base md:text-2xl font-black text-orange-700">{monthStats.late}</div>
+          </div>
+          <div className="p-2 bg-blue-50/70 rounded-xl border border-blue-100">
+            <div className="text-[9px] font-bold text-blue-600 uppercase font-black">Holiday</div>
+            <div className="text-base md:text-2xl font-black text-blue-700">{monthStats.holiday}</div>
           </div>
         </div>
       )}

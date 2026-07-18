@@ -263,7 +263,14 @@ class AdminService {
     students.sort((a, b) => (parseInt(a.rollNumber) || 0) - (parseInt(b.rollNumber) || 0));
     
     // Get unique dates where attendance was marked for this class
-    const attendanceDates = await Attendance.distinct('date', { class: classId });
+    const holidayService = require('./holidayService');
+    const rawAttendanceDates = await Attendance.distinct('date', { class: classId });
+    const attendanceDates = [];
+    for (const d of rawAttendanceDates) {
+      if (await holidayService.isWorkingDay(d, 'Students')) {
+        attendanceDates.push(d);
+      }
+    }
     const totalClasses = attendanceDates.length;
 
     const report = [];
@@ -299,7 +306,14 @@ class AdminService {
     const records = await Attendance.find({ student: studentId }).sort({ date: -1 });
     
     // Total classes for this student's class (to be accurate about how many they MISSED vs how many records exist)
-    const attendanceDates = await Attendance.distinct('date', { class: student.class._id });
+    const holidayService = require('./holidayService');
+    const rawAttendanceDates = await Attendance.distinct('date', { class: student.class._id });
+    const attendanceDates = [];
+    for (const d of rawAttendanceDates) {
+      if (await holidayService.isWorkingDay(d, 'Students')) {
+        attendanceDates.push(d);
+      }
+    }
     const totalClasses = attendanceDates.length;
 
     const present = records.filter(r => r.status === 'Present' || r.status === 'Late').length;
@@ -346,7 +360,14 @@ class AdminService {
     const records = Array.from(uniqueRecordsMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
     
     // Overall classes
-    const attendanceDates = await Attendance.distinct('date', { class: student.class._id });
+    const holidayService = require('./holidayService');
+    const rawAttendanceDates = await Attendance.distinct('date', { class: student.class._id });
+    const attendanceDates = [];
+    for (const d of rawAttendanceDates) {
+      if (await holidayService.isWorkingDay(d, 'Students')) {
+        attendanceDates.push(d);
+      }
+    }
     const overallTotalHeld = attendanceDates.length;
 
     const overallPresent = records.filter(r => r.status === 'Present').length;
@@ -602,8 +623,12 @@ class AdminService {
    * @param {string} instituteId - Optional institute ID for multi-tenant isolation
    */
   async getAttendanceAnalytics(dateStr, instituteId = null) {
+    const holidayService = require('./holidayService');
     const targetDate = new Date(dateStr);
     targetDate.setHours(0, 0, 0, 0);
+
+    const isWorkingDayForStudents = await holidayService.isWorkingDay(targetDate, 'Students');
+    const isWorkingDayForTeachers = await holidayService.isWorkingDay(targetDate, 'Teachers');
 
     await this.syncAutoAbsentTeachers(targetDate);
 
@@ -873,13 +898,13 @@ class AdminService {
       }));
 
     // 6. Calculate percentages
-    const studentAttendancePercentage = totalStudents > 0
-      ? parseFloat(((studentStats.present / totalStudents) * 100).toFixed(1))
-      : 0;
+    const studentAttendancePercentage = (!isWorkingDayForStudents) ? 100 : (totalStudents > 0
+      ? Math.round((studentStats.present / totalStudents) * 100)
+      : 0);
 
-    const teacherAttendancePercentage = totalTeachers > 0
-      ? parseFloat(((teacherStats.present / totalTeachers) * 100).toFixed(1))
-      : 0;
+    const teacherAttendancePercentage = (!isWorkingDayForTeachers) ? 100 : (totalTeachers > 0
+      ? Math.round((teacherStats.present / totalTeachers) * 100)
+      : 0);
 
     const completionPercentage = totalClasses > 0
       ? parseFloat(((attendanceCompleted / totalClasses) * 100).toFixed(1))
@@ -928,8 +953,15 @@ class AdminService {
       insights.push(`Teacher attendance is below expected threshold at ${teacherAttendancePercentage}%`);
     }
 
-    if (studentAttendancePercentage < 90 && totalStudents > 0 && !noStudentAttendanceMarked) {
+    if (studentAttendancePercentage < 90 && totalStudents > 0 && !noStudentAttendanceMarked && isWorkingDayForStudents) {
       insights.push(`Overall student attendance is below expected threshold at ${studentAttendancePercentage}%`);
+    }
+
+    if (!isWorkingDayForStudents) {
+      insights.push("Today is a holiday for students. Attendance tracking paused.");
+    }
+    if (!isWorkingDayForTeachers) {
+      insights.push("Today is a holiday for teachers. Attendance tracking paused.");
     }
 
     const responseData = {

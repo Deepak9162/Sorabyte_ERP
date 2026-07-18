@@ -11,6 +11,7 @@ const { successResponse, errorResponse } = require('../utils/apiResponse');
 const { createNotification } = require('../utils/notificationHelper');
 const Teacher = require('../models/Teacher');
 const Class = require('../models/Class');
+const holidayService = require('../services/holidayService');
 
 /**
  * Extract user info from request for audit logging
@@ -435,6 +436,15 @@ const markSelfAttendance = async (req, res, next) => {
     const schoolLon = 84.477859;
     const maxRadius = 50; // meters
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if it's a working day
+    const isWorkingDay = await holidayService.isWorkingDay(today, 'Teachers');
+    if (!isWorkingDay) {
+      return errorResponse(res, 'Today is a non-working day (Holiday/Sunday). Attendance marking is disabled.', 403);
+    }
+
     const distance = calculateDistance(latitude, longitude, schoolLat, schoolLon);
     if (distance > maxRadius) {
       return errorResponse(res, `You are ${Math.round(distance)} meters away from school. You must be within ${maxRadius} meters.`, 403);
@@ -461,8 +471,6 @@ const markSelfAttendance = async (req, res, next) => {
       return errorResponse(res, 'Teacher profile not found', 404);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 

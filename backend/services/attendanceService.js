@@ -14,6 +14,7 @@ const Class = require('../models/Class');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const adminService = require('./adminService');
+const holidayService = require('./holidayService');
 
 class AttendanceService {
   /**
@@ -352,6 +353,12 @@ class AttendanceService {
         return;
       }
 
+      // Check if targetDate is a working day
+      const isWorkingDay = await holidayService.isWorkingDay(targetDate, 'Teachers');
+      if (!isWorkingDay) {
+        return; // Skip auto-absent logic for holidays/Sundays
+      }
+
       // If checking today, only sync if it is past 12:00 PM IST
       if (targetDate.getTime() === today.getTime() && hoursIst < 12) {
         return;
@@ -517,10 +524,13 @@ class AttendanceService {
     const allRecords = await StaffAttendance.find({ teacher: teacherId }).sort({ date: 1, updatedAt: 1 });
     
     const uniqueRecordsMap = new Map();
-    allRecords.forEach(r => {
-      const dateKey = new Date(r.date).toISOString().split('T')[0];
-      uniqueRecordsMap.set(dateKey, r);
-    });
+    const holidayService = require('./holidayService');
+    for (const r of allRecords) {
+      if (await holidayService.isWorkingDay(r.date, 'Teachers')) {
+        const dateKey = new Date(r.date).toISOString().split('T')[0];
+        uniqueRecordsMap.set(dateKey, r);
+      }
+    }
     
     const records = Array.from(uniqueRecordsMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -575,13 +585,17 @@ class AttendanceService {
     const allRecords = await StaffAttendance.find({}).sort({ date: 1, updatedAt: 1 });
     
     const uniqueRecordsMap = new Map();
-    allRecords.forEach(r => {
+    const holidayService = require('./holidayService');
+    
+    for (const r of allRecords) {
       if (r.teacher) {
-        const dateStr = new Date(r.date).toISOString().split('T')[0];
-        const key = `${r.teacher.toString()}_${dateStr}`;
-        uniqueRecordsMap.set(key, r);
+        if (await holidayService.isWorkingDay(r.date, 'Teachers')) {
+          const dateStr = new Date(r.date).toISOString().split('T')[0];
+          const key = `${r.teacher.toString()}_${dateStr}`;
+          uniqueRecordsMap.set(key, r);
+        }
       }
-    });
+    }
     const records = Array.from(uniqueRecordsMap.values());
     const uniqueDates = new Set(records.map(r => new Date(r.date).toISOString().split('T')[0]));
 

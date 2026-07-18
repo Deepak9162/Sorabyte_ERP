@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const Teacher = require('../models/Teacher');
 const StaffAttendance = require('../models/StaffAttendance');
 const logger = require('./logger');
+const holidayService = require('../services/holidayService');
 
 const startCronJobs = () => {
   // Run every day at 12:00 PM (noon)
@@ -11,6 +12,14 @@ const startCronJobs = () => {
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+
+      // Check if today is a working day for teachers
+      const isWorkingDay = await holidayService.isWorkingDay(today, 'Teachers');
+      if (!isWorkingDay) {
+        logger.info('Today is a non-working day (Sunday or Holiday). Skipping auto-absent marking.');
+        return;
+      }
+
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 

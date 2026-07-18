@@ -32,12 +32,16 @@ import { useToast } from "../context/ToastContext";
 import { cn } from "../utils/cn";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import {
+  checkHolidayStatus,
+  getHolidays
+} from "../services/holidayApi";
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 
 // Memoized Mobile Student Attendance Card
-const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus }) => {
-  const isEditingDisabled = isMarked && sessionStatus !== 'draft';
+const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus, isHoliday }) => {
+  const isEditingDisabled = isHoliday || (isMarked && sessionStatus !== 'draft');
   
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
@@ -57,7 +61,12 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
         </div>
         
         <div>
-          {status ? (
+          {isHoliday ? (
+             <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border bg-slate-50 text-slate-600 border-slate-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                Holiday
+             </span>
+          ) : status ? (
             <span
               className={cn(
                 "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border",
@@ -154,7 +163,7 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
 StudentAttendanceCard.displayName = "StudentAttendanceCard";
 
 // Memoized Mobile Staff Attendance Card
-const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMarked, toggleStaffStatus }) => {
+const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMarked, toggleStaffStatus, isHoliday }) => {
   const fullName = `${teacher.firstName} ${teacher.lastName}`;
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
@@ -174,7 +183,12 @@ const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMark
         </div>
         
         <div className="flex flex-col items-end gap-0.5">
-          {status ? (
+          {isHoliday ? (
+             <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border bg-slate-50 text-slate-600 border-slate-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                Holiday
+             </span>
+          ) : status ? (
             <span
               className={cn(
                 "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border",
@@ -243,7 +257,7 @@ const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMark
           return (
             <button
               key={option.id}
-              disabled={isStaffMarked}
+              disabled={isStaffMarked || isHoliday}
               aria-label={`Mark as ${option.tooltip}`}
               title={option.tooltip}
               onClick={() => toggleStaffStatus(teacher._id, option.id)}
@@ -261,7 +275,7 @@ const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMark
                 isSelected
                   ? option.color === "indigo" && "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100"
                   : "",
-                isStaffMarked && "opacity-60 cursor-not-allowed"
+                (isStaffMarked || isHoliday) && "opacity-60 cursor-not-allowed"
               )}
             >
               <option.icon size={14} />
@@ -330,9 +344,12 @@ const Attendance = () => {
   const [staffAttendanceData, setStaffAttendanceData] = useState({});
   const [isStaffMarked, setIsStaffMarked] = useState(false);
 
+  const [holidayInfo, setHolidayInfo] = useState(null);
+
   // Monthly Grid Data states
   const [studentHistory, setStudentHistory] = useState([]);
   const [staffHistory, setStaffHistory] = useState([]);
+  const [holidays, setHolidays] = useState([]);
 
   const months = [
     { value: 1, label: "January" },
@@ -534,6 +551,21 @@ const Attendance = () => {
     fetchStaffAndStatus();
   }, [selectedDate, activeTab]);
 
+  // 3b. Fetch Holiday Status for selected date
+  useEffect(() => {
+    if (activeTab !== "mark-students" && activeTab !== "mark-staff") return;
+    const fetchHoliday = async () => {
+      try {
+        const applicableTo = activeTab === "mark-students" ? "Students" : "Teachers";
+        const data = await checkHolidayStatus(selectedDate, applicableTo);
+        setHolidayInfo(data);
+      } catch (err) {
+        console.error("Failed to check holiday status", err);
+      }
+    };
+    fetchHoliday();
+  }, [selectedDate, activeTab]);
+
   // 4. Fetch Student Monthly History Grid Data
   useEffect(() => {
     if (activeTab !== "student-history" || !selectedClass) return;
@@ -585,6 +617,7 @@ const Attendance = () => {
   }, [selectedMonth, selectedYear, activeTab]);
 
   const toggleStudentStatus = (id, status) => {
+    if (holidayInfo && !holidayInfo.isWorkingDay) return;
     if (isMarked && sessionStatus !== 'draft') return; // Allow editing draft, block submitted/locked
     if (sessionStatus === 'locked') return;
     setAttendanceData((prev) => ({
@@ -594,6 +627,7 @@ const Attendance = () => {
   };
 
   const toggleStaffStatus = (id, status) => {
+    if (holidayInfo && !holidayInfo.isWorkingDay) return;
     if (isStaffMarked) return;
     setStaffAttendanceData((prev) => {
       const existing = prev[id];
@@ -1250,12 +1284,33 @@ const Attendance = () => {
           label: "T",
           className: "bg-indigo-50 text-indigo-600 border-indigo-200",
         };
+      case "holiday":
+        return {
+          label: "H",
+          className: "bg-blue-50 text-blue-600 border-blue-200",
+        };
       default:
         return {
           label: "-",
           className: "text-gray-300 bg-gray-50 border-gray-100",
         };
     }
+  };
+
+  // Helper to check if a day is a holiday
+  const isDayHoliday = (day, month, year, type = "Students") => {
+    const date = new Date(year, month - 1, day);
+    if (date.getDay() === 0) return true; // Sunday
+
+    return holidays.some(h => {
+      // Check if applicable to the given type
+      if (h.applicableTo !== 'Both' && h.applicableTo !== type) return false;
+      const start = new Date(h.startDate);
+      const end = new Date(h.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return date >= start && date <= end;
+    });
   };
 
   // Filtering for list search
@@ -1531,7 +1586,7 @@ const Attendance = () => {
               <Button
                 onClick={handleStudentSubmit}
                 loading={loading}
-                disabled={sessionStatus === 'submitted' || sessionStatus === 'locked'}
+                disabled={sessionStatus === 'submitted' || sessionStatus === 'locked' || (holidayInfo && !holidayInfo.isWorkingDay)}
                 icon={Save}
                 className="rounded-2xl shadow-lg px-8 h-12"
               >
@@ -1550,6 +1605,7 @@ const Attendance = () => {
               <Button
                 onClick={handleSubmitForReview}
                 loading={loading}
+                disabled={holidayInfo && !holidayInfo.isWorkingDay}
                 icon={Send}
                 variant="secondary"
                 className="rounded-2xl shadow-md px-6 h-12 border-blue-200 text-blue-700 hover:bg-blue-50"
@@ -1571,7 +1627,7 @@ const Attendance = () => {
               <Button
                 onClick={handleStaffSubmit}
                 loading={loading}
-                disabled={isStaffMarked}
+                disabled={isStaffMarked || (holidayInfo && !holidayInfo.isWorkingDay)}
                 icon={Save}
                 className="rounded-2xl shadow-lg px-8 h-12"
               >
@@ -1581,6 +1637,21 @@ const Attendance = () => {
           </div>
         )}
       </div>
+
+      {/* Holiday Banner */}
+      {holidayInfo && !holidayInfo.isWorkingDay && (activeTab === "mark-students" || activeTab === "mark-staff") && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-2xl shadow-sm flex items-start gap-3 mt-4">
+          <Calendar className="text-amber-500 mt-0.5" size={20} />
+          <div>
+            <h4 className="text-amber-800 font-bold text-sm">Holiday Mode Active</h4>
+            <p className="text-amber-700 text-xs mt-1">
+              {holidayInfo.name === 'Sunday'
+                ? "Attendance marking is disabled because this day is a Sunday."
+                : `${holidayInfo.name ? `${holidayInfo.name} — ` : ""}Attendance marking is disabled because this day is marked as a holiday.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Attendance Information Card */}
       {(activeTab === "mark-students" || activeTab === "mark-staff") && (
@@ -1909,7 +1980,7 @@ const Attendance = () => {
                                     return (
                                       <button
                                         key={option.id}
-                                        disabled={isMarked}
+                                        disabled={isMarked || (holidayInfo && !holidayInfo.isWorkingDay)}
                                         title={option.tooltip}
                                         onClick={() =>
                                           toggleStudentStatus(
@@ -1963,6 +2034,7 @@ const Attendance = () => {
                           isMarked={isMarked}
                           sessionStatus={sessionStatus}
                           toggleStudentStatus={toggleStudentStatus}
+                          isHoliday={holidayInfo && !holidayInfo.isWorkingDay}
                         />
                       );
                     })}
@@ -2135,7 +2207,7 @@ const Attendance = () => {
                                     return (
                                       <button
                                         key={option.id}
-                                        disabled={isStaffMarked}
+                                        disabled={isStaffMarked || (holidayInfo && !holidayInfo.isWorkingDay)}
                                         title={option.tooltip}
                                         onClick={() =>
                                           toggleStaffStatus(
@@ -2191,6 +2263,7 @@ const Attendance = () => {
                           markedAt={markedAt}
                           isStaffMarked={isStaffMarked}
                           toggleStaffStatus={toggleStaffStatus}
+                          isHoliday={holidayInfo && !holidayInfo.isWorkingDay}
                         />
                       );
                     })}
@@ -2305,7 +2378,9 @@ const Attendance = () => {
                             a = 0,
                             l = 0,
                             t = 0;
-                          Object.values(records).forEach((status) => {
+                          Object.entries(records).forEach(([dayStr, status]) => {
+                            const dayNum = parseInt(dayStr, 10);
+                            if (isDayHoliday(dayNum, selectedMonth, selectedYear, "Students")) return;
                             const val = status.toLowerCase();
                             if (val === "present") p++;
                             else if (val === "absent") a++;
@@ -2341,27 +2416,29 @@ const Attendance = () => {
                                     selectedMonth,
                                     selectedYear,
                                   );
+                                  const isHoliday = isDayHoliday(day, selectedMonth, selectedYear, "Students");
+                                  const displayStatus = status ? badge : (isHoliday ? getStatusBadge("holiday") : null);
 
                                   return (
                                     <td
                                       key={day}
                                       className={cn(
                                         "p-1 border-r border-gray-100 text-center align-middle",
-                                        weekend && !status
+                                        isHoliday && !status
                                           ? "bg-gray-50/40"
                                           : "",
                                       )}
                                     >
                                       <div className="flex items-center justify-center">
-                                        {status ? (
+                                        {displayStatus ? (
                                           <span
-                                            title={status}
+                                            title={status || "Holiday"}
                                             className={cn(
                                               "w-7 h-7 rounded-full flex items-center justify-center font-black text-[10px] border shadow-sm",
-                                              badge.className,
+                                              displayStatus.className,
                                             )}
                                           >
-                                            {badge.label}
+                                            {displayStatus.label}
                                           </span>
                                         ) : (
                                           <span className="text-[9px] font-black text-gray-200">
@@ -2522,7 +2599,9 @@ const Attendance = () => {
                             a = 0,
                             l = 0,
                             t = 0;
-                          Object.values(records).forEach((status) => {
+                          Object.entries(records).forEach(([dayStr, status]) => {
+                            const dayNum = parseInt(dayStr, 10);
+                            if (isDayHoliday(dayNum, selectedMonth, selectedYear, "Teachers")) return;
                             const val = status.toLowerCase();
                             if (val === "present") p++;
                             else if (val === "absent") a++;
@@ -2558,27 +2637,29 @@ const Attendance = () => {
                                     selectedMonth,
                                     selectedYear,
                                   );
+                                  const isHoliday = isDayHoliday(day, selectedMonth, selectedYear, "Teachers");
+                                  const displayStatus = status ? badge : (isHoliday ? getStatusBadge("holiday") : null);
 
                                   return (
                                     <td
                                       key={day}
                                       className={cn(
                                         "p-1 border-r border-gray-100 text-center align-middle",
-                                        weekend && !status
+                                        isHoliday && !status
                                           ? "bg-gray-50/40"
                                           : "",
                                       )}
                                     >
                                       <div className="flex items-center justify-center">
-                                        {status ? (
+                                        {displayStatus ? (
                                           <span
-                                            title={status}
+                                            title={status || "Holiday"}
                                             className={cn(
                                               "w-7 h-7 rounded-full flex items-center justify-center font-black text-[10px] border shadow-sm",
-                                              badge.className,
+                                              displayStatus.className,
                                             )}
                                           >
-                                            {badge.label}
+                                            {displayStatus.label}
                                           </span>
                                         ) : (
                                           <span className="text-[9px] font-black text-gray-200">

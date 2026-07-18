@@ -101,6 +101,11 @@ const routeHeaderConfig = {
     category: "Enrollment Center",
     title: "Admission Requests",
     description: "Review and process student admission applications."
+  },
+  "/admin/holidays": {
+    category: "System Administration",
+    title: "Holiday Calendar",
+    description: "Manage academic holidays, vacations, and emergency closures."
   }
 };
 
@@ -281,6 +286,13 @@ const Layout = ({ children }) => {
       path: "/admin/credentials",
       label: "Credentials Manager",
       icon: KeyRound,
+      roles: ["admin"],
+    },
+    {
+      id: "holidays",
+      path: "/admin/holidays",
+      label: "Holiday Calendar",
+      icon: CalendarCheck,
       roles: ["admin"],
     },
   ];
