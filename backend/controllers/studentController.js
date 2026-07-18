@@ -234,6 +234,19 @@ const updateStudent = async (req, res, next) => {
       }
     }
 
+    // Sync ledger if transport details have changed
+    if (req.body.transportMode !== undefined || req.body.transportFee !== undefined) {
+      const populatedStudent = await Student.findById(student._id).populate('class');
+      if (populatedStudent && populatedStudent.class) {
+        const feeService = require('../services/feeService');
+        await feeService.ensureFeeLedger(
+          populatedStudent._id,
+          populatedStudent.session || '2026-2027',
+          populatedStudent.class.tuitionFee || 0
+        );
+      }
+    }
+
     return successResponse(res, student, 'Student updated successfully');
   } catch (error) {
     next(error);

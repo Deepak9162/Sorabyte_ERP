@@ -146,6 +146,13 @@ const FeeCollection = () => {
                 id: sData.id,
                 name: sData.fullName,
                 roll: sData.rollNumber,
+                rollNumber: sData.rollNumber,
+                admissionNumber: sData.admissionNumber,
+                studentId: sData.studentId,
+                fatherName: sData.fatherName,
+                phone: sData.phone,
+                section: sData.section,
+                aadhar: sData.aadhar || '',
                 totalFee: feeSummary.totalFee,
                 paidFee: feeSummary.paidFee,
                 dueFee: feeSummary.dueFee,
@@ -318,7 +325,8 @@ const FeeCollection = () => {
     const transportPending = includeTransport && student.transportMode === 'School Bus'
       ? selectedMonths.reduce((sum, mName) => {
           const mInfo = breakdown.find(mb => mb.month === mName);
-          return sum + (mInfo ? (mInfo.transportPending !== undefined ? mInfo.transportPending : (student.transportFee || 500)) : (student.transportFee || 500));
+          const baseFee = student.transportFee !== undefined && student.transportFee !== null ? student.transportFee : 500;
+          return sum + (mInfo ? (mInfo.transportPending !== undefined ? mInfo.transportPending : baseFee) : baseFee);
         }, 0)
       : 0;
 
@@ -364,6 +372,13 @@ const FeeCollection = () => {
           id: sData.id,
           name: sData.fullName,
           roll: sData.rollNumber,
+          rollNumber: sData.rollNumber,
+          admissionNumber: sData.admissionNumber,
+          studentId: sData.studentId,
+          fatherName: sData.fatherName,
+          phone: sData.phone,
+          section: sData.section,
+          aadhar: sData.aadhar || '',
           totalFee: feeSummary.totalFee,
           paidFee: feeSummary.paidFee,
           dueFee: feeSummary.dueFee,
@@ -421,6 +436,13 @@ const FeeCollection = () => {
           id: sData.id,
           name: sData.fullName,
           roll: sData.rollNumber,
+          rollNumber: sData.rollNumber,
+          admissionNumber: sData.admissionNumber,
+          studentId: sData.studentId,
+          fatherName: sData.fatherName,
+          phone: sData.phone,
+          section: sData.section,
+          aadhar: sData.aadhar || '',
           totalFee: feeSummary.totalFee,
           paidFee: feeSummary.paidFee,
           dueFee: feeSummary.dueFee,
@@ -1001,6 +1023,13 @@ const FeeCollection = () => {
                                                 id: sData.id,
                                                 name: sData.fullName,
                                                 roll: sData.rollNumber,
+                                                rollNumber: sData.rollNumber,
+                                                admissionNumber: sData.admissionNumber,
+                                                studentId: sData.studentId,
+                                                fatherName: sData.fatherName,
+                                                phone: sData.phone,
+                                                section: sData.section,
+                                                aadhar: sData.aadhar || '',
                                                 totalFee: feeSummary.totalFee,
                                                 paidFee: feeSummary.paidFee,
                                                 dueFee: feeSummary.dueFee,
@@ -1077,6 +1106,13 @@ const FeeCollection = () => {
                                             id: sData.id,
                                             name: sData.fullName,
                                             roll: sData.rollNumber,
+                                            rollNumber: sData.rollNumber,
+                                            admissionNumber: sData.admissionNumber,
+                                            studentId: sData.studentId,
+                                            fatherName: sData.fatherName,
+                                            phone: sData.phone,
+                                            section: sData.section,
+                                            aadhar: sData.aadhar || '',
                                             totalFee: feeSummary.totalFee,
                                             paidFee: feeSummary.paidFee,
                                             dueFee: feeSummary.dueFee,
@@ -1301,12 +1337,12 @@ const FeeCollection = () => {
                             ) : (
                               <div className="flex items-center gap-2">
                                 <span className="text-zinc-900 font-bold">
-                                  {formatToINR(student.transportFee || 500)} <span className="text-[10px] text-zinc-400 font-medium">/ Mo</span>
+                                  {formatToINR(student.transportFee !== undefined && student.transportFee !== null ? student.transportFee : 500)} <span className="text-[10px] text-zinc-400 font-medium">/ Mo</span>
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setTempTransportFee((student.transportFee || 500).toString());
+                                    setTempTransportFee((student.transportFee !== undefined && student.transportFee !== null ? student.transportFee : 500).toString());
                                     setIsEditingTransportFee(true);
                                   }}
                                   className="text-[10px] text-orange-600 hover:text-orange-700 font-bold uppercase underline transition-colors"
@@ -1484,7 +1520,7 @@ const FeeCollection = () => {
                             className="w-4 h-4 text-orange-500 border-zinc-300 rounded focus:ring-orange-500 cursor-pointer accent-orange-500"
                           />
                           <label htmlFor="include-transport-checkbox" className="text-xs font-bold text-zinc-700 cursor-pointer select-none">
-                            Include Transport Fee <span className="text-orange-600 font-black">(₹{student.transportFee || 500} / Month)</span>
+                            Include Transport Fee <span className="text-orange-600 font-black">(₹{student.transportFee !== undefined && student.transportFee !== null ? student.transportFee : 500} / Month)</span>
                           </label>
                         </div>
                       )}
@@ -1559,13 +1595,6 @@ const FeeCollection = () => {
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-[9px] font-bold text-zinc-500 hover:text-zinc-800 hover:border-zinc-300 transition-colors uppercase tracking-wider cursor-pointer disabled:opacity-50"
                           >
                             <FileSpreadsheet size={12} /> Export CSV
-                          </button>
-                          <button
-                            onClick={handlePrintTable}
-                            disabled={transactions.length === 0}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-[9px] font-bold text-zinc-500 hover:text-zinc-800 hover:border-zinc-300 transition-colors uppercase tracking-wider cursor-pointer disabled:opacity-50"
-                          >
-                            <Printer size={12} /> Print
                           </button>
                         </div>
                       </div>

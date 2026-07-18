@@ -134,13 +134,14 @@ const ReceiptPreview = ({ transaction, student, className }) => {
   const paymentStatus = (transaction.status || "SUCCESS").toUpperCase();
   const paymentMode = (transaction.paymentMode || transaction.mode || "CASH").toUpperCase();
 
-  const studentName = student?.name || transaction.studentName || "N/A";
-  const rollNumber = student?.rollNumber || transaction.roll || "N/A";
-  const admissionNo = student?.studentId || student?.admissionNumber || `LFES-${rollNumber}`;
-  const fatherName = student?.fatherName || "N/A";
-  const classNameVal = student?.class || "N/A";
-  const section = student?.section || "A";
-  const mobile = student?.phone || student?.mobile || "N/A";
+  const studentName = student?.name || transaction.studentName || (transaction.student && (transaction.student.fullName || transaction.student.name)) || "N/A";
+  const rollNumber = student?.rollNumber || transaction.roll || (transaction.student && transaction.student.rollNumber) || "N/A";
+  const admissionNo = student?.studentId || student?.admissionNumber || (transaction.student && (transaction.student.studentId || transaction.student.admissionNumber)) || `LFES-${rollNumber}`;
+  const fatherName = student?.fatherName || (transaction.student && transaction.student.fatherName) || "N/A";
+  const classNameVal = student?.class || (transaction.student && (transaction.student.class?.name || transaction.student.class)) || "N/A";
+  const section = student?.section || (transaction.student && transaction.student.section) || "A";
+  const mobile = student?.phone || student?.mobile || (transaction.student && (transaction.student.phone || transaction.student.mobile)) || "N/A";
+  const aadharNo = student?.aadhar || (transaction.student && transaction.student.aadhar) || "N/A";
 
   const totalAmount = transaction.amount || 0;
   const transportPaid = transaction.transportAmount || 0;
@@ -283,8 +284,8 @@ const ReceiptPreview = ({ transaction, student, className }) => {
               <span className="font-extrabold text-gray-900 uppercase">{studentName}</span>
             </div>
             <div>
-              <span className="text-[9px] text-gray-400 uppercase font-bold block mb-0.5">Admission Number</span>
-              <span className="font-bold text-gray-800 uppercase">{admissionNo}</span>
+              <span className="text-[9px] text-gray-400 uppercase font-bold block mb-0.5">Aadhaar Number</span>
+              <span className="font-bold text-gray-800 uppercase">{aadharNo}</span>
             </div>
             <div>
               <span className="text-[9px] text-gray-400 uppercase font-bold block mb-0.5">Class & Section</span>

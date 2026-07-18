@@ -136,13 +136,22 @@ class FeeService {
 
             // Sync Transport
             if (hasSchoolBus) {
-              const expectedTransportFee = student.transportFee !== undefined ? student.transportFee : 500;
+              const expectedTransportFee = student.transportFee !== undefined && student.transportFee !== null ? student.transportFee : 500;
               if (m.transportStatus === 'EXEMPTED') {
                 m.transportStatus = 'UNPAID';
                 m.transportAmount = expectedTransportFee;
                 m.transportPaidAmount = 0;
                 modified = true;
               } else if (m.transportStatus === 'UNPAID' && m.transportAmount !== expectedTransportFee) {
+                m.transportAmount = expectedTransportFee;
+                modified = true;
+              } else if (m.transportStatus === 'PAID' && m.transportPaidAmount === 0 && expectedTransportFee > 0) {
+                // If it was marked PAID simply because transportAmount was 0, but now there is an expected fee:
+                m.transportStatus = 'UNPAID';
+                m.transportAmount = expectedTransportFee;
+                m.transportPaidAmount = 0;
+                modified = true;
+              } else if (m.transportStatus === 'PARTIAL' && m.transportAmount !== expectedTransportFee) {
                 m.transportAmount = expectedTransportFee;
                 modified = true;
               }
@@ -220,7 +229,7 @@ class FeeService {
           }
         }
  
-        let transportAmountVal = hasSchoolBus ? (student.transportFee !== undefined ? student.transportFee : 500) : 0;
+        let transportAmountVal = hasSchoolBus ? (student.transportFee !== undefined && student.transportFee !== null ? student.transportFee : 500) : 0;
         let transportStatusVal = hasSchoolBus ? 'UNPAID' : 'EXEMPTED';
         if (status === 'EXEMPTED') {
           transportAmountVal = 0;
@@ -277,6 +286,9 @@ class FeeService {
     const transactions = await FeeTransaction.find({ 
       student: student._id, 
       status: 'Paid' 
+    }).populate({
+      path: 'student',
+      populate: { path: 'class', select: 'name' }
     }).sort({ createdAt: -1 });
 
     const monthlyFeeDueDate = await this.getMonthlyFeeDueDate();
@@ -347,7 +359,13 @@ class FeeService {
         class: student.class.name,
         rollNumber: student.rollNumber,
         transportMode: student.transportMode || 'Private',
-        transportFee: student.transportFee !== undefined ? student.transportFee : 0
+        transportFee: student.transportFee !== undefined ? student.transportFee : 0,
+        admissionNumber: student.admissionNumber,
+        studentId: student.studentId,
+        fatherName: student.fatherName,
+        phone: student.phone,
+        section: student.section || 'A',
+        aadhar: student.aadhar || ''
       },
       feeSummary: ledger ? {
         totalFee: ledger.totalFee,
@@ -509,6 +527,10 @@ class FeeService {
       const adminService = require('./adminService');
       adminService.invalidateDashboardStatsCache();
 
+      await transaction.populate({
+        path: 'student',
+        populate: { path: 'class', select: 'name' }
+      });
       return transaction; // Return the created transaction object
 
     } catch (error) {
@@ -588,11 +610,9 @@ class FeeService {
 
     const studentY = doc.y;
     doc.fillColor('#6b7280').text('Student Name:', 50, studentY);
-    doc.fillColor('#111827').text((transaction.student.name || "").toUpperCase(), 130, studentY, { weight: 'bold' });
-    
-    doc.fillColor('#6b7280').text('Admission ID:', 320, studentY);
-    doc.fillColor('#111827').text(transaction.student.studentId || `LFES-${transaction.student.rollNumber}`, 400, studentY);
-    
+    doc.fillColor('#111827').text((transaction.student.fullName || transaction.student.name || "").toUpperCase(), 130, studentY, { weight: 'bold' });
+    doc.fillColor('#6b7280').text('Aadhaar Number:', 320, studentY);
+    doc.fillColor('#111827').text(transaction.student.aadhar || 'N/A', 400, studentY);
     doc.fillColor('#6b7280').text('Class / Section:', 50, studentY + 18);
     doc.fillColor('#111827').text(`${transaction.student.class?.name || 'N/A'} - ${transaction.student.section || 'A'}`, 130, studentY + 18);
     
@@ -673,7 +693,7 @@ class FeeService {
     try {
       const qrPayload = JSON.stringify({
         receiptNo: transaction.receiptNumber || transaction._id.toString().toUpperCase(),
-        studentName: transaction.student.name,
+        studentName: transaction.student.fullName || transaction.student.name || "N/A",
         amount: transaction.amount,
         date: transaction.paymentDate ? transaction.paymentDate.toLocaleDateString('en-IN') : 'N/A',
         session: transaction.academicYear || "2026 - 2027"
@@ -757,12 +777,15 @@ class FeeService {
     const student = await Student.findByIdAndUpdate(studentId, { transportFee: newFee }, { new: true });
     if (!student) throw new Error('Student not found');
 
-    // 2. Update all UNPAID months in their current ledger to use this new fee
+    // 2. Update all active months in their current ledger to use this new fee
     const ledger = await FeeLedger.findOne({ studentId, academicYear });
     if (ledger) {
       ledger.monthlyFees.forEach(m => {
-        if (m.transportStatus === 'UNPAID') {
-          m.transportAmount = newFee;
+        if (m.transportStatus !== 'EXEMPTED') {
+          // Update if UNPAID, PARTIAL, or if it's PAID but they paid 0 (meaning it was a 0-fee month)
+          if (m.transportStatus === 'UNPAID' || m.transportStatus === 'PARTIAL' || (m.transportStatus === 'PAID' && m.transportPaidAmount === 0)) {
+            m.transportAmount = newFee;
+          }
         }
       });
       ledger.markModified('monthlyFees');
