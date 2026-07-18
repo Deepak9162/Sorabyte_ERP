@@ -61,9 +61,10 @@ const getAllStudents = async (req, res, next) => {
     const filter = {};
     const cls = grade || className || classQuery;
     if (cls) {
+      const classRegex = new RegExp(`^${cls}$`, 'i');
       filter.$or = [
-        { className: cls },
-        { grade: cls }
+        { className: classRegex },
+        { grade: classRegex }
       ];
     }
     if (section) filter.section = section;

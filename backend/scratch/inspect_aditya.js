@@ -11,20 +11,22 @@ async function run() {
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/little_flower_school_erp';
     await mongoose.connect(mongoUri);
 
-    const students = await Student.find({ fullName: /Aditya/i }).populate('class');
-    console.log(`Found ${students.length} students matching "Aditya":`);
-
-    for (const student of students) {
-      console.log(`\n----------------------------------------`);
-      console.log('fullName:', student.fullName);
-      console.log('admissionNumber:', student.admissionNumber);
-      console.log('studentId:', student.studentId);
-      console.log('rollNumber:', student.rollNumber);
-      console.log('fatherName:', student.fatherName);
-      console.log('phone:', student.phone);
-      console.log('section:', student.section);
-      console.log('class:', student.class ? student.class.name : 'N/A');
+    const student = await Student.findOne({ fullName: /Aaditya Kumar/i });
+    if (!student) {
+      console.log('Student not found!');
+      process.exit(1);
     }
+
+    console.log('Aaditya Kumar database document:');
+    console.log('fullName:', student.fullName);
+    console.log('className:', student.className);
+    console.log('status:', student.status);
+
+    const allNur = await Student.find({ className: /Nur/i });
+    console.log(`\nFound ${allNur.length} Nur students:`);
+    allNur.forEach(s => {
+      console.log(`- ${s.fullName}: status = ${s.status}, className = ${s.className}`);
+    });
 
     process.exit(0);
   } catch (err) {
