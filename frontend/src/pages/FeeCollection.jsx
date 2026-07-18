@@ -36,6 +36,11 @@ import { cn } from "../utils/cn";
 import { formatToINR } from "../utils/format";
 import ReceiptPreview from "../components/ui/ReceiptPreview";
 
+const calendarMonthOrder = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 const FeeCollection = () => {
   const { addToast } = useToast();
   const location = useLocation();
@@ -153,6 +158,7 @@ const FeeCollection = () => {
                 phone: sData.phone,
                 section: sData.section,
                 aadhar: sData.aadhar || '',
+                address: sData.address || '',
                 totalFee: feeSummary.totalFee,
                 paidFee: feeSummary.paidFee,
                 dueFee: feeSummary.dueFee,
@@ -379,6 +385,7 @@ const FeeCollection = () => {
           phone: sData.phone,
           section: sData.section,
           aadhar: sData.aadhar || '',
+          address: sData.address || '',
           totalFee: feeSummary.totalFee,
           paidFee: feeSummary.paidFee,
           dueFee: feeSummary.dueFee,
@@ -443,6 +450,7 @@ const FeeCollection = () => {
           phone: sData.phone,
           section: sData.section,
           aadhar: sData.aadhar || '',
+          address: sData.address || '',
           totalFee: feeSummary.totalFee,
           paidFee: feeSummary.paidFee,
           dueFee: feeSummary.dueFee,
@@ -608,7 +616,9 @@ const FeeCollection = () => {
   }, [student]);
 
   const filteredTimelineMonths = useMemo(() => {
-    const breakdown = student?.ledger?.monthlyBreakdown || [];
+    const breakdown = [...(student?.ledger?.monthlyBreakdown || [])].sort((a, b) => {
+      return calendarMonthOrder.indexOf(a.month) - calendarMonthOrder.indexOf(b.month);
+    });
     if (timelineFilter === "ALL") return breakdown;
     if (timelineFilter === "DUE") return breakdown.filter(m => m.status === "DUE" || m.status === "PARTIAL");
     if (timelineFilter === "UPCOMING") return breakdown.filter(m => m.status === "UPCOMING");
@@ -1030,6 +1040,7 @@ const FeeCollection = () => {
                                                 phone: sData.phone,
                                                 section: sData.section,
                                                 aadhar: sData.aadhar || '',
+                                                address: sData.address || '',
                                                 totalFee: feeSummary.totalFee,
                                                 paidFee: feeSummary.paidFee,
                                                 dueFee: feeSummary.dueFee,
@@ -1113,6 +1124,7 @@ const FeeCollection = () => {
                                             phone: sData.phone,
                                             section: sData.section,
                                             aadhar: sData.aadhar || '',
+                                            address: sData.address || '',
                                             totalFee: feeSummary.totalFee,
                                             paidFee: feeSummary.paidFee,
                                             dueFee: feeSummary.dueFee,
@@ -1261,6 +1273,26 @@ const FeeCollection = () => {
                               </span>
                             )}
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Expanded Student Profile Details */}
+                      <div className="mt-5 pt-5 border-t border-zinc-100 grid grid-cols-2 gap-x-4 gap-y-3 text-[10px] text-zinc-600">
+                        <div>
+                          <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider block mb-0.5">Father's Name</span>
+                          <span className="font-extrabold text-zinc-800 uppercase block truncate">{student.fatherName || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider block mb-0.5">Mobile Number</span>
+                          <span className="font-extrabold text-zinc-800 block truncate">{student.phone || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider block mb-0.5">Aadhaar Number</span>
+                          <span className="font-extrabold text-zinc-800 uppercase block truncate">{student.aadhar || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider block mb-0.5">Address</span>
+                          <span className="font-extrabold text-zinc-800 uppercase block truncate" title={student.address}>{student.address || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
@@ -1482,7 +1514,9 @@ const FeeCollection = () => {
                       <div className="space-y-3">
                         <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Payment Target Month *</label>
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                          {(student.ledger?.monthlyBreakdown || []).map((m) => (
+                          {[...(student.ledger?.monthlyBreakdown || [])].sort((a, b) => {
+                            return calendarMonthOrder.indexOf(a.month) - calendarMonthOrder.indexOf(b.month);
+                          }).map((m) => (
                             <button
                               key={m.month}
                               type="button"

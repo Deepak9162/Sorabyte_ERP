@@ -365,7 +365,8 @@ class FeeService {
         fatherName: student.fatherName,
         phone: student.phone,
         section: student.section || 'A',
-        aadhar: student.aadhar || ''
+        aadhar: student.aadhar || '',
+        address: student.address || ''
       },
       feeSummary: ledger ? {
         totalFee: ledger.totalFee,
