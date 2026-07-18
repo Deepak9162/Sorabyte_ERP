@@ -21,6 +21,9 @@ import {
   Send,
   Unlock,
   Info,
+  Download,
+  FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Skeleton, { TableSkeleton } from "../components/ui/Skeleton";
@@ -29,6 +32,8 @@ import { useToast } from "../context/ToastContext";
 import { cn } from "../utils/cn";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { jsPDF } from "jspdf";
+import * as XLSX from "xlsx";
 
 // Memoized Mobile Student Attendance Card
 const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus }) => {
@@ -352,25 +357,29 @@ const Attendance = () => {
     {
       id: "mark-students",
       label: "Mark Students",
+      shortLabel: "Students",
       icon: ClipboardList,
       roles: ["admin", "teacher"],
     },
     {
       id: "mark-staff",
       label: "Mark Staff",
+      shortLabel: "Staff",
       icon: UserCheck,
       roles: ["admin"],
     },
     {
       id: "student-history",
       label: "Student History",
+      shortLabel: "Stu. History",
       icon: History,
       roles: ["admin", "teacher"],
     },
     {
       id: "staff-history",
       label: "Staff History",
-      icon: History,
+      shortLabel: "Stf. History",
+      icon: BarChart2,
       roles: ["admin"],
     },
   ].filter((tab) => tab.roles.includes(user?.role));
@@ -720,6 +729,498 @@ const Attendance = () => {
     return d.toLocaleDateString("en-US", { weekday: "narrow" });
   };
 
+  // ─────────────────────────────────────────────────────────
+  // EXPORT CONSTANTS
+  // ─────────────────────────────────────────────────────────
+  const SCHOOL_NAME = "Little Flower English School";
+  const SCHOOL_ADDRESS = "Siwan, Bihar";
+  const SCHOOL_TAGLINE = "Nurturing Minds, Building Futures";
+
+  const [exportLoading, setExportLoading] = useState(null); // 'pdf-student' | 'pdf-staff' | 'excel-student' | 'excel-staff'
+
+  const monthLabel = months.find((m) => m.value === selectedMonth)?.label || "";
+
+  // ─────────────────────────────────────────────────────────
+  // STATUS HELPERS FOR EXPORT
+  // ─────────────────────────────────────────────────────────
+  const getStatusChar = (status) => {
+    if (!status) return "-";
+    switch (status.toLowerCase()) {
+      case "present": return "P";
+      case "absent":  return "A";
+      case "leave":   return "L";
+      case "late":    return "T";
+      default:        return "-";
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // EXPORT TO PDF — shared renderer
+  // ─────────────────────────────────────────────────────────
+  const buildAttendancePDF = (rows, type) => {
+    // rows: [{ name, subInfo, attendance: { 1: 'Present', ... }, p, a, l, t }]
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 10;
+
+    const totalDays = getDaysInMonth(selectedMonth, selectedYear);
+
+    // ── Header background ──
+    doc.setFillColor(30, 64, 175); // indigo-800
+    doc.rect(0, 0, pageW, 38, "F");
+
+    // School name
+    doc.setFont("times", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255);
+    doc.text(SCHOOL_NAME.toUpperCase(), pageW / 2, 13, { align: "center" });
+
+    // Address
+    doc.setFont("times", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(199, 210, 254); // indigo-200
+    doc.text(SCHOOL_ADDRESS + "  •  " + SCHOOL_TAGLINE, pageW / 2, 20, { align: "center" });
+
+    // Report title strip
+    doc.setFillColor(224, 231, 255); // indigo-100
+    doc.rect(0, 38, pageW, 12, "F");
+    doc.setFont("times", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 64, 175); // indigo-800
+    const reportTitle = type === "student"
+      ? `STUDENT ATTENDANCE REPORT  •  ${monthLabel.toUpperCase()} ${selectedYear}`
+      : `STAFF ATTENDANCE REPORT  •  ${monthLabel.toUpperCase()} ${selectedYear}`;
+    doc.text(reportTitle, pageW / 2, 46, { align: "center" });
+
+    // Class info (for student)
+    const className = classes.find((c) => c._id === selectedClass)?.name;
+    if (type === "student" && className) {
+      doc.setFont("times", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Class: ${className}  |  Total Students: ${rows.length}  |  Days in Month: ${totalDays}`, pageW / 2, 53, { align: "center" });
+    } else if (type === "staff") {
+      doc.setFont("times", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Total Staff: ${rows.length}  |  Days in Month: ${totalDays}`, pageW / 2, 53, { align: "center" });
+    }
+
+    // ── Table setup ──
+    const tableTop = 58;
+    const nameColW = 44;       // name column
+    const rollColW = 28;       // roll number column (student) / subject (staff) — wider for long names
+    const statColW = 9;        // max width for each day column
+    const summaryColW = 11;    // P, A, L, T summary cols
+    const rowH = 9;            // row height (single-line name now)
+    const headerH = 12;        // header row height
+
+    // Available width for date columns
+    const availW = pageW - margin * 2 - nameColW - rollColW - summaryColW * 4;
+    const dayColW = Math.min(statColW, availW / totalDays);
+    const summaryX = margin + nameColW + rollColW + totalDays * dayColW;
+
+    // ─────────────────────────────────────────────────────────
+    // HELPER — draw full table column header row at position yh
+    // ─────────────────────────────────────────────────────────
+    const drawTableHeader = (yh) => {
+      // Background
+      doc.setFillColor(241, 245, 249); // slate-100
+      doc.rect(margin, yh, pageW - margin * 2, headerH, "F");
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.3);
+      doc.rect(margin, yh, pageW - margin * 2, headerH);
+
+      // Name header
+      doc.setFont("times", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text("NAME", margin + 3, yh + 8);
+      doc.setDrawColor(203, 213, 225);
+      doc.line(margin + nameColW, yh, margin + nameColW, yh + headerH);
+
+      // Roll / Subject header
+      doc.setFont("times", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(71, 85, 105);
+      doc.text(type === "student" ? "ROLL" : "SUBJECT", margin + nameColW + rollColW / 2, yh + 8, { align: "center" });
+      doc.line(margin + nameColW + rollColW, yh, margin + nameColW + rollColW, yh + headerH);
+
+      // Day headers (1..totalDays)
+      for (let d = 1; d <= totalDays; d++) {
+        const cx = margin + nameColW + rollColW + (d - 1) * dayColW;
+        const isWknd = isWeekend(d, selectedMonth, selectedYear);
+        const dayN = getDayName(d, selectedMonth, selectedYear);
+        if (isWknd) {
+          doc.setFillColor(254, 243, 199);
+          doc.rect(cx, yh, dayColW, headerH, "F");
+        }
+        doc.setFont("times", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(isWknd ? 180 : 71, isWknd ? 120 : 85, isWknd ? 20 : 105);
+        doc.text(String(d), cx + dayColW / 2, yh + 5.5, { align: "center" });
+        doc.setFont("times", "normal");
+        doc.setFontSize(5.5);
+        doc.text(dayN, cx + dayColW / 2, yh + 10, { align: "center" });
+        doc.setDrawColor(203, 213, 225);
+        doc.line(cx + dayColW, yh, cx + dayColW, yh + headerH);
+      }
+
+      // Summary headers P / A / L / T
+      const summaryLabels = ["P", "A", "L", "T"];
+      const summaryColors = [[6, 95, 70], [159, 18, 57], [120, 80, 0], [49, 46, 129]];
+      summaryLabels.forEach((lbl, i) => {
+        const sx = summaryX + i * summaryColW;
+        doc.setFillColor(...summaryColors[i]);
+        doc.rect(sx, yh, summaryColW, headerH, "F");
+        doc.setFont("times", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.text(lbl, sx + summaryColW / 2, yh + 8, { align: "center" });
+      });
+    };
+
+    // Draw the first-page table header
+    let y = tableTop;
+    drawTableHeader(y);
+    y += headerH;
+
+    // ── Data rows ──
+    rows.forEach((row, rowIdx) => {
+      const isEven = rowIdx % 2 === 0;
+      // Row background
+      if (isEven) {
+        doc.setFillColor(248, 250, 252); // slate-50
+        doc.rect(margin, y, pageW - margin * 2, rowH, "F");
+      }
+
+      // ─ Name cell ─
+      doc.setFont("times", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      // Clip name to column width so it never overflows
+      const nameStr = doc.splitTextToSize((row.name || ""), nameColW - 5)[0];
+      doc.text(nameStr, margin + 3, y + rowH / 2 + 2.5);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(margin + nameColW, y, margin + nameColW, y + rowH);
+
+      // ─ Roll / Subject cell ─
+      const rollX = margin + nameColW;
+      doc.setFont("times", "italic");
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      // Clip subject/roll to column width — prevents overflow for long subjects
+      const subStr = doc.splitTextToSize((row.subInfo || "-").toString(), rollColW - 4)[0];
+      doc.text(subStr, rollX + rollColW / 2, y + rowH / 2 + 2.5, { align: "center" });
+      doc.line(rollX + rollColW, y, rollX + rollColW, y + rowH);
+
+      // Row bottom line
+      doc.line(margin, y + rowH, margin + pageW - margin * 2, y + rowH);
+
+      // ─ Day cells ─
+      for (let d = 1; d <= totalDays; d++) {
+        const cx = margin + nameColW + rollColW + (d - 1) * dayColW;
+        const statusRaw = row.attendance[d];
+        const char = getStatusChar(statusRaw);
+        const isWknd = isWeekend(d, selectedMonth, selectedYear);
+
+        if (isWknd && !statusRaw) {
+          doc.setFillColor(254, 249, 231);
+          doc.rect(cx, y, dayColW, rowH, "F");
+        }
+
+        if (statusRaw) {
+          const lc = statusRaw.toLowerCase();
+          if (lc === "present")      doc.setFillColor(236, 253, 245);
+          else if (lc === "absent")  doc.setFillColor(255, 241, 242);
+          else if (lc === "leave")   doc.setFillColor(255, 251, 235);
+          else if (lc === "late")    doc.setFillColor(238, 242, 255);
+          doc.rect(cx, y, dayColW, rowH, "F");
+
+          if (lc === "present")      doc.setTextColor(5, 122, 85);
+          else if (lc === "absent")  doc.setTextColor(190, 18, 60);
+          else if (lc === "leave")   doc.setTextColor(146, 64, 14);
+          else if (lc === "late")    doc.setTextColor(67, 56, 202);
+          doc.setFont("times", "bold");
+          doc.setFontSize(8);
+          doc.text(char, cx + dayColW / 2, y + rowH / 2 + 2.5, { align: "center" });
+        } else {
+          doc.setFont("times", "normal");
+          doc.setFontSize(7);
+          doc.setTextColor(203, 213, 225);
+          doc.text("-", cx + dayColW / 2, y + rowH / 2 + 2.5, { align: "center" });
+        }
+        doc.setDrawColor(226, 232, 240);
+        doc.line(cx + dayColW, y, cx + dayColW, y + rowH);
+      }
+
+      // ─ Summary cells P/A/L/T ─
+      const summaryVals = [row.p, row.a, row.l, row.t];
+      const summaryTextColors = [[5, 122, 85], [190, 18, 60], [146, 64, 14], [67, 56, 202]];
+      summaryVals.forEach((val, i) => {
+        const sx = summaryX + i * summaryColW;
+        doc.setFont("times", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(...summaryTextColors[i]);
+        doc.text(String(val ?? 0), sx + summaryColW / 2, y + rowH / 2 + 2.5, { align: "center" });
+      });
+
+      y += rowH;
+
+      // ── Page break: full header repeated on new page ──
+      if (y > pageH - 22) {
+        doc.addPage();
+
+        // Compact indigo banner on continuation pages
+        doc.setFillColor(30, 64, 175);
+        doc.rect(0, 0, pageW, 18, "F");
+        doc.setFont("times", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(255, 255, 255);
+        doc.text(SCHOOL_NAME.toUpperCase(), pageW / 2, 10, { align: "center" });
+        doc.setFont("times", "italic");
+        doc.setFontSize(7);
+        doc.setTextColor(199, 210, 254);
+        doc.text(`${reportTitle}  •  (continued)`, pageW / 2, 16, { align: "center" });
+
+        // Report info strip
+        doc.setFillColor(224, 231, 255);
+        doc.rect(0, 18, pageW, 8, "F");
+        doc.setFont("times", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(30, 64, 175);
+        const infoText = type === "student" && className
+          ? `Class: ${className}  |  ${monthLabel} ${selectedYear}  |  Total Students: ${rows.length}`
+          : `${monthLabel} ${selectedYear}  |  Total Staff: ${rows.length}`;
+        doc.text(infoText, pageW / 2, 24, { align: "center" });
+
+        // Full column header
+        y = 28;
+        drawTableHeader(y);
+        y += headerH;
+      }
+    });
+
+    // ── Footer ──
+    const footerY = pageH - 8;
+    doc.setFont("times", "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    const generatedAt = new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    doc.text(`Generated: ${generatedAt}  •  ${SCHOOL_NAME} ERP System`, margin, footerY);
+    const legend = "Legend:  P = Present    A = Absent    L = Leave    T = Late / Tardy    - = No Record";
+    doc.text(legend, pageW - margin, footerY, { align: "right" });
+
+    // Page number
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFont("times", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Page ${i} of ${totalPages}`, pageW / 2, pageH - 3, { align: "center" });
+    }
+
+    return doc;
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // EXPORT TO PDF — Student
+  // ─────────────────────────────────────────────────────────
+  const exportStudentPDF = async () => {
+    if (!studentHistory.length) return;
+    setExportLoading("pdf-student");
+    try {
+      const rows = studentHistory.map((item) => {
+        const records = item.attendance || {};
+        let p = 0, a = 0, l = 0, t = 0;
+        Object.values(records).forEach((s) => {
+          const v = (s || "").toLowerCase();
+          if (v === "present") p++;
+          else if (v === "absent") a++;
+          else if (v === "leave") l++;
+          else if (v === "late") t++;
+        });
+        return {
+          name: item.student?.fullName || "N/A",
+          subInfo: `Roll: ${item.student?.rollNumber || "-"}`,
+          attendance: records,
+          p, a, l, t,
+        };
+      });
+      const doc = buildAttendancePDF(rows, "student");
+      const className = classes.find((c) => c._id === selectedClass)?.name || "Class";
+      doc.save(`Student_Attendance_${className}_${monthLabel}_${selectedYear}.pdf`);
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // EXPORT TO PDF — Staff
+  // ─────────────────────────────────────────────────────────
+  const exportStaffPDF = async () => {
+    if (!staffHistory.length) return;
+    setExportLoading("pdf-staff");
+    try {
+      const rows = staffHistory.map((item) => {
+        const records = item.attendance || {};
+        let p = 0, a = 0, l = 0, t = 0;
+        Object.values(records).forEach((s) => {
+          const v = (s || "").toLowerCase();
+          if (v === "present") p++;
+          else if (v === "absent") a++;
+          else if (v === "leave") l++;
+          else if (v === "late") t++;
+        });
+        return {
+          name: item.teacher?.fullName || "N/A",
+          subInfo: item.teacher?.subject || "",
+          attendance: records,
+          p, a, l, t,
+        };
+      });
+      const doc = buildAttendancePDF(rows, "staff");
+      doc.save(`Staff_Attendance_${monthLabel}_${selectedYear}.pdf`);
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // EXPORT TO EXCEL — shared builder
+  // ─────────────────────────────────────────────────────────
+  const buildAttendanceExcel = (rows, type) => {
+    const totalDays = getDaysInMonth(selectedMonth, selectedYear);
+    const wb = XLSX.utils.book_new();
+
+    // Build header rows
+    const titleRow = [
+      SCHOOL_NAME,
+      ...Array(totalDays + 4).fill(""),
+    ];
+    const subTitleRow = [
+      type === "student"
+        ? `Student Attendance Report — ${monthLabel} ${selectedYear}  |  Class: ${classes.find((c) => c._id === selectedClass)?.name || ""}`
+        : `Staff Attendance Report — ${monthLabel} ${selectedYear}`,
+      ...Array(totalDays + 4).fill(""),
+    ];
+    const addressRow = [
+      SCHOOL_ADDRESS,
+      ...Array(totalDays + 4).fill(""),
+    ];
+
+    // Column header row: Name | 1 | 2 | ... | 31 | P | A | L | T
+    const colHeaders = [
+      type === "student" ? "Student Name" : "Staff Name",
+      type === "student" ? "Roll No." : "Subject",
+    ];
+    for (let d = 1; d <= totalDays; d++) {
+      const dayN = getDayName(d, selectedMonth, selectedYear);
+      colHeaders.push(`${d}\n${dayN}`);
+    }
+    colHeaders.push("Present", "Absent", "Leave", "Late");
+
+    // Data rows
+    const dataRows = rows.map((row) => {
+      const cells = [row.name, row.subInfo];
+      for (let d = 1; d <= totalDays; d++) {
+        cells.push(getStatusChar(row.attendance[d]));
+      }
+      cells.push(row.p, row.a, row.l, row.t);
+      return cells;
+    });
+
+    const sheetData = [titleRow, subTitleRow, addressRow, [], colHeaders, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Column widths
+    const colWidths = [
+      { wch: 30 }, // Name
+      { wch: 14 }, // Roll/Subject
+      ...Array(totalDays).fill({ wch: 5 }), // Day cols
+      { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, // Summary
+    ];
+    ws["!cols"] = colWidths;
+
+    // Merge title cells
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: totalDays + 5 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: totalDays + 5 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: totalDays + 5 } },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, `${monthLabel} ${selectedYear}`);
+    return wb;
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // EXPORT TO EXCEL — Student
+  // ─────────────────────────────────────────────────────────
+  const exportStudentExcel = async () => {
+    if (!studentHistory.length) return;
+    setExportLoading("excel-student");
+    try {
+      const rows = studentHistory.map((item) => {
+        const records = item.attendance || {};
+        let p = 0, a = 0, l = 0, t = 0;
+        Object.values(records).forEach((s) => {
+          const v = (s || "").toLowerCase();
+          if (v === "present") p++;
+          else if (v === "absent") a++;
+          else if (v === "leave") l++;
+          else if (v === "late") t++;
+        });
+        return {
+          name: item.student?.fullName || "N/A",
+          subInfo: `Roll: ${item.student?.rollNumber || "-"}`,
+          attendance: records,
+          p, a, l, t,
+        };
+      });
+      const wb = buildAttendanceExcel(rows, "student");
+      const className = classes.find((c) => c._id === selectedClass)?.name || "Class";
+      XLSX.writeFile(wb, `Student_Attendance_${className}_${monthLabel}_${selectedYear}.xlsx`);
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // EXPORT TO EXCEL — Staff
+  // ─────────────────────────────────────────────────────────
+  const exportStaffExcel = async () => {
+    if (!staffHistory.length) return;
+    setExportLoading("excel-staff");
+    try {
+      const rows = staffHistory.map((item) => {
+        const records = item.attendance || {};
+        let p = 0, a = 0, l = 0, t = 0;
+        Object.values(records).forEach((s) => {
+          const v = (s || "").toLowerCase();
+          if (v === "present") p++;
+          else if (v === "absent") a++;
+          else if (v === "leave") l++;
+          else if (v === "late") t++;
+        });
+        return {
+          name: item.teacher?.fullName || "N/A",
+          subInfo: item.teacher?.subject || "",
+          attendance: records,
+          p, a, l, t,
+        };
+      });
+      const wb = buildAttendanceExcel(rows, "staff");
+      XLSX.writeFile(wb, `Staff_Attendance_${monthLabel}_${selectedYear}.xlsx`);
+    } finally {
+      setExportLoading(null);
+    }
+  };
+  // ─────────────────────────────────────────────────────────
+  // END EXPORT FUNCTIONS
+  // ─────────────────────────────────────────────────────────
+
   // Status mapping colors & symbols
   const getStatusBadge = (status) => {
     if (!status)
@@ -796,20 +1297,9 @@ const Attendance = () => {
 
   return (
     <div className="space-y-4 md:space-y-8 animate-in fade-in duration-700">
-      {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6">
-        <div>
-          <h2 className="text-2xl md:text-4xl font-black text-gray-900 tracking-tight">
-            Attendance Hub
-          </h2>
-          <p className="hidden md:block text-gray-500 font-medium italic">
-            Track, mark, and check historical data for both student cohorts and
-            school staff.
-          </p>
-        </div>
-
-        {/* Tab Selector */}
-        <div className="flex overflow-x-auto max-w-full no-scrollbar bg-gray-100/80 p-1.5 rounded-[1.8rem] border border-gray-200/50 shadow-inner whitespace-nowrap scroll-smooth">
+      {/* Tab Selector — full width, all tabs always visible */}
+      <div className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm p-1.5">
+        <div className="flex w-full bg-gray-100/80 rounded-xl p-1 gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -824,14 +1314,20 @@ const Attendance = () => {
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all shrink-0",
+                  "flex flex-1 flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-3 px-1 rounded-lg sm:rounded-xl transition-all min-w-0",
                   isActive
-                    ? "bg-white text-indigo-600 shadow-md font-bold"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-white/30",
+                    ? "bg-white text-indigo-600 shadow-md"
+                    : "text-gray-400 hover:text-gray-700 hover:bg-white/50",
                 )}
               >
-                <Icon size={16} />
-                {tab.label}
+                <Icon size={16} className="shrink-0" />
+                {/* Short label on xs, full label on sm+ */}
+                <span className="text-[9px] sm:hidden font-black uppercase tracking-wide leading-tight text-center">
+                  {tab.shortLabel}
+                </span>
+                <span className="hidden sm:inline text-[10px] md:text-xs font-black uppercase tracking-wider truncate">
+                  {tab.label}
+                </span>
               </button>
             );
           })}
@@ -864,21 +1360,20 @@ const Attendance = () => {
 
       {/* Control Bar: Filters depending on Active Tab */}
       <div className={cn(
-        "flex flex-wrap items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-[2rem] border border-gray-100 shadow-sm",
-        (activeTab === "mark-students" || activeTab === "mark-staff") ? "hidden md:flex" : "flex"
+        "flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"
       )}>
-        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Class filter (visible in Mark Student and Student History) */}
           {(activeTab === "mark-students" ||
             activeTab === "student-history") && (
             <>
               {/* Only show class selector if admin or multiple classes */}
               {(user?.role === "admin" || classes.length > 1) ? (
-                <div className="relative group min-w-[180px]">
+                <div className="relative group w-full sm:min-w-[160px] sm:w-auto">
                   <select
                     value={selectedClass}
                     onChange={(e) => setSelectedClass(e.target.value)}
-                    className="w-full pl-6 pr-12 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 shadow-sm focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer appearance-none"
+                    className="w-full pl-4 pr-10 py-3 bg-gray-50/50 border border-gray-100 rounded-xl text-sm font-bold text-gray-700 shadow-sm focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer appearance-none"
                   >
                     {classes.map((cls) => (
                       <option key={cls._id} value={cls._id}>
@@ -917,17 +1412,17 @@ const Attendance = () => {
 
           {/* Date filter (visible in Mark tabs) - Locked to Today */}
           {(activeTab === "mark-students" || activeTab === "mark-staff") && (
-            <div className="relative group">
+            <div className="relative group w-full sm:w-auto">
               <Calendar
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={16}
               />
               <input
                 type="date"
                 value={selectedDate}
                 disabled
                 title="Attendance can only be marked for the current date"
-                className="pl-12 pr-6 py-3.5 bg-gray-100 border border-gray-100 rounded-2xl text-sm font-bold text-gray-400 shadow-inner outline-none cursor-not-allowed select-none"
+                className="w-full pl-10 pr-4 py-3 bg-gray-100 border border-gray-100 rounded-xl text-sm font-bold text-gray-400 shadow-inner outline-none cursor-not-allowed select-none"
               />
             </div>
           )}
@@ -935,12 +1430,12 @@ const Attendance = () => {
           {/* Month & Year filter (visible in History tabs) */}
           {(activeTab === "student-history" ||
             activeTab === "staff-history") && (
-            <>
-              <div className="relative group min-w-[150px]">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative group flex-1 sm:min-w-[140px] sm:flex-none">
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="w-full pl-6 pr-12 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 shadow-sm focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer appearance-none"
+                  className="w-full pl-4 pr-10 py-3 bg-gray-50/50 border border-gray-100 rounded-xl text-sm font-bold text-gray-700 shadow-sm focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer appearance-none"
                 >
                   {months.map((m) => (
                     <option key={m.value} value={m.value}>
@@ -949,16 +1444,16 @@ const Attendance = () => {
                   ))}
                 </select>
                 <ChevronDown
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-600 pointer-events-none transition-colors"
-                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-600 pointer-events-none transition-colors"
+                  size={15}
                 />
               </div>
 
-              <div className="relative group min-w-[110px]">
+              <div className="relative group w-[90px] sm:w-[110px]">
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="w-full pl-6 pr-12 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-700 shadow-sm focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer appearance-none"
+                  className="w-full pl-4 pr-8 py-3 bg-gray-50/50 border border-gray-100 rounded-xl text-sm font-bold text-gray-700 shadow-sm focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer appearance-none"
                 >
                   {years.map((y) => (
                     <option key={y} value={y}>
@@ -967,17 +1462,70 @@ const Attendance = () => {
                   ))}
                 </select>
                 <ChevronDown
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-600 pointer-events-none transition-colors"
-                  size={16}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-600 pointer-events-none transition-colors"
+                  size={14}
                 />
               </div>
-            </>
+            </div>
           )}
         </div>
 
+        {/* ── Export Buttons for History Tabs ── */}
+        {(activeTab === "student-history" || activeTab === "staff-history") && (
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Excel export */}
+            <button
+              id={activeTab === "student-history" ? "export-student-excel" : "export-staff-excel"}
+              disabled={
+                exportLoading !== null ||
+                (activeTab === "student-history" ? studentHistory.length === 0 : staffHistory.length === 0)
+              }
+              onClick={activeTab === "student-history" ? exportStudentExcel : exportStaffExcel}
+              title="Export to Excel"
+              className={cn(
+                "flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all shadow-sm",
+                "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:shadow-md active:scale-95",
+                (exportLoading !== null || (activeTab === "student-history" ? studentHistory.length === 0 : staffHistory.length === 0))
+                  && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {exportLoading === (activeTab === "student-history" ? "excel-student" : "excel-staff") ? (
+                <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <FileSpreadsheet size={14} />
+              )}
+              Excel
+            </button>
+
+            {/* PDF export */}
+            <button
+              id={activeTab === "student-history" ? "export-student-pdf" : "export-staff-pdf"}
+              disabled={
+                exportLoading !== null ||
+                (activeTab === "student-history" ? studentHistory.length === 0 : staffHistory.length === 0)
+              }
+              onClick={activeTab === "student-history" ? exportStudentPDF : exportStaffPDF}
+              title="Export to PDF"
+              className={cn(
+                "flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all shadow-sm",
+                "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:shadow-md active:scale-95",
+                (exportLoading !== null || (activeTab === "student-history" ? studentHistory.length === 0 : staffHistory.length === 0))
+                  && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {exportLoading === (activeTab === "student-history" ? "pdf-student" : "pdf-staff") ? (
+                <div className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <FileText size={14} />
+              )}
+              PDF
+            </button>
+          </div>
+        )}
+
         {/* Action Buttons for Mark tabs */}
         {(activeTab === "mark-students" || activeTab === "mark-staff") && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             {/* Save/Submit attendance */}
             {activeTab === "mark-students" && sessionStatus !== 'locked' && (
               <Button

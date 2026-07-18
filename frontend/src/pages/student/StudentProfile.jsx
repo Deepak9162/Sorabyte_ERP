@@ -30,7 +30,7 @@ import {
   ShieldCheck,
   XCircle,
   Info,
-  Landmark
+  Landmark,
 } from "lucide-react";
 import api from "../../services/api";
 import Button from "../../components/ui/Button";
@@ -39,7 +39,7 @@ import { cn } from "../../utils/cn";
 const StudentProfile = () => {
   const { studentId } = useParams();
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState(null);
   const [rawStudent, setRawStudent] = useState(null);
@@ -47,7 +47,9 @@ const StudentProfile = () => {
   const [attLoading, setAttLoading] = useState(true);
 
   // Dynamic API host resolution for static assets (studentPhoto, qrCode)
-  const apiHost = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : "";
+  const apiHost = api.defaults.baseURL
+    ? api.defaults.baseURL.replace("/api", "")
+    : "";
 
   const fetchProfile = React.useCallback(
     async (silent = false) => {
@@ -63,41 +65,35 @@ const StudentProfile = () => {
         if (!silent) setLoading(false);
       }
     },
-    [studentId]
+    [studentId],
   );
 
-  const fetchAdditionalDetails = React.useCallback(
-    async (dbId) => {
-      try {
-        const res = await api.get(`/students/${dbId}`);
+  const fetchAdditionalDetails = React.useCallback(async (dbId) => {
+    try {
+      const res = await api.get(`/students/${dbId}`);
+      if (res.data.success) {
+        setRawStudent(res.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching raw student details:", error);
+    }
+  }, []);
+
+  const fetchAttendance = React.useCallback(async (dbId) => {
+    try {
+      setAttLoading(true);
+      if (dbId) {
+        const res = await api.get(`/admin/attendance/student/${dbId}`);
         if (res.data.success) {
-          setRawStudent(res.data.data);
+          setAttendance(res.data.data);
         }
-      } catch (error) {
-        console.error("Error fetching raw student details:", error);
       }
-    },
-    []
-  );
-
-  const fetchAttendance = React.useCallback(
-    async (dbId) => {
-      try {
-        setAttLoading(true);
-        if (dbId) {
-          const res = await api.get(`/admin/attendance/student/${dbId}`);
-          if (res.data.success) {
-            setAttendance(res.data.data);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching student attendance report:", error);
-      } finally {
-        setAttLoading(false);
-      }
-    },
-    []
-  );
+    } catch (error) {
+      console.error("Error fetching student attendance report:", error);
+    } finally {
+      setAttLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchProfile();
@@ -137,13 +133,17 @@ const StudentProfile = () => {
   };
 
   const attendanceStats = useMemo(() => {
-    if (!attendance || !attendance.records) return { present: 0, absent: 0, late: 0, leave: 0 };
-    let present = 0, absent = 0, late = 0, leave = 0;
-    attendance.records.forEach(r => {
-      if (r.status === 'Present') present++;
-      else if (r.status === 'Absent') absent++;
-      else if (r.status === 'Late') late++;
-      else if (r.status === 'Leave' || r.status === 'Excused') leave++;
+    if (!attendance || !attendance.records)
+      return { present: 0, absent: 0, late: 0, leave: 0 };
+    let present = 0,
+      absent = 0,
+      late = 0,
+      leave = 0;
+    attendance.records.forEach((r) => {
+      if (r.status === "Present") present++;
+      else if (r.status === "Absent") absent++;
+      else if (r.status === "Late") late++;
+      else if (r.status === "Leave" || r.status === "Excused") leave++;
     });
     return { present, absent, late, leave };
   }, [attendance]);
@@ -152,28 +152,28 @@ const StudentProfile = () => {
     const events = [];
     if (!student) return events;
     const { personalDetails, academicDetails, feeSummary } = student;
-    
+
     // 1. Admission Created
     if (personalDetails?.admissionDate) {
       events.push({
         title: "Admission Record Created",
-        description: `Enrolled in Class ${academicDetails?.className || 'N/A'} - Section ${academicDetails?.section || 'A'}`,
+        description: `Enrolled in Class ${academicDetails?.className || "N/A"} - Section ${academicDetails?.section || "A"}`,
         date: new Date(personalDetails.admissionDate),
         type: "admission",
-        color: "bg-indigo-500"
+        color: "bg-indigo-500",
       });
     }
 
     // 2. Fee Payments
     if (feeSummary?.monthlyFees) {
-      feeSummary.monthlyFees.forEach(fee => {
+      feeSummary.monthlyFees.forEach((fee) => {
         if (fee.status === "PAID" && fee.paidOn) {
           events.push({
             title: `Fee Clearance - ${fee.month}`,
             description: `Tuition fee of ₹${fee.paidAmount.toLocaleString()} settled successfully.`,
             date: new Date(fee.paidOn),
             type: "fee",
-            color: "bg-emerald-500"
+            color: "bg-emerald-500",
           });
         } else if (fee.status === "PARTIAL" && fee.paidOn) {
           events.push({
@@ -181,7 +181,7 @@ const StudentProfile = () => {
             description: `Paid ₹${fee.paidAmount.toLocaleString()} towards outstanding month balance.`,
             date: new Date(fee.paidOn),
             type: "fee",
-            color: "bg-amber-500"
+            color: "bg-amber-500",
           });
         }
       });
@@ -189,13 +189,18 @@ const StudentProfile = () => {
 
     // 3. Attendance Marked
     if (attendance?.records && attendance.records.length > 0) {
-      attendance.records.slice(0, 3).forEach(record => {
+      attendance.records.slice(0, 3).forEach((record) => {
         events.push({
           title: `Attendance: ${record.status}`,
-          description: record.remarks ? `Remarks: ${record.remarks}` : `Student was marked ${record.status} in class registry.`,
+          description: record.remarks
+            ? `Remarks: ${record.remarks}`
+            : `Student was marked ${record.status} in class registry.`,
           date: new Date(record.date),
           type: "attendance",
-          color: record.status === "Present" || record.status === "Late" ? "bg-teal-500" : "bg-rose-500"
+          color:
+            record.status === "Present" || record.status === "Late"
+              ? "bg-teal-500"
+              : "bg-rose-500",
         });
       });
     }
@@ -204,10 +209,13 @@ const StudentProfile = () => {
   }, [student, attendance]);
 
   const lastPayment = useMemo(() => {
-    if (!student || !student.feeSummary || !student.feeSummary.monthlyFees) return null;
-    const paidMonths = student.feeSummary.monthlyFees.filter(m => m.paidOn);
+    if (!student || !student.feeSummary || !student.feeSummary.monthlyFees)
+      return null;
+    const paidMonths = student.feeSummary.monthlyFees.filter((m) => m.paidOn);
     if (paidMonths.length === 0) return null;
-    const sorted = paidMonths.sort((a, b) => new Date(b.paidOn) - new Date(a.paidOn));
+    const sorted = paidMonths.sort(
+      (a, b) => new Date(b.paidOn) - new Date(a.paidOn),
+    );
     return sorted[0];
   }, [student]);
 
@@ -220,7 +228,7 @@ const StudentProfile = () => {
         </div>
         <div className="h-44 bg-zinc-200 rounded-[2.5rem]" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(n => (
+          {[1, 2, 3, 4].map((n) => (
             <div key={n} className="h-24 bg-zinc-200 rounded-3xl" />
           ))}
         </div>
@@ -236,27 +244,34 @@ const StudentProfile = () => {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
         <AlertCircle size={48} className="text-gray-300 animate-bounce" />
-        <h2 className="text-2xl font-black text-gray-900 font-sans">Student Record Not Found</h2>
-        <Button onClick={() => navigate("/students")} icon={ArrowLeft} className="rounded-2xl">
+        <h2 className="text-2xl font-black text-gray-900 font-sans">
+          Student Record Not Found
+        </h2>
+        <Button
+          onClick={() => navigate("/students")}
+          icon={ArrowLeft}
+          className="rounded-2xl"
+        >
           Back to Directory
         </Button>
       </div>
     );
   }
 
-  const { personalDetails, academicDetails, contactDetails, feeSummary } = student;
+  const { personalDetails, academicDetails, contactDetails, feeSummary } =
+    student;
 
   // Resolve photo URL
   const photoUrl = personalDetails?.studentPhoto
-    ? (personalDetails.studentPhoto.startsWith("http") || personalDetails.studentPhoto.startsWith("data:")
+    ? personalDetails.studentPhoto.startsWith("http") ||
+      personalDetails.studentPhoto.startsWith("data:")
       ? personalDetails.studentPhoto
-      : `${apiHost}${personalDetails.studentPhoto}`)
+      : `${apiHost}${personalDetails.studentPhoto}`
     : null;
 
   return (
     <div className="min-h-screen bg-zinc-50/50 animate-in fade-in duration-500 pb-20 print:bg-white print:p-0">
       <div className="max-w-7xl mx-auto space-y-8 px-4 sm:px-6">
-        
         {/* ─── HEADER & ACTIONS ─────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden pt-4">
           <div className="flex items-center gap-4">
@@ -277,7 +292,11 @@ const StudentProfile = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => navigate(`/students/${personalDetails.studentId || studentId}/idcard`)}
+              onClick={() =>
+                navigate(
+                  `/students/${personalDetails.studentId || studentId}/idcard`,
+                )
+              }
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-150 cursor-pointer"
             >
               <UserSquare2 size={15} />
@@ -298,7 +317,6 @@ const StudentProfile = () => {
         <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6 sm:p-8 relative overflow-hidden">
           <div className="absolute right-0 top-0 w-80 h-80 bg-indigo-50/20 rounded-full blur-3xl pointer-events-none" />
           <div className="flex flex-col md:flex-row items-center md:items-start lg:items-center gap-6 text-center md:text-left relative z-15">
-            
             {/* Circular Profile Avatar */}
             <div className="w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 rounded-[2.2rem] flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-indigo-100 border-4 border-white shrink-0 overflow-hidden uppercase">
               {photoUrl ? (
@@ -317,7 +335,7 @@ const StudentProfile = () => {
                 </span>
               )}
             </div>
-            
+
             {/* Student metadata info */}
             <div className="space-y-4 w-full">
               <div className="space-y-1">
@@ -325,21 +343,27 @@ const StudentProfile = () => {
                   {personalDetails?.name}
                 </h2>
                 <p className="text-xs text-zinc-400 font-bold uppercase tracking-wider">
-                  Roll Number: <span className="text-zinc-800 font-extrabold">{personalDetails?.rollNumber || "N/A"}</span>
+                  Roll Number:{" "}
+                  <span className="text-zinc-800 font-extrabold">
+                    {personalDetails?.rollNumber || "N/A"}
+                  </span>
                 </p>
               </div>
-              
+
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-                <span className={cn(
-                  "px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider border",
-                  personalDetails?.status === "Active" 
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                    : "bg-rose-50 text-rose-700 border-rose-100"
-                )}>
+                <span
+                  className={cn(
+                    "px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider border",
+                    personalDetails?.status === "Active"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                      : "bg-rose-50 text-rose-700 border-rose-100",
+                  )}
+                >
                   {personalDetails?.status || "Inactive"}
                 </span>
                 <span className="px-3 py-1 bg-indigo-50/50 text-indigo-700 border border-indigo-100/30 rounded-xl text-[9px] font-black uppercase tracking-wider">
-                  Class {academicDetails?.className} • Section {academicDetails?.section || "A"}
+                  Class {academicDetails?.className} • Section{" "}
+                  {academicDetails?.section || "A"}
                 </span>
                 <span className="px-3 py-1 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded-xl text-[9px] font-black uppercase tracking-wider font-mono">
                   ID: {personalDetails?.studentId}
@@ -409,21 +433,33 @@ const StudentProfile = () => {
 
           {/* Attendance ratio */}
           <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6 flex items-center gap-4 hover:shadow-md transition-all group duration-300">
-            <div className={cn(
-              "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform",
-              attendance?.summary?.percentage >= 75 ? "bg-teal-50 text-teal-650" : "bg-orange-50 text-orange-600"
-            )}>
+            <div
+              className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform",
+                attendance?.summary?.percentage >= 75
+                  ? "bg-teal-50 text-teal-650"
+                  : "bg-orange-50 text-orange-600",
+              )}
+            >
               <Percent size={16} />
             </div>
             <div className="min-w-0">
               <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block leading-none">
                 Attendance Ratio
               </span>
-              <span className={cn(
-                "text-xl font-extrabold block mt-2",
-                attendance?.summary?.percentage >= 75 ? "text-teal-700" : "text-orange-700"
-              )}>
-                {attLoading ? "..." : (attendance?.summary ? `${attendance.summary.percentage}%` : "N/A")}
+              <span
+                className={cn(
+                  "text-xl font-extrabold block mt-2",
+                  attendance?.summary?.percentage >= 75
+                    ? "text-teal-700"
+                    : "text-orange-700",
+                )}
+              >
+                {attLoading
+                  ? "..."
+                  : attendance?.summary
+                    ? `${attendance.summary.percentage}%`
+                    : "N/A"}
               </span>
             </div>
           </div>
@@ -431,7 +467,6 @@ const StudentProfile = () => {
 
         {/* ─── 3. INFORMATION GRID (PERSONAL, ACADEMIC & GUARDIAN) ─────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
           {/* Card A: Personal Information */}
           <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6 space-y-6">
             <div className="flex items-center gap-2 border-b border-zinc-100 pb-3 mb-2">
@@ -447,8 +482,12 @@ const StudentProfile = () => {
                   <BadgeInfo size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Full Name</p>
-                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">{personalDetails?.fullName || personalDetails?.name}</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Full Name
+                  </p>
+                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">
+                    {personalDetails?.fullName || personalDetails?.name}
+                  </p>
                 </div>
               </div>
 
@@ -457,8 +496,12 @@ const StudentProfile = () => {
                   <UserCheck size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Gender</p>
-                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">{personalDetails?.gender || "N/A"}</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Gender
+                  </p>
+                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">
+                    {personalDetails?.gender || "N/A"}
+                  </p>
                 </div>
               </div>
 
@@ -467,7 +510,9 @@ const StudentProfile = () => {
                   <Calendar size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Date of Birth (Age)</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Date of Birth (Age)
+                  </p>
                   <p className="text-xs font-bold text-zinc-800 mt-1 truncate">
                     {personalDetails?.dob
                       ? `${new Date(personalDetails.dob).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })} (${calculateAge(personalDetails.dob)})`
@@ -481,8 +526,12 @@ const StudentProfile = () => {
                   <BadgeInfo size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Blood Group</p>
-                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">{personalDetails?.bloodGroup || "Unknown"}</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Blood Group
+                  </p>
+                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">
+                    {personalDetails?.bloodGroup || "Unknown"}
+                  </p>
                 </div>
               </div>
 
@@ -491,8 +540,12 @@ const StudentProfile = () => {
                   <Phone size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Mobile Number</p>
-                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate font-mono">{contactDetails?.phone || "N/A"}</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Mobile Number
+                  </p>
+                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate font-mono">
+                    {contactDetails?.phone || "N/A"}
+                  </p>
                 </div>
               </div>
 
@@ -501,7 +554,9 @@ const StudentProfile = () => {
                   <BadgeInfo size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Aadhaar Card (Masked)</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Aadhaar Card (Masked)
+                  </p>
                   <p className="text-xs font-bold text-zinc-800 mt-1 truncate font-mono">
                     {maskAadhar(personalDetails?.aadhar || rawStudent?.aadhar)}
                   </p>
@@ -514,8 +569,12 @@ const StudentProfile = () => {
                     <BadgeInfo size={14} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Category / Caste</p>
-                    <p className="text-xs font-bold text-zinc-800 mt-1 truncate">{personalDetails.cast}</p>
+                    <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                      Category / Caste
+                    </p>
+                    <p className="text-xs font-bold text-zinc-800 mt-1 truncate">
+                      {personalDetails.cast}
+                    </p>
                   </div>
                 </div>
               )}
@@ -537,8 +596,12 @@ const StudentProfile = () => {
                   <User size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Father's Name</p>
-                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">{contactDetails?.fatherName || "N/A"}</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Father's Name
+                  </p>
+                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">
+                    {contactDetails?.fatherName || "N/A"}
+                  </p>
                 </div>
               </div>
 
@@ -547,8 +610,12 @@ const StudentProfile = () => {
                   <User size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Mother's Name</p>
-                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">{contactDetails?.motherName || "N/A"}</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Mother's Name
+                  </p>
+                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate">
+                    {contactDetails?.motherName || "N/A"}
+                  </p>
                 </div>
               </div>
 
@@ -557,8 +624,12 @@ const StudentProfile = () => {
                   <Phone size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Emergency Mobile No</p>
-                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate font-mono">{contactDetails?.emergencyContact || "N/A"}</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Emergency Mobile No
+                  </p>
+                  <p className="text-xs font-bold text-zinc-800 mt-1 truncate font-mono">
+                    {contactDetails?.emergencyContact || "N/A"}
+                  </p>
                 </div>
               </div>
 
@@ -567,8 +638,12 @@ const StudentProfile = () => {
                   <MapPin size={14} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">Permanent Address</p>
-                  <p className="text-xs font-bold text-zinc-650 mt-1 leading-normal truncate-2-lines">{contactDetails?.address || "N/A"}</p>
+                  <p className="text-[8px] text-zinc-400 font-bold uppercase leading-none">
+                    Permanent Address
+                  </p>
+                  <p className="text-xs font-bold text-zinc-650 mt-1 leading-normal truncate-2-lines">
+                    {contactDetails?.address || "N/A"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -585,53 +660,84 @@ const StudentProfile = () => {
 
             <div className="space-y-4">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-zinc-400 uppercase tracking-wide">Admission ID</span>
-                <span className="font-extrabold text-zinc-800">{personalDetails?.admissionNumber || "N/A"}</span>
+                <span className="font-bold text-zinc-400 uppercase tracking-wide">
+                  Admission ID
+                </span>
+                <span className="font-extrabold text-zinc-800">
+                  {personalDetails?.admissionNumber || "N/A"}
+                </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-zinc-400 uppercase tracking-wide">Enrollment Date</span>
+                <span className="font-bold text-zinc-400 uppercase tracking-wide">
+                  Enrollment Date
+                </span>
                 <span className="font-extrabold text-zinc-800">
                   {personalDetails?.admissionDate
-                    ? new Date(personalDetails.admissionDate).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+                    ? new Date(
+                        personalDetails.admissionDate,
+                      ).toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
                     : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-zinc-400 uppercase tracking-wide">Tuition Discount</span>
+                <span className="font-bold text-zinc-400 uppercase tracking-wide">
+                  Tuition Discount
+                </span>
                 <span className="font-extrabold text-emerald-600">
-                  {personalDetails?.discountPercentage ? `${personalDetails.discountPercentage}%` : "0% (Regular)"}
+                  {personalDetails?.discountPercentage
+                    ? `${personalDetails.discountPercentage}%`
+                    : "0% (Regular)"}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-zinc-400 uppercase tracking-wide">Previous School</span>
-                <span className="font-extrabold text-zinc-800 truncate max-w-[150px] inline-block text-right" title={personalDetails?.previousSchool}>
+                <span className="font-bold text-zinc-400 uppercase tracking-wide">
+                  Previous School
+                </span>
+                <span
+                  className="font-extrabold text-zinc-800 truncate max-w-[150px] inline-block text-right"
+                  title={personalDetails?.previousSchool}
+                >
                   {personalDetails?.previousSchool || "N/A"}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-zinc-400 uppercase tracking-wide">Board / Medium</span>
-                <span className="font-extrabold text-zinc-800">CBSE / English</span>
+                <span className="font-bold text-zinc-400 uppercase tracking-wide">
+                  Board / Medium
+                </span>
+                <span className="font-extrabold text-zinc-800">
+                  CBSE / English
+                </span>
               </div>
               {rawStudent?.transportMode && (
                 <div className="flex justify-between items-center text-xs border-t border-zinc-150 pt-3 mt-2">
-                  <span className="font-bold text-zinc-400 uppercase tracking-wide">Transport Mode</span>
-                  <span className="font-extrabold text-indigo-650">{rawStudent.transportMode}</span>
+                  <span className="font-bold text-zinc-400 uppercase tracking-wide">
+                    Transport Mode
+                  </span>
+                  <span className="font-extrabold text-indigo-650">
+                    {rawStudent.transportMode}
+                  </span>
                 </div>
               )}
               {rawStudent?.transportFee !== undefined && (
                 <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-zinc-400 uppercase tracking-wide">Transport Monthly Fee</span>
-                  <span className="font-extrabold text-zinc-800">₹{rawStudent.transportFee}</span>
+                  <span className="font-bold text-zinc-400 uppercase tracking-wide">
+                    Transport Monthly Fee
+                  </span>
+                  <span className="font-extrabold text-zinc-800">
+                    ₹{rawStudent.transportFee}
+                  </span>
                 </div>
               )}
             </div>
           </div>
-
         </div>
 
         {/* ─── 4. ATTENDANCE & FINANCE ANALYTICS DASHBOARDS ─────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
           {/* Attendance Dashboard - 5 columns */}
           <div className="lg:col-span-5 bg-white rounded-3xl border border-zinc-200 shadow-sm p-6 space-y-6">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
@@ -641,13 +747,17 @@ const StudentProfile = () => {
                   Attendance Details
                 </h3>
               </div>
-              <span className={cn(
-                "px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border",
-                attendance?.summary?.percentage >= 75
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                  : "bg-rose-50 text-rose-700 border-rose-100"
-              )}>
-                {attendance?.summary?.percentage >= 75 ? "Excellent Status" : "Warning: Below 75%"}
+              <span
+                className={cn(
+                  "px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border",
+                  attendance?.summary?.percentage >= 75
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                    : "bg-rose-50 text-rose-700 border-rose-100",
+                )}
+              >
+                {attendance?.summary?.percentage >= 75
+                  ? "Excellent Status"
+                  : "Warning: Below 75%"}
               </span>
             </div>
 
@@ -655,7 +765,6 @@ const StudentProfile = () => {
               <div className="h-44 bg-zinc-50 rounded-2xl animate-pulse" />
             ) : attendance ? (
               <div className="space-y-6">
-                
                 {/* SVG Progress Circle & KPI breakdown */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-2">
                   <div className="relative w-28 h-28 flex items-center justify-center">
@@ -673,36 +782,63 @@ const StudentProfile = () => {
                         r="46"
                         className={cn(
                           "fill-none transition-all duration-500",
-                          attendance.summary.percentage >= 75 ? "stroke-teal-500" : "stroke-rose-500"
+                          attendance.summary.percentage >= 75
+                            ? "stroke-teal-500"
+                            : "stroke-rose-500",
                         )}
                         strokeWidth="8"
                         strokeDasharray={2 * Math.PI * 46}
-                        strokeDashoffset={2 * Math.PI * 46 * (1 - attendance.summary.percentage / 100)}
+                        strokeDashoffset={
+                          2 *
+                          Math.PI *
+                          46 *
+                          (1 - attendance.summary.percentage / 100)
+                        }
                         strokeLinecap="round"
                       />
                     </svg>
                     <div className="absolute flex flex-col items-center">
-                      <span className="text-lg font-black text-zinc-800">{attendance.summary.percentage}%</span>
-                      <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Ratio</span>
+                      <span className="text-lg font-black text-zinc-800">
+                        {attendance.summary.percentage}%
+                      </span>
+                      <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">
+                        Ratio
+                      </span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs w-full sm:w-auto">
                     <div>
-                      <span className="text-[8px] font-bold text-zinc-400 uppercase block mb-0.5">Working Days</span>
-                      <span className="text-sm font-extrabold text-zinc-800">{attendance.summary.totalClasses} Days</span>
+                      <span className="text-[8px] font-bold text-zinc-400 uppercase block mb-0.5">
+                        Working Days
+                      </span>
+                      <span className="text-sm font-extrabold text-zinc-800">
+                        {attendance.summary.totalClasses} Days
+                      </span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-bold text-emerald-500 uppercase block mb-0.5">Present</span>
-                      <span className="text-sm font-extrabold text-emerald-700">{attendanceStats.present + attendanceStats.late} Days</span>
+                      <span className="text-[8px] font-bold text-emerald-500 uppercase block mb-0.5">
+                        Present
+                      </span>
+                      <span className="text-sm font-extrabold text-emerald-700">
+                        {attendanceStats.present + attendanceStats.late} Days
+                      </span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-bold text-rose-500 uppercase block mb-0.5">Absent</span>
-                      <span className="text-sm font-extrabold text-rose-700">{attendanceStats.absent} Days</span>
+                      <span className="text-[8px] font-bold text-rose-500 uppercase block mb-0.5">
+                        Absent
+                      </span>
+                      <span className="text-sm font-extrabold text-rose-700">
+                        {attendanceStats.absent} Days
+                      </span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-bold text-orange-500 uppercase block mb-0.5">Late / Leave</span>
-                      <span className="text-sm font-extrabold text-orange-700">{attendanceStats.late + attendanceStats.leave} Days</span>
+                      <span className="text-[8px] font-bold text-orange-500 uppercase block mb-0.5">
+                        Late / Leave
+                      </span>
+                      <span className="text-sm font-extrabold text-orange-700">
+                        {attendanceStats.late + attendanceStats.leave} Days
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -711,19 +847,22 @@ const StudentProfile = () => {
                 <div className="space-y-1.5 border-t border-zinc-100 pt-4">
                   <div className="flex justify-between items-center text-xs font-bold text-zinc-650">
                     <span>Attendance Target Progression</span>
-                    <span className="text-[10px] text-zinc-450">(Required: 75%)</span>
+                    <span className="text-[10px] text-zinc-450">
+                      (Required: 75%)
+                    </span>
                   </div>
                   <div className="w-full h-3 bg-zinc-100 rounded-full overflow-hidden p-0">
                     <div
                       className={cn(
                         "h-full rounded-full transition-all duration-500",
-                        attendance.summary.percentage >= 75 ? "bg-teal-500" : "bg-rose-500"
+                        attendance.summary.percentage >= 75
+                          ? "bg-teal-500"
+                          : "bg-rose-500",
                       )}
                       style={{ width: `${attendance.summary.percentage}%` }}
                     />
                   </div>
                 </div>
-
               </div>
             ) : (
               <div className="text-center py-10 text-xs font-semibold text-zinc-400 italic">
@@ -747,20 +886,31 @@ const StudentProfile = () => {
             </div>
 
             <div className="space-y-5">
-              
               {/* Payment Ratio Stats & Progress bar */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-4 bg-zinc-50/50 rounded-2xl border border-zinc-100/50">
-                  <span className="text-[8px] font-bold text-zinc-400 uppercase block mb-0.5">Assessed Fees</span>
-                  <span className="text-md font-extrabold text-zinc-800">₹{feeSummary?.totalFee.toLocaleString() || "0"}</span>
+                  <span className="text-[8px] font-bold text-zinc-400 uppercase block mb-0.5">
+                    Assessed Fees
+                  </span>
+                  <span className="text-md font-extrabold text-zinc-800">
+                    ₹{feeSummary?.totalFee.toLocaleString() || "0"}
+                  </span>
                 </div>
                 <div className="p-4 bg-zinc-50/50 rounded-2xl border border-zinc-100/50">
-                  <span className="text-[8px] font-bold text-emerald-500 uppercase block mb-0.5">Paid Fees</span>
-                  <span className="text-md font-extrabold text-emerald-700">₹{feeSummary?.totalPaid.toLocaleString() || "0"}</span>
+                  <span className="text-[8px] font-bold text-emerald-500 uppercase block mb-0.5">
+                    Paid Fees
+                  </span>
+                  <span className="text-md font-extrabold text-emerald-700">
+                    ₹{feeSummary?.totalPaid.toLocaleString() || "0"}
+                  </span>
                 </div>
                 <div className="p-4 bg-zinc-50/50 rounded-2xl border border-zinc-100/50">
-                  <span className="text-[8px] font-bold text-rose-500 uppercase block mb-0.5">Pending Dues</span>
-                  <span className="text-md font-extrabold text-rose-700">₹{feeSummary?.pendingAmount.toLocaleString() || "0"}</span>
+                  <span className="text-[8px] font-bold text-rose-500 uppercase block mb-0.5">
+                    Pending Dues
+                  </span>
+                  <span className="text-md font-extrabold text-rose-700">
+                    ₹{feeSummary?.pendingAmount.toLocaleString() || "0"}
+                  </span>
                 </div>
               </div>
 
@@ -769,12 +919,19 @@ const StudentProfile = () => {
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center text-xs font-bold text-zinc-650">
                     <span>Outstanding settlement ratio</span>
-                    <span>{Math.round((feeSummary.totalPaid / feeSummary.totalFee) * 100)}% Settled</span>
+                    <span>
+                      {Math.round(
+                        (feeSummary.totalPaid / feeSummary.totalFee) * 100,
+                      )}
+                      % Settled
+                    </span>
                   </div>
                   <div className="w-full h-3 bg-zinc-100 rounded-full overflow-hidden p-0">
                     <div
                       className="h-full rounded-full transition-all duration-500 bg-emerald-500"
-                      style={{ width: `${(feeSummary.totalPaid / feeSummary.totalFee) * 100}%` }}
+                      style={{
+                        width: `${(feeSummary.totalPaid / feeSummary.totalFee) * 100}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -783,26 +940,31 @@ const StudentProfile = () => {
               {/* Last payment meta info */}
               <div className="border-t border-zinc-100 pt-4 grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="text-[8px] font-bold text-zinc-400 uppercase block mb-0.5">Last Payment Made</span>
+                  <span className="text-[8px] font-bold text-zinc-400 uppercase block mb-0.5">
+                    Last Payment Made
+                  </span>
                   <span className="font-extrabold text-zinc-800">
-                    {lastPayment 
-                      ? `₹${lastPayment.paidAmount.toLocaleString()} for ${lastPayment.month}` 
+                    {lastPayment
+                      ? `₹${lastPayment.paidAmount.toLocaleString()} for ${lastPayment.month}`
                       : "No Payments Logged"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[8px] font-bold text-zinc-400 uppercase block mb-0.5">Last Payment Date</span>
+                  <span className="text-[8px] font-bold text-zinc-400 uppercase block mb-0.5">
+                    Last Payment Date
+                  </span>
                   <span className="font-extrabold text-zinc-800 font-mono">
-                    {lastPayment?.paidOn 
-                      ? new Date(lastPayment.paidOn).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) 
+                    {lastPayment?.paidOn
+                      ? new Date(lastPayment.paidOn).toLocaleDateString(
+                          undefined,
+                          { day: "2-digit", month: "short", year: "numeric" },
+                        )
                       : "N/A"}
                   </span>
                 </div>
               </div>
-
             </div>
           </div>
-
         </div>
 
         {/* ─── 5. ACADEMIC PERFORMANCE ──────────────────────────────────────── */}
@@ -817,8 +979,13 @@ const StudentProfile = () => {
           <div className="flex flex-col items-center justify-center py-10 text-center space-y-3 bg-zinc-50/50 rounded-2xl border border-dashed border-zinc-200">
             <Award size={36} className="text-zinc-300" />
             <div>
-              <p className="text-xs font-extrabold text-zinc-700">No Academic Exam Reports Available</p>
-              <p className="text-[10px] text-zinc-400 mt-1 max-w-sm">No exam grades, marksheet details, or GPA cards have been published for this student in the current session.</p>
+              <p className="text-xs font-extrabold text-zinc-700">
+                No Academic Exam Reports Available
+              </p>
+              <p className="text-[10px] text-zinc-400 mt-1 max-w-sm">
+                No exam grades, marksheet details, or GPA cards have been
+                published for this student in the current session.
+              </p>
             </div>
           </div>
         </div>
@@ -859,7 +1026,8 @@ const StudentProfile = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {feeSummary?.monthlyFees && feeSummary.monthlyFees.length > 0 ? (
+                {feeSummary?.monthlyFees &&
+                feeSummary.monthlyFees.length > 0 ? (
                   feeSummary.monthlyFees.map((fee) => (
                     <tr
                       key={fee.month}
@@ -882,7 +1050,7 @@ const StudentProfile = () => {
                               ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                               : fee.status === "PARTIAL"
                                 ? "bg-amber-50 text-amber-700 border-amber-100"
-                                : "bg-rose-50 text-rose-700 border-rose-100"
+                                : "bg-rose-50 text-rose-700 border-rose-100",
                           )}
                         >
                           <span
@@ -892,7 +1060,7 @@ const StudentProfile = () => {
                                 ? "bg-emerald-500"
                                 : fee.status === "PARTIAL"
                                   ? "bg-amber-500"
-                                  : "bg-rose-500"
+                                  : "bg-rose-500",
                             )}
                           />
                           {fee.status}
@@ -911,7 +1079,10 @@ const StudentProfile = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="text-center py-10 text-xs font-semibold text-zinc-400 italic">
+                    <td
+                      colSpan={5}
+                      className="text-center py-10 text-xs font-semibold text-zinc-400 italic"
+                    >
                       No monthly ledger fee records available.
                     </td>
                   </tr>
@@ -919,7 +1090,7 @@ const StudentProfile = () => {
               </tbody>
             </table>
           </div>
-          
+
           <div className="p-4 px-6 bg-zinc-50/50 border-t border-zinc-150 flex items-center justify-between text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
             <span>Ledger status sync active</span>
             <span>100% Secure MERN Server Vouchers</span>
@@ -943,12 +1114,18 @@ const StudentProfile = () => {
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h5 className="text-xs font-bold text-zinc-800">Aadhaar Card</h5>
-                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">Identification Doc</span>
+                  <h5 className="text-xs font-bold text-zinc-800">
+                    Aadhaar Card
+                  </h5>
+                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">
+                    Identification Doc
+                  </span>
                 </div>
               </div>
               <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
-                <span className="text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded">Submitted</span>
+                <span className="text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded">
+                  Submitted
+                </span>
                 <span className="text-zinc-400 font-bold">Verified</span>
               </div>
             </div>
@@ -960,12 +1137,18 @@ const StudentProfile = () => {
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h5 className="text-xs font-bold text-zinc-800">Birth Certificate</h5>
-                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">DOB Verification</span>
+                  <h5 className="text-xs font-bold text-zinc-800">
+                    Birth Certificate
+                  </h5>
+                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">
+                    DOB Verification
+                  </span>
                 </div>
               </div>
               <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
-                <span className="text-zinc-450 font-extrabold bg-zinc-50 px-2 py-0.5 rounded">Not Uploaded</span>
+                <span className="text-zinc-450 font-extrabold bg-zinc-50 px-2 py-0.5 rounded">
+                  Not Uploaded
+                </span>
                 <span className="text-zinc-400 font-bold">Optional</span>
               </div>
             </div>
@@ -977,12 +1160,18 @@ const StudentProfile = () => {
                   <FileText size={18} />
                 </div>
                 <div>
-                  <h5 className="text-xs font-bold text-zinc-800">Transfer Certificate</h5>
-                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">Previous Institution</span>
+                  <h5 className="text-xs font-bold text-zinc-800">
+                    Transfer Certificate
+                  </h5>
+                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">
+                    Previous Institution
+                  </span>
                 </div>
               </div>
               <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
-                <span className="text-zinc-450 font-extrabold bg-zinc-50 px-2 py-0.5 rounded">Not Uploaded</span>
+                <span className="text-zinc-450 font-extrabold bg-zinc-50 px-2 py-0.5 rounded">
+                  Not Uploaded
+                </span>
                 <span className="text-zinc-400 font-bold">Pending</span>
               </div>
             </div>
@@ -1003,19 +1192,29 @@ const StudentProfile = () => {
               timelineEvents.map((evt, idx) => (
                 <div key={idx} className="relative">
                   {/* Timeline indicator node */}
-                  <div className={cn(
-                    "absolute -left-[29px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ring-4 ring-white z-10",
-                    evt.color
-                  )} />
+                  <div
+                    className={cn(
+                      "absolute -left-[29px] top-1 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ring-4 ring-white z-10",
+                      evt.color,
+                    )}
+                  />
 
                   <div className="space-y-1">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                      <h5 className="text-xs font-bold text-zinc-800">{evt.title}</h5>
+                      <h5 className="text-xs font-bold text-zinc-800">
+                        {evt.title}
+                      </h5>
                       <span className="text-[9px] font-extrabold text-zinc-400 uppercase tracking-wider">
-                        {evt.date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {evt.date.toLocaleDateString(undefined, {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </span>
                     </div>
-                    <p className="text-[11px] text-zinc-500 leading-normal">{evt.description}</p>
+                    <p className="text-[11px] text-zinc-500 leading-normal">
+                      {evt.description}
+                    </p>
                   </div>
                 </div>
               ))
@@ -1026,7 +1225,6 @@ const StudentProfile = () => {
             )}
           </div>
         </div>
-
       </div>
 
       {/* Print styles override */}
