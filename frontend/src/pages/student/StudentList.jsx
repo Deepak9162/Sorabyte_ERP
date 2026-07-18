@@ -170,7 +170,7 @@ const StudentList = () => {
         "Address",
         "Admission Date",
         "Discount (%)",
-        "Status"
+        "Aadhaar Number"
       ];
       csvRows.push(headers.map(h => csvEscape(h)));
 
@@ -191,7 +191,7 @@ const StudentList = () => {
           student.address || "N/A",
           admDate,
           student.discountPercentage !== undefined ? `${student.discountPercentage}%` : "0%",
-          student.status || "Active"
+          student.aadhar || "N/A"
         ];
         csvRows.push(row.map(cell => csvEscape(cell)));
       });
@@ -306,7 +306,7 @@ const StudentList = () => {
         doc.text("Parents (F/M)", 90, startY + 5.5);
         doc.text("Mobile No", 122, startY + 5.5);
         doc.text("Address", 143, startY + 5.5);
-        doc.text("Status", 181, startY + 5.5);
+        doc.text("Aadhaar No", 175, startY + 5.5);
       };
 
       const drawFooter = (pageNum) => {
@@ -314,7 +314,7 @@ const StudentList = () => {
         doc.setFontSize(8);
         doc.setTextColor(168, 157, 135); // #a89d87
         doc.text(`Page ${pageNum} of ${totalPagesExp}`, 105, 287, { align: "center" });
-        doc.text("Meerut Road, Little Flower Campus, Siwan, Bihar - 841506", 12, 287);
+        doc.text("Dindayalpur, Siwan, Bihar-841506", 12, 287);
         doc.text("Confidential School Record", 198, 287, { align: "right" });
       };
 
@@ -408,14 +408,10 @@ const StudentList = () => {
 
         doc.text(addrPart1, 143, y + 4.5);
 
-        const isStudentActive = (student.status || "Active").toLowerCase() === "active";
-        if (isStudentActive) {
-          doc.setTextColor(29, 138, 67); // Emerald 600
-        } else {
-          doc.setTextColor(207, 79, 32); // Orange/Red 700
-        }
-        doc.setFont("helvetica", "bold");
-        doc.text(truncateText(student.status || "Active", 15, "bold", 8.5), 181, y + 4.5);
+        doc.setTextColor(63, 63, 70); // zinc-600
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(truncateText(student.aadhar || "N/A", 22, "normal", 8), 175, y + 4.5);
 
         // Draw Line 2
         doc.setFont("helvetica", "normal");
