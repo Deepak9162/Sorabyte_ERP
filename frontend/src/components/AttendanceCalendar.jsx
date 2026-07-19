@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getHolidays } from '../services/holidayApi';
+import { extractYearMonth, getCalendarDay } from '../utils/dateUtils';
 
 const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -18,9 +19,9 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
   const attendanceMap = useMemo(() => {
     const map = {};
     records.forEach(r => {
-      const d = new Date(r.date);
-      if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
-        map[d.getDate()] = {
+      const ym = extractYearMonth(r.date);
+      if (ym && ym.year === currentYear && (ym.month - 1) === currentMonth) {
+        map[getCalendarDay(r.date)] = {
           status: r.status,
           markedAt: r.markedAt ? new Date(r.markedAt) : null
         };

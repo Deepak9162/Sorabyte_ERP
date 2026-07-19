@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { extractYearMonth } from "../utils/dateUtils";
 import {
   ArrowLeft,
   CalendarDays,
@@ -67,13 +68,15 @@ const StaffAttendanceAnalysis = () => {
       "July", "August", "September", "October", "November", "December"
     ];
     data.records.forEach(r => {
-      const date = new Date(r.date);
-      const mName = monthNames[date.getMonth()];
-      const mKey = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, "0")}`;
+      const ym = extractYearMonth(r.date);
+      if (!ym) return;
+      const { year, month } = ym;
+      const mName = monthNames[month - 1];
+      const mKey = `${year}-${String(month - 1).padStart(2, "0")}`;
       if (!groups[mKey]) {
         groups[mKey] = {
           monthName: mName,
-          year: date.getFullYear(),
+          year: year,
           workingDays: 0,
           present: 0,
           absent: 0,

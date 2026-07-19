@@ -98,9 +98,10 @@ class FeeService {
             const monthYear = startYear + mapping.offset;
             const monthIdx = mapping.idx;
 
-            const admDate = new Date(studentAdmissionDate);
-            const admYear = admDate.getFullYear();
-            const admMonth = admDate.getMonth(); // 0-indexed
+            const { extractYearMonth } = require('../utils/dateUtils');
+            const admYm = extractYearMonth(studentAdmissionDate);
+            const admYear = admYm ? admYm.year : new Date(studentAdmissionDate).getFullYear();
+            const admMonth = admYm ? admYm.month - 1 : new Date(studentAdmissionDate).getMonth(); // 0-indexed
 
             if (monthYear < admYear || (monthYear === admYear && monthIdx < admMonth)) {
               shouldBeExempted = true;
@@ -218,9 +219,10 @@ class FeeService {
           const monthYear = startYear + mapping.offset;
           const monthIdx = mapping.idx;
  
-          const admDate = new Date(studentAdmissionDate);
-          const admYear = admDate.getFullYear();
-          const admMonth = admDate.getMonth(); // 0-indexed
+          const { extractYearMonth } = require('../utils/dateUtils');
+          const admYm = extractYearMonth(studentAdmissionDate);
+          const admYear = admYm ? admYm.year : new Date(studentAdmissionDate).getFullYear();
+          const admMonth = admYm ? admYm.month - 1 : new Date(studentAdmissionDate).getMonth(); // 0-indexed
  
           // If the month-year is BEFORE the student's admission month-year
           if (monthYear < admYear || (monthYear === admYear && monthIdx < admMonth)) {

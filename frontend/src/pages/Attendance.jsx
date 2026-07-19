@@ -38,6 +38,7 @@ import {
 } from "../services/holidayApi";
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
+import { getTodayDateString } from "../utils/dateUtils";
 
 // Memoized Mobile Student Attendance Card
 const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus, isHoliday }) => {
@@ -301,21 +302,12 @@ const Attendance = () => {
   });
   const [loading, setLoading] = useState(false);
 
-  // Helper to get local date string in YYYY-MM-DD format
-  const getLocalDateString = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
   // Filter states
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState(() => {
     return localStorage.getItem("attendance_selected_class") || "";
   });
-  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
+  const [selectedDate, setSelectedDate] = useState(getTodayDateString());
 
   useEffect(() => {
     localStorage.setItem("attendance_active_tab", activeTab);

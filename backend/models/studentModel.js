@@ -202,7 +202,9 @@ studentSchema.pre('save', async function () {
         { new: true, upsert: true }
       );
 
-      const year = new Date().getFullYear();
+      const { extractYearMonth } = require('../utils/dateUtils');
+      const ym = extractYearMonth(new Date());
+      const year = ym ? ym.year : new Date().getFullYear();
       const sequence = counter.seq.toString().padStart(4, '0');
       this.studentId = `STU-${year}-${sequence}`;
     } catch (err) {

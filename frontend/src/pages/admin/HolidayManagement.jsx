@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { getHolidays, createHoliday, updateHoliday, deleteHoliday } from '../../services/holidayApi';
+import { formatDateString } from '../../utils/dateUtils';
 
 const HolidayManagement = () => {
   const [holidays, setHolidays] = useState([]);
@@ -52,8 +53,8 @@ const HolidayManagement = () => {
         name: holiday.name,
         type: holiday.type,
         description: holiday.description || '',
-        startDate: new Date(holiday.startDate).toISOString().split('T')[0],
-        endDate: new Date(holiday.endDate).toISOString().split('T')[0],
+        startDate: formatDateString(holiday.startDate),
+        endDate: formatDateString(holiday.endDate),
         applicableTo: holiday.applicableTo,
         status: holiday.status
       });
@@ -142,7 +143,7 @@ const HolidayManagement = () => {
     // Days
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatDateString(date);
       const isSunday = date.getDay() === 0;
 
       // Find holidays for this day

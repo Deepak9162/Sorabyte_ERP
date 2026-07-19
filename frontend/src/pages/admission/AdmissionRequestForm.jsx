@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { getTodayDateString } from "../../utils/dateUtils";
 import {
   User,
   GraduationCap,
@@ -57,7 +58,7 @@ const AdmissionRequestForm = () => {
     session: "2026-2027",
     status: "Active",
     transportMode: "Private",
-    admissionDate: new Date().toISOString().split("T")[0],
+    admissionDate: getTodayDateString(),
     discountPercentage: 0,
     previousSchool: "",
    
@@ -128,7 +129,7 @@ const AdmissionRequestForm = () => {
         session: "2026-2027",
         status: "Active",
         transportMode: duplicateData.transport?.busRequired ? "School Bus" : "Private",
-        admissionDate: new Date().toISOString().split("T")[0],
+        admissionDate: getTodayDateString(),
         discountPercentage: 0,
         previousSchool: duplicateData.studentInfo?.previousSchool || "",
       
@@ -164,7 +165,7 @@ const AdmissionRequestForm = () => {
             // Parse remarks or comment info if possible, else default
             let sessVal = "2026-2027";
             let discVal = 0;
-            let dateVal = new Date().toISOString().split("T")[0];
+            let dateVal = getTodayDateString();
             
             if (data.additionalNotes?.remarks) {
               const rem = data.additionalNotes.remarks;

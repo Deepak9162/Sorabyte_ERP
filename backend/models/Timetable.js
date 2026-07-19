@@ -72,7 +72,11 @@ const timetableSchema = new mongoose.Schema(
     academicYear: {
       type: String,
       required: true,
-      default: () => new Date().getFullYear().toString(),
+      default: () => {
+        const { extractYearMonth } = require('../utils/dateUtils');
+        const ym = extractYearMonth(new Date());
+        return (ym ? ym.year : new Date().getFullYear()).toString();
+      },
     },
     semester: {
       type: String,

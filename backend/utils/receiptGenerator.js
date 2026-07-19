@@ -12,7 +12,9 @@ const Counter = require('../models/Counter');
  * @returns {Promise<string>} The formatted receipt number
  */
 const generateReceiptNumber = async () => {
-  const currentYear = new Date().getFullYear();
+  const { extractYearMonth } = require('./dateUtils');
+  const ym = extractYearMonth(new Date());
+  const currentYear = ym ? ym.year : new Date().getFullYear();
   const counterName = `receipt_${currentYear}`;
 
   // Atomically increment the counter for the current year

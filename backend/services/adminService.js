@@ -126,8 +126,9 @@ class AdminService {
       }
     });
 
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+    const { getStartOfMonth, getEndOfMonth } = require('../utils/dateUtils');
+    const startOfMonth = getStartOfMonth(currentDate);
+    const endOfMonth = getEndOfMonth(currentDate);
 
     const collectedThisMonthStats = await FeeTransaction.aggregate([
       { 
@@ -351,9 +352,10 @@ class AdminService {
 
     const allRecords = await Attendance.find({ student: studentId }).sort({ date: 1, updatedAt: 1 });
     
+    const { formatDateString } = require('../utils/dateUtils');
     const uniqueRecordsMap = new Map();
     allRecords.forEach(r => {
-      const dateKey = new Date(r.date).toISOString().split('T')[0];
+      const dateKey = formatDateString(r.date);
       uniqueRecordsMap.set(dateKey, r);
     });
     
@@ -457,8 +459,9 @@ class AdminService {
     let advanceCollections = 0;
 
     // Get payments for these class students recorded in the current calendar month
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+    const { getStartOfMonth, getEndOfMonth } = require('../utils/dateUtils');
+    const startOfMonth = getStartOfMonth(currentDate);
+    const endOfMonth = getEndOfMonth(currentDate);
 
     const FeeTransaction = require('../models/FeeTransaction');
     const classPaymentsThisMonth = await FeeTransaction.aggregate([

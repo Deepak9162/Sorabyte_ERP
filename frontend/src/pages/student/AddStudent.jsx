@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import { getTodayDateString } from "../../utils/dateUtils";
 import {
   ArrowLeft,
   ChevronRight,
@@ -82,7 +83,7 @@ const AddStudent = () => {
       motherName: "",
       emergencyContact: "",
       address: "",
-      admissionDate: new Date().toISOString().split("T")[0],
+      admissionDate: getTodayDateString(),
       discountPercentage: 0,
       previousSchool: "",
     },
@@ -174,7 +175,7 @@ const AddStudent = () => {
             motherName: student.motherName || "",
             emergencyContact: student.emergencyContact || "",
             address: student.address || "",
-            admissionDate: student.admissionDate ? student.admissionDate.split("T")[0] : new Date().toISOString().split("T")[0],
+            admissionDate: student.admissionDate ? student.admissionDate.split("T")[0] : getTodayDateString(),
             discountPercentage: student.discountPercentage || 0,
             previousSchool: student.previousSchool || "",
           });

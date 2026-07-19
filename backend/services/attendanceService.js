@@ -523,11 +523,12 @@ class AttendanceService {
 
     const allRecords = await StaffAttendance.find({ teacher: teacherId }).sort({ date: 1, updatedAt: 1 });
     
+    const { formatDateString } = require('../utils/dateUtils');
     const uniqueRecordsMap = new Map();
     const holidayService = require('./holidayService');
     for (const r of allRecords) {
       if (await holidayService.isWorkingDay(r.date, 'Teachers')) {
-        const dateKey = new Date(r.date).toISOString().split('T')[0];
+        const dateKey = formatDateString(r.date);
         uniqueRecordsMap.set(dateKey, r);
       }
     }
@@ -584,20 +585,21 @@ class AttendanceService {
     const teachers = await Teacher.find({ isActive: true }).sort({ firstName: 1 });
     const allRecords = await StaffAttendance.find({}).sort({ date: 1, updatedAt: 1 });
     
+    const { formatDateString } = require('../utils/dateUtils');
     const uniqueRecordsMap = new Map();
     const holidayService = require('./holidayService');
     
     for (const r of allRecords) {
       if (r.teacher) {
         if (await holidayService.isWorkingDay(r.date, 'Teachers')) {
-          const dateStr = new Date(r.date).toISOString().split('T')[0];
+          const dateStr = formatDateString(r.date);
           const key = `${r.teacher.toString()}_${dateStr}`;
           uniqueRecordsMap.set(key, r);
         }
       }
     }
     const records = Array.from(uniqueRecordsMap.values());
-    const uniqueDates = new Set(records.map(r => new Date(r.date).toISOString().split('T')[0]));
+    const uniqueDates = new Set(records.map(r => formatDateString(r.date)));
 
     const summary = teachers.map(teacher => {
       const teacherRecords = records.filter(r => r.teacher.toString() === teacher._id.toString());

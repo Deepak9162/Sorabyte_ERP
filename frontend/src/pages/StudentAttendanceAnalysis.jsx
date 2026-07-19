@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { formatDateString, extractYearMonth } from "../utils/dateUtils";
 import {
   ArrowLeft,
   GraduationCap,
@@ -139,12 +140,8 @@ const StudentAttendanceAnalysis = () => {
   const attendanceMap = {};
   if (data && data.records) {
     data.records.forEach((record) => {
-      const d = new Date(record.date);
-      const yearStr = d.getFullYear();
-      const monthStr = String(d.getMonth() + 1).padStart(2, "0");
-      const dateStr = String(d.getDate()).padStart(2, "0");
-      const key = `${yearStr}-${monthStr}-${dateStr}`;
-      attendanceMap[key] = record;
+      const key = formatDateString(record.date);
+      if (key) attendanceMap[key] = record;
     });
   }
 
@@ -577,12 +574,14 @@ const StudentAttendanceAnalysis = () => {
               const days = getMonthDaysList(selectedYear, monthIndex);
               
               // Calculate monthly stats
-              const yearRecords = (data.records || []).filter(
-                (r) => new Date(r.date).getFullYear() === selectedYear
-              );
-              const monthlyRecords = yearRecords.filter(
-                (r) => new Date(r.date).getMonth() === monthIndex
-              );
+              const yearRecords = (data.records || []).filter((r) => {
+                const ym = extractYearMonth(r.date);
+                return ym && ym.year === selectedYear;
+              });
+              const monthlyRecords = yearRecords.filter((r) => {
+                const ym = extractYearMonth(r.date);
+                return ym && (ym.month - 1) === monthIndex;
+              });
               const monthlyPresent = monthlyRecords.filter(
                 (r) => r.status === "Present"
               ).length;

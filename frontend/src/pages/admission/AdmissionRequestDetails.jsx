@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { formatDateString } from "../../utils/dateUtils";
 import {
   ArrowLeft,
   Check,
@@ -131,7 +132,7 @@ const AdmissionRequestDetails = () => {
     })();
     const admissionDate = (() => {
       const m = request.additionalNotes?.remarks?.match(/Admission Date:\s*([^\s|]+)/);
-      return m ? m[1] : new Date(request.createdAt).toISOString().split("T")[0];
+      return m ? m[1] : formatDateString(request.createdAt);
     })();
     const photoUrl = request.studentInfo?.studentPhoto
       ? `${apiHost}${request.studentInfo.studentPhoto}`
@@ -806,7 +807,7 @@ const AdmissionRequestDetails = () => {
                     );
                     return match
                       ? match[1]
-                      : new Date(request.createdAt).toISOString().split("T")[0];
+                      : formatDateString(request.createdAt);
                   })()}
                 </p>
               </div>

@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import AttendanceCalendar from '../../components/AttendanceCalendar';
 import { getHolidays } from '../../services/holidayApi';
+import { isSameDay } from '../../utils/dateUtils';
 
 const MyAttendance = () => {
   const [data, setData] = useState(null);
@@ -80,12 +81,7 @@ const MyAttendance = () => {
     
     const now = new Date();
     const recordsToUse = getCalendarRecords();
-    const todayRecord = recordsToUse.find(r => {
-      const recordDate = new Date(r.date);
-      return recordDate.getFullYear() === now.getFullYear() && 
-             recordDate.getMonth() === now.getMonth() && 
-             recordDate.getDate() === now.getDate();
-    });
+    const todayRecord = recordsToUse.find(r => isSameDay(r.date, now));
 
     if (todayRecord) {
       const colorClass = todayRecord.status === 'Present' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
@@ -140,12 +136,7 @@ const MyAttendance = () => {
     const records = [...data.records];
     
     const now = new Date();
-    const todayRecord = records.find(r => {
-      const recordDate = new Date(r.date);
-      return recordDate.getFullYear() === now.getFullYear() && 
-             recordDate.getMonth() === now.getMonth() && 
-             recordDate.getDate() === now.getDate();
-    });
+    const todayRecord = records.find(r => isSameDay(r.date, now));
 
     // Determine current month range being viewed to inject Sundays/Holidays
     // MyAttendance is mostly showing the current month
@@ -170,10 +161,7 @@ const MyAttendance = () => {
 
       if (isSunday || isHoliday) {
         // Remove existing record for this day if any (e.g. Leave marked by mistake)
-        const existingIdx = records.findIndex(r => {
-          const d = new Date(r.date);
-          return d.getFullYear() === year && d.getMonth() === month && d.getDate() === i;
-        });
+        const existingIdx = records.findIndex(r => isSameDay(r.date, currDate));
         if (existingIdx !== -1) {
           records.splice(existingIdx, 1);
         }
@@ -188,13 +176,7 @@ const MyAttendance = () => {
     }
 
     // If it's past 12 PM and no record exists for today (and today is NOT a holiday/Sunday), visually inject an "Absent" record for today
-    const isTodayHolidayOrSunday = records.find(r => {
-      const d = new Date(r.date);
-      return d.getFullYear() === now.getFullYear() && 
-             d.getMonth() === now.getMonth() && 
-             d.getDate() === now.getDate() && 
-             r.status === 'Holiday';
-    });
+    const isTodayHolidayOrSunday = records.find(r => isSameDay(r.date, now) && r.status === 'Holiday');
     if (!todayRecord && !isTodayHolidayOrSunday && now.getHours() >= 12) {
       const autoAbsentDate = new Date();
       autoAbsentDate.setHours(12, 0, 0, 0); // Simulate it was marked at 12:00 PM
