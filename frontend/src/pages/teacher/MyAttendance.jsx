@@ -155,7 +155,6 @@ const MyAttendance = () => {
 
     for (let i = 1; i <= daysInMonth; i++) {
       const currDate = new Date(year, month, i);
-      const dateStr = currDate.toISOString().split('T')[0];
 
       // Check if it's a Sunday
       const isSunday = currDate.getDay() === 0;
@@ -171,7 +170,10 @@ const MyAttendance = () => {
 
       if (isSunday || isHoliday) {
         // Remove existing record for this day if any (e.g. Leave marked by mistake)
-        const existingIdx = records.findIndex(r => r.date.split('T')[0] === dateStr);
+        const existingIdx = records.findIndex(r => {
+          const d = new Date(r.date);
+          return d.getFullYear() === year && d.getMonth() === month && d.getDate() === i;
+        });
         if (existingIdx !== -1) {
           records.splice(existingIdx, 1);
         }
@@ -186,7 +188,13 @@ const MyAttendance = () => {
     }
 
     // If it's past 12 PM and no record exists for today (and today is NOT a holiday/Sunday), visually inject an "Absent" record for today
-    const isTodayHolidayOrSunday = records.find(r => r.date.split('T')[0] === now.toISOString().split('T')[0] && r.status === 'Holiday');
+    const isTodayHolidayOrSunday = records.find(r => {
+      const d = new Date(r.date);
+      return d.getFullYear() === now.getFullYear() && 
+             d.getMonth() === now.getMonth() && 
+             d.getDate() === now.getDate() && 
+             r.status === 'Holiday';
+    });
     if (!todayRecord && !isTodayHolidayOrSunday && now.getHours() >= 12) {
       const autoAbsentDate = new Date();
       autoAbsentDate.setHours(12, 0, 0, 0); // Simulate it was marked at 12:00 PM
