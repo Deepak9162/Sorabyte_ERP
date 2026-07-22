@@ -794,269 +794,397 @@ const Attendance = () => {
   // ─────────────────────────────────────────────────────────
   // EXPORT TO PDF — shared renderer
   // ─────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────
+  // EXPORT TO PDF — shared renderer
+  // ─────────────────────────────────────────────────────────
   const buildAttendancePDF = (rows, type) => {
-    // rows: [{ name, subInfo, attendance: { 1: 'Present', ... }, p, a, l, t }]
+    // Landscape A4 Page Dimensions (in mm)
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
+    const pageW = doc.internal.pageSize.getWidth();  // 297mm
+    const pageH = doc.internal.pageSize.getHeight(); // 210mm
     const margin = 10;
 
     const totalDays = getDaysInMonth(selectedMonth, selectedYear);
+    const className = classes.find((c) => c._id === selectedClass)?.name || "Class";
+    const reportGroupLabel = type === "student" ? "STUDENT ATTENDANCE REPORT" : "STAFF ATTENDANCE REPORT";
+    const monthYearLabel = `${monthLabel.toUpperCase()} ${selectedYear}`;
 
-    // ── Header background ──
-    doc.setFillColor(30, 64, 175); // indigo-800
-    doc.rect(0, 0, pageW, 38, "F");
-
-    // School name
-    doc.setFont("times", "bold");
-    doc.setFontSize(18);
-    doc.setTextColor(255, 255, 255);
-    doc.text(SCHOOL_NAME.toUpperCase(), pageW / 2, 13, { align: "center" });
-
-    // Address
-    doc.setFont("times", "italic");
-    doc.setFontSize(9);
-    doc.setTextColor(199, 210, 254); // indigo-200
-    doc.text(SCHOOL_ADDRESS + "  •  " + SCHOOL_TAGLINE, pageW / 2, 20, { align: "center" });
-
-    // Report title strip
-    doc.setFillColor(224, 231, 255); // indigo-100
-    doc.rect(0, 38, pageW, 12, "F");
-    doc.setFont("times", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(30, 64, 175); // indigo-800
-    const reportTitle = type === "student"
-      ? `STUDENT ATTENDANCE REPORT  •  ${monthLabel.toUpperCase()} ${selectedYear}`
-      : `STAFF ATTENDANCE REPORT  •  ${monthLabel.toUpperCase()} ${selectedYear}`;
-    doc.text(reportTitle, pageW / 2, 46, { align: "center" });
-
-    // Class info (for student)
-    const className = classes.find((c) => c._id === selectedClass)?.name;
-    if (type === "student" && className) {
-      doc.setFont("times", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Class: ${className}  |  Total Students: ${rows.length}  |  Days in Month: ${totalDays}`, pageW / 2, 53, { align: "center" });
-    } else if (type === "staff") {
-      doc.setFont("times", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Total Staff: ${rows.length}  |  Days in Month: ${totalDays}`, pageW / 2, 53, { align: "center" });
+    // Calculate Working Days & Holidays for current month
+    let holidayCountInMonth = 0;
+    for (let d = 1; d <= totalDays; d++) {
+      if (isDayHoliday(d, selectedMonth, selectedYear, type === "student" ? "Students" : "Teachers")) {
+        holidayCountInMonth++;
+      }
     }
+    const workingDaysInMonth = totalDays - holidayCountInMonth;
 
-    // ── Table setup ──
-    const tableTop = 58;
-    const nameColW = 44;       // name column
-    const rollColW = 28;       // roll number column (student) / subject (staff) — wider for long names
-    const statColW = 9;        // max width for each day column
-    const summaryColW = 11;    // P, A, L, T summary cols
-    const rowH = 9;            // row height (single-line name now)
-    const headerH = 12;        // header row height
+    // Helper: Header Renderer (First Page)
+    const drawPageHeader = () => {
+      // 1. Top Primary Navy Banner
+      doc.setFillColor(15, 23, 42); // slate-900 / navy
+      doc.rect(0, 0, pageW, 26, "F");
 
-    // Available width for date columns
+      // Orange Accent Strip
+      doc.setFillColor(234, 88, 12); // orange-600
+      doc.rect(0, 26, pageW, 1.5, "F");
+
+      // School Name
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(255, 255, 255);
+      doc.text(SCHOOL_NAME.toUpperCase(), margin, 12);
+
+      // School Address & Subtitle
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text(`${SCHOOL_ADDRESS}  •  ${SCHOOL_TAGLINE}`, margin, 18);
+
+      // Top Right: ERP System Label
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(251, 146, 60); // orange-400
+      doc.text("OFFICIAL ERP ATTENDANCE RECORD", pageW - margin, 14, { align: "right" });
+
+      // 2. Report Sub-Header Bar (y = 30 to 42)
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.rect(margin, 30, pageW - margin * 2, 12, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.rect(margin, 30, pageW - margin * 2, 12);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text(reportGroupLabel, margin + 4, 38);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(30, 64, 175); // indigo-800
+      doc.text(monthYearLabel, pageW - margin - 4, 38, { align: "right" });
+
+      // 3. Info Summary Cards (y = 45 to 58)
+      const summaryBoxY = 45;
+      const summaryBoxH = 13;
+      const summaryBoxW = (pageW - margin * 2) / (type === "student" ? 5 : 4);
+
+      const items = type === "student" ? [
+        { label: "TOTAL STUDENTS", val: String(rows.length) },
+        { label: "CLASS", val: className },
+        { label: "WORKING DAYS", val: `${workingDaysInMonth} Days` },
+        { label: "HOLIDAYS / OFF", val: `${holidayCountInMonth} Days` },
+        { label: "TOTAL DAYS", val: `${totalDays} Days` },
+      ] : [
+        { label: "TOTAL STAFF", val: String(rows.length) },
+        { label: "WORKING DAYS", val: `${workingDaysInMonth} Days` },
+        { label: "HOLIDAYS / OFF", val: `${holidayCountInMonth} Days` },
+        { label: "TOTAL DAYS", val: `${totalDays} Days` },
+      ];
+
+      items.forEach((box, idx) => {
+        const bx = margin + idx * summaryBoxW;
+        doc.setFillColor(255, 255, 255);
+        doc.rect(bx, summaryBoxY, summaryBoxW - 2, summaryBoxH, "F");
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(bx, summaryBoxY, summaryBoxW - 2, summaryBoxH);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text(box.label, bx + (summaryBoxW - 2) / 2, summaryBoxY + 4.5, { align: "center" });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(15, 23, 42); // slate-900
+        doc.text(box.val, bx + (summaryBoxW - 2) / 2, summaryBoxY + 10, { align: "center" });
+      });
+
+      // 4. Legend Strip (y = 60 to 66)
+      const legendY = 60;
+      doc.setFillColor(241, 245, 249); // slate-100
+      doc.rect(margin, legendY, pageW - margin * 2, 6.5, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, legendY, pageW - margin * 2, 6.5);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.setTextColor(71, 85, 105);
+      const legendItems = [
+        { char: "P", name: "Present", color: [4, 120, 87] },
+        { char: "A", name: "Absent", color: [220, 38, 38] },
+        { char: "L", name: "Leave", color: [180, 83, 9] },
+        { char: "T", name: "Late", color: [109, 40, 217] },
+        { char: "H", name: "Holiday", color: [2, 132, 199] },
+        { char: "-", name: "No Record", color: [148, 163, 184] },
+      ];
+
+      let lx = margin + 4;
+      doc.setFont("helvetica", "bold");
+      doc.text("ATTENDANCE LEGEND:", lx, legendY + 4.5);
+      lx += 32;
+
+      legendItems.forEach((lg) => {
+        doc.setTextColor(...lg.color);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${lg.char}`, lx, legendY + 4.5);
+        doc.setTextColor(71, 85, 105);
+        doc.setFont("helvetica", "normal");
+        doc.text(`= ${lg.name}`, lx + 3.5, legendY + 4.5);
+        lx += 24;
+      });
+    };
+
+    // Calculate Table Width & Column Widths
+    const tableTop = 69;
+    const nameColW = 45;       // Name Column Width
+    const rollColW = 28;       // Roll / Subject Column Width
+    const summaryColW = 10;    // P, A, L, T Summary Columns
+    const rowH = 8.5;          // Row Height
+    const headerH = 11;        // Table Header Height
+
+    // Dynamic Day Column Width (fit precisely into 277mm available page width)
     const availW = pageW - margin * 2 - nameColW - rollColW - summaryColW * 4;
-    const dayColW = Math.min(statColW, availW / totalDays);
+    const dayColW = availW / totalDays;
     const summaryX = margin + nameColW + rollColW + totalDays * dayColW;
 
-    // ─────────────────────────────────────────────────────────
-    // HELPER — draw full table column header row at position yh
-    // ─────────────────────────────────────────────────────────
+    // Helper: Table Header Row Renderer
     const drawTableHeader = (yh) => {
-      // Background
+      // Table Header Fill & Border
       doc.setFillColor(241, 245, 249); // slate-100
       doc.rect(margin, yh, pageW - margin * 2, headerH, "F");
-      doc.setDrawColor(203, 213, 225);
+      doc.setDrawColor(203, 213, 225); // slate-300
       doc.setLineWidth(0.3);
       doc.rect(margin, yh, pageW - margin * 2, headerH);
 
-      // Name header
-      doc.setFont("times", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(71, 85, 105);
-      doc.text("NAME", margin + 3, yh + 8);
-      doc.setDrawColor(203, 213, 225);
+      // Name Column Header
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(30, 41, 59);
+      doc.text(type === "student" ? "STUDENT NAME" : "STAFF NAME", margin + 3, yh + 7);
       doc.line(margin + nameColW, yh, margin + nameColW, yh + headerH);
 
-      // Roll / Subject header
-      doc.setFont("times", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(71, 85, 105);
-      doc.text(type === "student" ? "ROLL" : "SUBJECT", margin + nameColW + rollColW / 2, yh + 8, { align: "center" });
+      // Roll / Subject Column Header
+      doc.text(type === "student" ? "ROLL NO" : "SUBJECT", margin + nameColW + rollColW / 2, yh + 7, { align: "center" });
       doc.line(margin + nameColW + rollColW, yh, margin + nameColW + rollColW, yh + headerH);
 
-      // Day headers (1..totalDays)
+      // Day Column Headers (1..totalDays)
       for (let d = 1; d <= totalDays; d++) {
         const cx = margin + nameColW + rollColW + (d - 1) * dayColW;
+        const isHol = isDayHoliday(d, selectedMonth, selectedYear, type === "student" ? "Students" : "Teachers");
         const isWknd = isWeekend(d, selectedMonth, selectedYear);
         const dayN = getDayName(d, selectedMonth, selectedYear);
-        if (isWknd) {
-          doc.setFillColor(254, 243, 199);
+
+        // Highlight header cell background if Sunday/Holiday or Saturday
+        if (isHol) {
+          doc.setFillColor(224, 242, 254); // soft sky blue #E0F2FE
+          doc.rect(cx, yh, dayColW, headerH, "F");
+        } else if (isWknd) {
+          doc.setFillColor(254, 243, 199); // soft amber #FEF3C7
           doc.rect(cx, yh, dayColW, headerH, "F");
         }
-        doc.setFont("times", "bold");
-        doc.setFontSize(7);
-        doc.setTextColor(isWknd ? 180 : 71, isWknd ? 120 : 85, isWknd ? 20 : 105);
-        doc.text(String(d), cx + dayColW / 2, yh + 5.5, { align: "center" });
-        doc.setFont("times", "normal");
-        doc.setFontSize(5.5);
-        doc.text(dayN, cx + dayColW / 2, yh + 10, { align: "center" });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(isHol ? 3 : (isWknd ? 180 : 30), isHol ? 105 : (isWknd ? 83 : 41), isHol ? 161 : (isWknd ? 9 : 59));
+        doc.text(String(d), cx + dayColW / 2, yh + 5, { align: "center" });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5);
+        doc.text(dayN, cx + dayColW / 2, yh + 9, { align: "center" });
+
         doc.setDrawColor(203, 213, 225);
         doc.line(cx + dayColW, yh, cx + dayColW, yh + headerH);
       }
 
-      // Summary headers P / A / L / T
-      const summaryLabels = ["P", "A", "L", "T"];
-      const summaryColors = [[6, 95, 70], [159, 18, 57], [120, 80, 0], [49, 46, 129]];
-      summaryLabels.forEach((lbl, i) => {
+      // Summary Header Cells: P / A / L / T
+      const summaryConfigs = [
+        { lbl: "P", bg: [4, 120, 87] },   // Green
+        { lbl: "A", bg: [220, 38, 38] },  // Red
+        { lbl: "L", bg: [180, 83, 9] },   // Amber
+        { lbl: "T", bg: [109, 40, 217] }, // Purple
+      ];
+
+      summaryConfigs.forEach((sc, i) => {
         const sx = summaryX + i * summaryColW;
-        doc.setFillColor(...summaryColors[i]);
+        doc.setFillColor(...sc.bg);
         doc.rect(sx, yh, summaryColW, headerH, "F");
-        doc.setFont("times", "bold");
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
         doc.setTextColor(255, 255, 255);
-        doc.text(lbl, sx + summaryColW / 2, yh + 8, { align: "center" });
+        doc.text(sc.lbl, sx + summaryColW / 2, yh + 7, { align: "center" });
+        if (i < 3) {
+          doc.setDrawColor(255, 255, 255);
+          doc.line(sx + summaryColW, yh, sx + summaryColW, yh + headerH);
+        }
       });
     };
 
-    // Draw the first-page table header
+    // Draw First Page Header & Table Column Headers
+    drawPageHeader();
     let y = tableTop;
     drawTableHeader(y);
     y += headerH;
 
-    // ── Data rows ──
+    // Render Data Rows
     rows.forEach((row, rowIdx) => {
       const isEven = rowIdx % 2 === 0;
-      // Row background
+
+      // Alternating row background
       if (isEven) {
         doc.setFillColor(248, 250, 252); // slate-50
         doc.rect(margin, y, pageW - margin * 2, rowH, "F");
       }
 
-      // ─ Name cell ─
-      doc.setFont("times", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(15, 23, 42);
-      // Clip name to column width so it never overflows
-      const nameStr = doc.splitTextToSize((row.name || ""), nameColW - 5)[0];
-      doc.text(nameStr, margin + 3, y + rowH / 2 + 2.5);
+      // 1. Name Cell
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42); // slate-900
+      const nameStr = doc.splitTextToSize((row.name || ""), nameColW - 4)[0];
+      doc.text(nameStr, margin + 3, y + rowH / 2 + 2);
       doc.setDrawColor(226, 232, 240);
       doc.line(margin + nameColW, y, margin + nameColW, y + rowH);
 
-      // ─ Roll / Subject cell ─
+      // 2. Roll / Subject Cell
       const rollX = margin + nameColW;
-      doc.setFont("times", "italic");
-      doc.setFontSize(7.5);
-      doc.setTextColor(71, 85, 105);
-      // Clip subject/roll to column width — prevents overflow for long subjects
-      const subStr = doc.splitTextToSize((row.subInfo || "-").toString(), rollColW - 4)[0];
-      doc.text(subStr, rollX + rollColW / 2, y + rowH / 2 + 2.5, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(71, 85, 105); // slate-600
+      const subStr = doc.splitTextToSize((row.subInfo || "-").toString(), rollColW - 3)[0];
+      doc.text(subStr, rollX + rollColW / 2, y + rowH / 2 + 2, { align: "center" });
       doc.line(rollX + rollColW, y, rollX + rollColW, y + rowH);
 
-      // Row bottom line
+      // Bottom Row Border
       doc.line(margin, y + rowH, margin + pageW - margin * 2, y + rowH);
 
-      // ─ Day cells ─
+      // 3. Day Status Cells (1..totalDays)
       for (let d = 1; d <= totalDays; d++) {
         const cx = margin + nameColW + rollColW + (d - 1) * dayColW;
         const statusRaw = row.attendance[d];
-        const char = getStatusChar(statusRaw);
+        const isHol = isDayHoliday(d, selectedMonth, selectedYear, type === "student" ? "Students" : "Teachers");
         const isWknd = isWeekend(d, selectedMonth, selectedYear);
+        const char = getStatusChar(statusRaw);
 
-        if (isWknd && !statusRaw) {
-          doc.setFillColor(254, 249, 231);
+        // Fill background based on status
+        if (isHol) {
+          doc.setFillColor(240, 249, 255); // soft blue #F0F9FF
           doc.rect(cx, y, dayColW, rowH, "F");
-        }
-
-        if (statusRaw) {
+          doc.setTextColor(2, 132, 199);  // dark blue #0284C7
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.5);
+          doc.text("H", cx + dayColW / 2, y + rowH / 2 + 2, { align: "center" });
+        } else if (statusRaw) {
           const lc = statusRaw.toLowerCase();
-          if (lc === "present")      doc.setFillColor(236, 253, 245);
-          else if (lc === "absent")  doc.setFillColor(255, 241, 242);
-          else if (lc === "leave")   doc.setFillColor(255, 251, 235);
-          else if (lc === "late")    doc.setFillColor(238, 242, 255);
-          doc.rect(cx, y, dayColW, rowH, "F");
+          if (lc === "present") {
+            doc.setFillColor(236, 253, 245); // green #ECFDF5
+            doc.rect(cx, y, dayColW, rowH, "F");
+            doc.setTextColor(4, 120, 87);    // dark green #047857
+          } else if (lc === "absent") {
+            doc.setFillColor(254, 242, 242); // red #FEF2F2
+            doc.rect(cx, y, dayColW, rowH, "F");
+            doc.setTextColor(220, 38, 38);   // dark red #DC2626
+          } else if (lc === "leave") {
+            doc.setFillColor(255, 251, 235); // amber #FFFBEB
+            doc.rect(cx, y, dayColW, rowH, "F");
+            doc.setTextColor(180, 83, 9);    // dark amber #B45309
+          } else if (lc === "late") {
+            doc.setFillColor(245, 243, 255); // purple #F5F3FF
+            doc.rect(cx, y, dayColW, rowH, "F");
+            doc.setTextColor(109, 40, 217);  // dark purple #6D28D9
+          } else if (lc === "holiday") {
+            doc.setFillColor(240, 249, 255); // blue #F0F9FF
+            doc.rect(cx, y, dayColW, rowH, "F");
+            doc.setTextColor(2, 132, 199);
+          }
 
-          if (lc === "present")      doc.setTextColor(5, 122, 85);
-          else if (lc === "absent")  doc.setTextColor(190, 18, 60);
-          else if (lc === "leave")   doc.setTextColor(146, 64, 14);
-          else if (lc === "late")    doc.setTextColor(67, 56, 202);
-          doc.setFont("times", "bold");
-          doc.setFontSize(8);
-          doc.text(char, cx + dayColW / 2, y + rowH / 2 + 2.5, { align: "center" });
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.5);
+          doc.text(char, cx + dayColW / 2, y + rowH / 2 + 2, { align: "center" });
         } else {
-          doc.setFont("times", "normal");
-          doc.setFontSize(7);
-          doc.setTextColor(203, 213, 225);
-          doc.text("-", cx + dayColW / 2, y + rowH / 2 + 2.5, { align: "center" });
+          if (isWknd) {
+            doc.setFillColor(254, 252, 232); // light amber #FEFCE8
+            doc.rect(cx, y, dayColW, rowH, "F");
+          }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6.5);
+          doc.setTextColor(203, 213, 225); // slate-300
+          doc.text("-", cx + dayColW / 2, y + rowH / 2 + 2, { align: "center" });
         }
+
         doc.setDrawColor(226, 232, 240);
         doc.line(cx + dayColW, y, cx + dayColW, y + rowH);
       }
 
-      // ─ Summary cells P/A/L/T ─
+      // 4. Summary Cells: P / A / L / T
       const summaryVals = [row.p, row.a, row.l, row.t];
-      const summaryTextColors = [[5, 122, 85], [190, 18, 60], [146, 64, 14], [67, 56, 202]];
+      const summaryColors = [[4, 120, 87], [220, 38, 38], [180, 83, 9], [109, 40, 217]];
+
       summaryVals.forEach((val, i) => {
         const sx = summaryX + i * summaryColW;
-        doc.setFont("times", "bold");
-        doc.setFontSize(8);
-        doc.setTextColor(...summaryTextColors[i]);
-        doc.text(String(val ?? 0), sx + summaryColW / 2, y + rowH / 2 + 2.5, { align: "center" });
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...summaryColors[i]);
+        doc.text(String(val ?? 0), sx + summaryColW / 2, y + rowH / 2 + 2, { align: "center" });
+        doc.setDrawColor(226, 232, 240);
+        doc.line(sx + summaryColW, y, sx + summaryColW, y + rowH);
       });
 
       y += rowH;
 
-      // ── Page break: full header repeated on new page ──
+      // 5. Page Break Continuation
       if (y > pageH - 22) {
         doc.addPage();
 
-        // Compact indigo banner on continuation pages
-        doc.setFillColor(30, 64, 175);
-        doc.rect(0, 0, pageW, 18, "F");
-        doc.setFont("times", "bold");
-        doc.setFontSize(12);
+        // Continuation Header Banner
+        doc.setFillColor(15, 23, 42); // navy
+        doc.rect(0, 0, pageW, 16, "F");
+        doc.setFillColor(234, 88, 12); // orange accent
+        doc.rect(0, 16, pageW, 1, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
         doc.setTextColor(255, 255, 255);
-        doc.text(SCHOOL_NAME.toUpperCase(), pageW / 2, 10, { align: "center" });
-        doc.setFont("times", "italic");
-        doc.setFontSize(7);
-        doc.setTextColor(199, 210, 254);
-        doc.text(`${reportTitle}  •  (continued)`, pageW / 2, 16, { align: "center" });
+        doc.text(`${SCHOOL_NAME.toUpperCase()}  •  ${reportGroupLabel}`, margin, 10);
 
-        // Report info strip
-        doc.setFillColor(224, 231, 255);
-        doc.rect(0, 18, pageW, 8, "F");
-        doc.setFont("times", "normal");
-        doc.setFontSize(7.5);
-        doc.setTextColor(30, 64, 175);
-        const infoText = type === "student" && className
-          ? `Class: ${className}  |  ${monthLabel} ${selectedYear}  |  Total Students: ${rows.length}`
-          : `${monthLabel} ${selectedYear}  |  Total Staff: ${rows.length}`;
-        doc.text(infoText, pageW / 2, 24, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(251, 146, 60);
+        doc.text(`${monthYearLabel}  (CONTINUED)`, pageW - margin, 10, { align: "right" });
 
-        // Full column header
-        y = 28;
+        // Redraw Table Column Header
+        y = 20;
         drawTableHeader(y);
         y += headerH;
       }
     });
 
-    // ── Footer ──
-    const footerY = pageH - 8;
-    doc.setFont("times", "italic");
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184);
-    const generatedAt = new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-    doc.text(`Generated: ${generatedAt}  •  ${SCHOOL_NAME} ERP System`, margin, footerY);
-    const legend = "Legend:  P = Present    A = Absent    L = Leave    T = Late / Tardy    - = No Record";
-    doc.text(legend, pageW - margin, footerY, { align: "right" });
-
-    // Page number
+    // Page Footer (Rendered across all pages)
     const totalPages = doc.internal.getNumberOfPages();
+    const generatedAt = new Date().toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
-      doc.setFont("times", "normal");
+      const footerY = pageH - 7;
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(margin, footerY - 4, pageW - margin, footerY - 4);
+
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
-      doc.setTextColor(148, 163, 184);
-      doc.text(`Page ${i} of ${totalPages}`, pageW / 2, pageH - 3, { align: "center" });
+      doc.setTextColor(100, 116, 139);
+      doc.text(`${SCHOOL_NAME} ERP System  •  Attendance Management Report`, margin, footerY);
+
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generated: ${generatedAt}`, pageW / 2, footerY, { align: "center" });
+
+      doc.setFont("helvetica", "bold");
+      doc.text(`Page ${i} of ${totalPages}`, pageW - margin, footerY, { align: "right" });
     }
 
     return doc;
