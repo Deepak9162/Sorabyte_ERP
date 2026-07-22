@@ -331,6 +331,7 @@ const getStudentProfile = async (req, res, next) => {
         dob: student.dob,
         studentPhoto: student.studentPhoto,
         bloodGroup: student.bloodGroup,
+        transportMode: student.transportMode || 'Private',
         cast: student.cast,
         aadhar: student.aadhar,
         qrCode: student.qrCode,
