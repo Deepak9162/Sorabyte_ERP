@@ -43,6 +43,7 @@ const TeacherManagement = () => {
     email: "",
     phone: "",
     subject: "",
+    qualification: "",
     assignedClasses: [],
   });
 
@@ -97,6 +98,7 @@ const TeacherManagement = () => {
         email: teacher.email,
         phone: teacher.phone,
         subject: teacher.subject,
+        qualification: teacher.qualification || "",
         assignedClasses: teacher.assignedClasses || [],
       });
     } else {
@@ -107,6 +109,7 @@ const TeacherManagement = () => {
         email: "",
         phone: "",
         subject: "",
+        qualification: "",
         assignedClasses: [],
       });
     }
@@ -392,11 +395,18 @@ const TeacherManagement = () => {
                       </div>
                     </td>
 
-                    {/* Expertise */}
+                    {/* Expertise & Qualification */}
                     <td className="px-8 py-5">
-                      <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-black uppercase tracking-wider">
-                        {t.subject}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-black uppercase tracking-wider w-fit">
+                          {t.subject}
+                        </span>
+                        {t.qualification && (
+                          <span className="text-[10px] font-bold text-gray-400">
+                            {t.qualification}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Assigned Classes */}
@@ -549,15 +559,26 @@ const TeacherManagement = () => {
               error={errors.phone}
             />
           </div>
-          <Input
-            label="Primary Subject"
-            placeholder="e.g. Mathematics"
-            value={formData.subject}
-            onChange={(e) =>
-              setFormData({ ...formData, subject: e.target.value })
-            }
-            error={errors.subject}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Primary Subject"
+              placeholder="e.g. Mathematics"
+              value={formData.subject}
+              onChange={(e) =>
+                setFormData({ ...formData, subject: e.target.value })
+              }
+              error={errors.subject}
+            />
+            <Input
+              label="Highest Qualification"
+              placeholder="e.g. B.Ed, M.Sc, M.A, Ph.D"
+              value={formData.qualification}
+              onChange={(e) =>
+                setFormData({ ...formData, qualification: e.target.value })
+              }
+              error={errors.qualification}
+            />
+          </div>
 
           <div className="space-y-3">
             <label className="text-xs font-black text-gray-400 uppercase tracking-widest">
