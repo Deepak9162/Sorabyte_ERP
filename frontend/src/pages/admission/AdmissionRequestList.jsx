@@ -14,7 +14,7 @@ import {
   Trash2,
   Send,
   FileText,
-  UserCheck
+  UserCheck,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Skeleton, { TableSkeleton } from "../../components/ui/Skeleton";
@@ -37,7 +37,7 @@ const AdmissionRequestList = () => {
     approved: 0,
     rejected: 0,
     today: 0,
-    total: 0
+    total: 0,
   });
   const [loading, setLoading] = useState(true);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -49,14 +49,30 @@ const AdmissionRequestList = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [classFilter, setClassFilter] = useState("all");
   const [sortBy, setSortBy] = useState("latest");
-  
+
   // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
   // Available classes for filters (static list matching school levels)
-  const classesList = ["Nursery", "LKG", "UKG", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th"];
+  const classesList = [
+    "Nursery",
+    "LKG",
+    "UKG",
+    "1st",
+    "2nd",
+    "3rd",
+    "4th",
+    "5th",
+    "6th",
+    "7th",
+    "8th",
+    "9th",
+    "10th",
+    "11th",
+    "12th",
+  ];
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -64,7 +80,7 @@ const AdmissionRequestList = () => {
       const params = {
         page,
         limit: 10,
-        sort: sortBy
+        sort: sortBy,
       };
 
       if (search.trim()) params.search = search;
@@ -78,7 +94,10 @@ const AdmissionRequestList = () => {
         setTotalPages(res.data.data.pagination.pages);
       }
     } catch (err) {
-      addToast(err.response?.data?.message || "Failed to fetch admission requests", "error");
+      addToast(
+        err.response?.data?.message || "Failed to fetch admission requests",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -87,26 +106,31 @@ const AdmissionRequestList = () => {
   const fetchStats = async () => {
     try {
       // Fetch all requests without pagination limit to compute stats
-      const res = await api.get("/admission-requests", { params: { limit: 10000 } });
+      const res = await api.get("/admission-requests", {
+        params: { limit: 10000 },
+      });
       if (res.data.success) {
         const allReqs = res.data.data.requests || [];
         const todayStr = new Date().toDateString();
-        
-        const counts = allReqs.reduce((acc, req) => {
-          if (req.status === 'Submitted') acc.pending++;
-          else if (req.status === 'Under Review') acc.underReview++;
-          else if (req.status === 'Approved') acc.approved++;
-          else if (req.status === 'Rejected') acc.rejected++;
-          
-          if (new Date(req.createdAt).toDateString() === todayStr) {
-            acc.today++;
-          }
-          return acc;
-        }, { pending: 0, underReview: 0, approved: 0, rejected: 0, today: 0 });
+
+        const counts = allReqs.reduce(
+          (acc, req) => {
+            if (req.status === "Submitted") acc.pending++;
+            else if (req.status === "Under Review") acc.underReview++;
+            else if (req.status === "Approved") acc.approved++;
+            else if (req.status === "Rejected") acc.rejected++;
+
+            if (new Date(req.createdAt).toDateString() === todayStr) {
+              acc.today++;
+            }
+            return acc;
+          },
+          { pending: 0, underReview: 0, approved: 0, rejected: 0, today: 0 },
+        );
 
         setStats({
           ...counts,
-          total: allReqs.length
+          total: allReqs.length,
         });
       }
     } catch (err) {
@@ -116,7 +140,7 @@ const AdmissionRequestList = () => {
 
   useEffect(() => {
     fetchRequests();
-    if (user.role === 'admin') {
+    if (user.role === "admin") {
       fetchStats();
     }
   }, [page, statusFilter, classFilter, sortBy]);
@@ -135,14 +159,19 @@ const AdmissionRequestList = () => {
   const handleConfirmDelete = async () => {
     if (!selectedRequest) return;
     try {
-      const res = await api.delete(`/admission-requests/${selectedRequest._id}`);
+      const res = await api.delete(
+        `/admission-requests/${selectedRequest._id}`,
+      );
       if (res.data.success) {
         addToast("Admission request deleted successfully", "success");
         fetchRequests();
-        if (user.role === 'admin') fetchStats();
+        if (user.role === "admin") fetchStats();
       }
     } catch (err) {
-      addToast(err.response?.data?.message || "Failed to delete request", "error");
+      addToast(
+        err.response?.data?.message || "Failed to delete request",
+        "error",
+      );
     } finally {
       setIsDeleteOpen(false);
       setSelectedRequest(null);
@@ -157,14 +186,19 @@ const AdmissionRequestList = () => {
   const handleConfirmSubmit = async () => {
     if (!selectedRequest) return;
     try {
-      const res = await api.post(`/admission-requests/${selectedRequest._id}/submit`);
+      const res = await api.post(
+        `/admission-requests/${selectedRequest._id}/submit`,
+      );
       if (res.data.success) {
         addToast("Admission request submitted for review", "success");
         fetchRequests();
-        if (user.role === 'admin') fetchStats();
+        if (user.role === "admin") fetchStats();
       }
     } catch (err) {
-      addToast(err.response?.data?.message || "Failed to submit request", "error");
+      addToast(
+        err.response?.data?.message || "Failed to submit request",
+        "error",
+      );
     } finally {
       setIsSubmitOpen(false);
       setSelectedRequest(null);
@@ -178,24 +212,37 @@ const AdmissionRequestList = () => {
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case "Draft": return "bg-gray-100 text-gray-700 border-gray-200";
-      case "Submitted": return "bg-blue-50 text-blue-700 border-blue-100";
-      case "Under Review": return "bg-amber-50 text-amber-700 border-amber-100";
-      case "Approved": return "bg-emerald-50 text-emerald-700 border-emerald-100";
-      case "Rejected": return "bg-rose-50 text-rose-700 border-rose-100";
-      case "Cancelled": return "bg-purple-50 text-purple-700 border-purple-100";
-      default: return "bg-gray-100 text-gray-700 border-gray-200";
+      case "Draft":
+        return "bg-gray-100 text-gray-700 border-gray-200";
+      case "Submitted":
+        return "bg-blue-50 text-blue-700 border-blue-100";
+      case "Under Review":
+        return "bg-amber-50 text-amber-700 border-amber-100";
+      case "Approved":
+        return "bg-emerald-50 text-emerald-700 border-emerald-100";
+      case "Rejected":
+        return "bg-rose-50 text-rose-700 border-rose-100";
+      case "Cancelled":
+        return "bg-purple-50 text-purple-700 border-purple-100";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "Draft": return <FileText size={12} className="inline mr-1" />;
-      case "Submitted": return <Clock size={12} className="inline mr-1" />;
-      case "Under Review": return <AlertCircle size={12} className="inline mr-1 animate-pulse" />;
-      case "Approved": return <CheckCircle2 size={12} className="inline mr-1" />;
-      case "Rejected": return <XCircle size={12} className="inline mr-1" />;
-      default: return null;
+      case "Draft":
+        return <FileText size={12} className="inline mr-1" />;
+      case "Submitted":
+        return <Clock size={12} className="inline mr-1" />;
+      case "Under Review":
+        return <AlertCircle size={12} className="inline mr-1 animate-pulse" />;
+      case "Approved":
+        return <CheckCircle2 size={12} className="inline mr-1" />;
+      case "Rejected":
+        return <XCircle size={12} className="inline mr-1" />;
+      default:
+        return null;
     }
   };
 
@@ -208,10 +255,12 @@ const AdmissionRequestList = () => {
             Admission Registry
           </h2>
           <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">
-            {user.role === 'admin' ? "Manage and Enrol Students" : "Submit New Admission Requests"}
+            {user.role === "admin"
+              ? "Manage and Enrol Students"
+              : "Submit New Admission Requests"}
           </p>
         </div>
-        {user.role === 'teacher' && (
+        {user.role === "teacher" && (
           <Button
             onClick={() => navigate("/admissions/requests/new")}
             className="rounded-2xl px-5 py-3 shadow-lg shadow-indigo-100 flex items-center gap-2 hover:scale-[1.02]"
@@ -220,44 +269,83 @@ const AdmissionRequestList = () => {
             New Request
           </Button>
         )}
+        {user.role === "admin" && (
+          <Button
+            onClick={() => navigate("/admissions/requests/direct")}
+            className="rounded-2xl px-5 py-3 shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 hover:scale-[1.02]"
+          >
+            <Plus size={18} />
+            New Student Admission
+          </Button>
+        )}
       </div>
 
       {/* Admin Stat Cards */}
-      {user.role === 'admin' && (
+      {user.role === "admin" && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pending</span>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Pending
+            </span>
             <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-blue-600">{stats.pending}</span>
-              <div className="p-2.5 bg-blue-50 text-blue-500 rounded-2xl"><Clock size={20} /></div>
+              <span className="text-2xl sm:text-3xl font-black text-blue-600">
+                {stats.pending}
+              </span>
+              <div className="p-2.5 bg-blue-50 text-blue-500 rounded-2xl">
+                <Clock size={20} />
+              </div>
             </div>
           </div>
           <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Under Review</span>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Under Review
+            </span>
             <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-amber-600">{stats.underReview}</span>
-              <div className="p-2.5 bg-amber-50 text-amber-500 rounded-2xl"><AlertCircle size={20} /></div>
+              <span className="text-2xl sm:text-3xl font-black text-amber-600">
+                {stats.underReview}
+              </span>
+              <div className="p-2.5 bg-amber-50 text-amber-500 rounded-2xl">
+                <AlertCircle size={20} />
+              </div>
             </div>
           </div>
           <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Approved</span>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Approved
+            </span>
             <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-emerald-600">{stats.approved}</span>
-              <div className="p-2.5 bg-emerald-50 text-emerald-500 rounded-2xl"><CheckCircle2 size={20} /></div>
+              <span className="text-2xl sm:text-3xl font-black text-emerald-600">
+                {stats.approved}
+              </span>
+              <div className="p-2.5 bg-emerald-50 text-emerald-500 rounded-2xl">
+                <CheckCircle2 size={20} />
+              </div>
             </div>
           </div>
           <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rejected</span>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Rejected
+            </span>
             <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-rose-600">{stats.rejected}</span>
-              <div className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl"><XCircle size={20} /></div>
+              <span className="text-2xl sm:text-3xl font-black text-rose-600">
+                {stats.rejected}
+              </span>
+              <div className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl">
+                <XCircle size={20} />
+              </div>
             </div>
           </div>
           <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between col-span-2 lg:col-span-1">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Total</span>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Today's Total
+            </span>
             <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-indigo-600">{stats.today}</span>
-              <div className="p-2.5 bg-indigo-50 text-indigo-500 rounded-2xl"><Calendar size={20} /></div>
+              <span className="text-2xl sm:text-3xl font-black text-indigo-600">
+                {stats.today}
+              </span>
+              <div className="p-2.5 bg-indigo-50 text-indigo-500 rounded-2xl">
+                <Calendar size={20} />
+              </div>
             </div>
           </div>
         </div>
@@ -265,7 +353,10 @@ const AdmissionRequestList = () => {
 
       {/* Desktop Filters Bar */}
       <div className="hidden md:block bg-white p-6 rounded-[2rem] border border-gray-200 shadow-sm space-y-4">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-4">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex flex-col md:flex-row gap-4"
+        >
           {/* Search */}
           <div className="flex-1 relative">
             <input
@@ -275,7 +366,10 @@ const AdmissionRequestList = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-2xl pl-12 pr-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all font-semibold"
             />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -283,7 +377,10 @@ const AdmissionRequestList = () => {
             <div className="relative">
               <select
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
                 className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-black uppercase tracking-wider rounded-2xl pl-4 pr-10 py-3 appearance-none outline-none cursor-pointer focus:bg-white focus:border-indigo-600"
               >
                 <option value="all">Status: All</option>
@@ -293,20 +390,33 @@ const AdmissionRequestList = () => {
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Rejected</option>
               </select>
-              <Filter className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+              <Filter
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                size={14}
+              />
             </div>
 
             {/* Class Filter */}
             <div className="relative">
               <select
                 value={classFilter}
-                onChange={(e) => { setClassFilter(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setClassFilter(e.target.value);
+                  setPage(1);
+                }}
                 className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-black uppercase tracking-wider rounded-2xl pl-4 pr-10 py-3 appearance-none outline-none cursor-pointer focus:bg-white focus:border-indigo-600"
               >
                 <option value="all">Class: All</option>
-                {classesList.map(c => <option key={c} value={c}>{c}</option>)}
+                {classesList.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
-              <Filter className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+              <Filter
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                size={14}
+              />
             </div>
 
             {/* Sort */}
@@ -321,10 +431,17 @@ const AdmissionRequestList = () => {
                 <option value="alphabetical">Sort: A-Z</option>
                 <option value="status">Sort: Status</option>
               </select>
-              <Filter className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+              <Filter
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                size={14}
+              />
             </div>
-            
-            <Button type="submit" variant="secondary" className="rounded-2xl px-5 py-3 font-black text-xs uppercase tracking-widest border border-gray-200">
+
+            <Button
+              type="submit"
+              variant="secondary"
+              className="rounded-2xl px-5 py-3 font-black text-xs uppercase tracking-widest border border-gray-200"
+            >
               Apply
             </Button>
           </div>
@@ -342,7 +459,10 @@ const AdmissionRequestList = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-gray-50 border border-gray-150 text-gray-905 text-xs rounded-xl pl-9 pr-4 py-2.5 outline-none focus:bg-white focus:border-indigo-600 transition-all font-semibold"
             />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={14}
+            />
           </div>
 
           <div className="flex flex-wrap gap-2 items-center">
@@ -350,7 +470,10 @@ const AdmissionRequestList = () => {
             <div className="relative inline-block">
               <select
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
                 className="bg-indigo-50/70 border border-indigo-100/80 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-full px-3 py-1.5 appearance-none outline-none cursor-pointer"
               >
                 <option value="all">All Status</option>
@@ -366,11 +489,18 @@ const AdmissionRequestList = () => {
             <div className="relative inline-block">
               <select
                 value={classFilter}
-                onChange={(e) => { setClassFilter(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setClassFilter(e.target.value);
+                  setPage(1);
+                }}
                 className="bg-indigo-50/70 border border-indigo-100/80 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-full px-3 py-1.5 appearance-none outline-none cursor-pointer"
               >
                 <option value="all">All Classes</option>
-                {classesList.map(c => <option key={c} value={c}>{c}</option>)}
+                {classesList.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -388,7 +518,11 @@ const AdmissionRequestList = () => {
               </select>
             </div>
 
-            <Button type="submit" variant="secondary" className="rounded-full px-4 py-1.5 h-[28px] flex items-center justify-center font-black text-[10px] uppercase tracking-wider border border-gray-250 bg-white hover:bg-gray-50 text-gray-700">
+            <Button
+              type="submit"
+              variant="secondary"
+              className="rounded-full px-4 py-1.5 h-[28px] flex items-center justify-center font-black text-[10px] uppercase tracking-wider border border-gray-250 bg-white hover:bg-gray-50 text-gray-700"
+            >
               Apply
             </Button>
           </div>
@@ -411,57 +545,96 @@ const AdmissionRequestList = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-gray-150 bg-gray-50/30">
-                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Student Details</th>
-                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Class Info</th>
-                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Parent/Phone</th>
-                    {user.role === 'admin' && (
-                      <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Submitted By</th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                      Student Details
+                    </th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                      Class Info
+                    </th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                      Parent/Phone
+                    </th>
+                    {user.role === "admin" && (
+                      <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                        Submitted By
+                      </th>
                     )}
-                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider text-right">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {requests.map((req) => (
-                    <tr key={req._id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr
+                      key={req._id}
+                      className="hover:bg-gray-50/50 transition-colors"
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center font-black text-indigo-700 uppercase">
                             {req.studentInfo.fullName.charAt(0)}
                           </div>
                           <div>
-                            <p className="text-sm font-black text-gray-900">{req.studentInfo.fullName}</p>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{req.studentInfo.gender}</p>
+                            <p className="text-sm font-black text-gray-900">
+                              {req.studentInfo.fullName}
+                            </p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                              {req.studentInfo.gender}
+                            </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-bold text-gray-700">Class {req.studentInfo.admissionClass}</p>
+                        <p className="text-sm font-bold text-gray-700">
+                          Class {req.studentInfo.admissionClass}
+                        </p>
                         {req.studentInfo.section && (
-                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">Section: {req.studentInfo.section}</p>
+                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">
+                            Section: {req.studentInfo.section}
+                          </p>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-semibold text-gray-700">{req.parentInfo.fatherName}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{req.parentInfo.phone}</p>
+                        <p className="text-sm font-semibold text-gray-700">
+                          {req.parentInfo.fatherName}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {req.parentInfo.phone}
+                        </p>
                       </td>
-                      {user.role === 'admin' && (
+                      {user.role === "admin" && (
                         <td className="px-6 py-4">
                           <p className="text-sm font-semibold text-gray-700">
-                            {req.teacher ? `${req.teacher.firstName} ${req.teacher.lastName}` : "System Admin"}
+                            {req.teacher
+                              ? `${req.teacher.firstName} ${req.teacher.lastName}`
+                              : "System Admin"}
                           </p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Teacher</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                            Teacher
+                          </p>
                         </td>
                       )}
                       <td className="px-6 py-4 text-xs font-medium text-gray-500">
-                        {new Date(req.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {new Date(req.createdAt).toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={cn(
-                          "inline-flex items-center px-3 py-1 rounded-full text-xs font-black tracking-wide border",
-                          getStatusBadgeClass(req.status)
-                        )}>
+                        <span
+                          className={cn(
+                            "inline-flex items-center px-3 py-1 rounded-full text-xs font-black tracking-wide border",
+                            getStatusBadgeClass(req.status),
+                          )}
+                        >
                           {getStatusIcon(req.status)}
                           {req.status}
                         </span>
@@ -470,7 +643,11 @@ const AdmissionRequestList = () => {
                         <div className="flex justify-end items-center gap-2">
                           {/* Always show View Details */}
                           <button
-                            onClick={() => navigate(`/admissions/requests/details/${req._id}`)}
+                            onClick={() =>
+                              navigate(
+                                `/admissions/requests/details/${req._id}`,
+                              )
+                            }
                             className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                             title="View Details"
                           >
@@ -478,42 +655,48 @@ const AdmissionRequestList = () => {
                           </button>
 
                           {/* Teacher actions for draft */}
-                          {user.role === 'teacher' && req.status === 'Draft' && (
-                            <>
-                              <button
-                                onClick={() => handleSubmitClick(req)}
-                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                title="Submit Request"
-                              >
-                                <Send size={18} />
-                              </button>
-                              <button
-                                onClick={() => navigate(`/admissions/requests/edit/${req._id}`)}
-                                className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
-                                title="Edit Request"
-                              >
-                                <Edit2 size={18} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(req)}
-                                className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                                title="Delete Draft"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            </>
-                          )}
+                          {user.role === "teacher" &&
+                            req.status === "Draft" && (
+                              <>
+                                <button
+                                  onClick={() => handleSubmitClick(req)}
+                                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                  title="Submit Request"
+                                >
+                                  <Send size={18} />
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    navigate(
+                                      `/admissions/requests/edit/${req._id}`,
+                                    )
+                                  }
+                                  className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                  title="Edit Request"
+                                >
+                                  <Edit2 size={18} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(req)}
+                                  className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                                  title="Delete Draft"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </>
+                            )}
 
                           {/* Teacher action duplicate on rejected */}
-                          {user.role === 'teacher' && req.status === 'Rejected' && (
-                            <button
-                              onClick={() => handleDuplicate(req)}
-                              className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                              title="Duplicate & Re-apply"
-                            >
-                              <UserCheck size={18} />
-                            </button>
-                          )}
+                          {user.role === "teacher" &&
+                            req.status === "Rejected" && (
+                              <button
+                                onClick={() => handleDuplicate(req)}
+                                className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                title="Duplicate & Re-apply"
+                              >
+                                <UserCheck size={18} />
+                              </button>
+                            )}
                         </div>
                       </td>
                     </tr>
@@ -532,16 +715,21 @@ const AdmissionRequestList = () => {
                         {req.studentInfo.fullName.charAt(0)}
                       </div>
                       <div>
-                        <h5 className="font-black text-gray-900 text-sm">{req.studentInfo.fullName}</h5>
+                        <h5 className="font-black text-gray-900 text-sm">
+                          {req.studentInfo.fullName}
+                        </h5>
                         <p className="text-[10px] text-gray-450 font-bold uppercase tracking-wider mt-0.5">
-                          Class {req.studentInfo.admissionClass} • {req.studentInfo.gender}
+                          Class {req.studentInfo.admissionClass} •{" "}
+                          {req.studentInfo.gender}
                         </p>
                       </div>
                     </div>
-                    <span className={cn(
-                      "inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide border uppercase",
-                      getStatusBadgeClass(req.status)
-                    )}>
+                    <span
+                      className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide border uppercase",
+                        getStatusBadgeClass(req.status),
+                      )}
+                    >
                       {getStatusIcon(req.status)}
                       {req.status}
                     </span>
@@ -549,24 +737,42 @@ const AdmissionRequestList = () => {
 
                   <div className="grid grid-cols-2 gap-2 text-xs border-t border-gray-50 pt-2 text-gray-600">
                     <div>
-                      <span className="text-[9px] text-gray-400 uppercase font-bold block">Parent</span>
-                      <span className="font-bold text-gray-800">{req.parentInfo.fatherName}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-gray-400 uppercase font-bold block">Phone</span>
-                      <span className="font-bold text-gray-800">{req.parentInfo.phone}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-gray-400 uppercase font-bold block">Applied Date</span>
+                      <span className="text-[9px] text-gray-400 uppercase font-bold block">
+                        Parent
+                      </span>
                       <span className="font-bold text-gray-800">
-                        {new Date(req.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {req.parentInfo.fatherName}
                       </span>
                     </div>
-                    {user.role === 'admin' && (
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase font-bold block">
+                        Phone
+                      </span>
+                      <span className="font-bold text-gray-800">
+                        {req.parentInfo.phone}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase font-bold block">
+                        Applied Date
+                      </span>
+                      <span className="font-bold text-gray-800">
+                        {new Date(req.createdAt).toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    {user.role === "admin" && (
                       <div>
-                        <span className="text-[9px] text-gray-400 uppercase font-bold block">Submitted By</span>
+                        <span className="text-[9px] text-gray-400 uppercase font-bold block">
+                          Submitted By
+                        </span>
                         <span className="font-bold text-gray-800 truncate block">
-                          {req.teacher ? `${req.teacher.firstName} ${req.teacher.lastName.charAt(0)}.` : "System Admin"}
+                          {req.teacher
+                            ? `${req.teacher.firstName} ${req.teacher.lastName.charAt(0)}.`
+                            : "System Admin"}
                         </span>
                       </div>
                     )}
@@ -574,13 +780,15 @@ const AdmissionRequestList = () => {
 
                   <div className="flex justify-end gap-1.5 pt-2 border-t border-gray-50">
                     <button
-                      onClick={() => navigate(`/admissions/requests/details/${req._id}`)}
+                      onClick={() =>
+                        navigate(`/admissions/requests/details/${req._id}`)
+                      }
                       className="h-9 px-3 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-750 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer border border-indigo-100/50"
                     >
                       <Eye size={14} />
                       View
                     </button>
-                    {user.role === 'teacher' && req.status === 'Draft' && (
+                    {user.role === "teacher" && req.status === "Draft" && (
                       <>
                         <button
                           onClick={() => handleSubmitClick(req)}
@@ -590,7 +798,9 @@ const AdmissionRequestList = () => {
                           Submit
                         </button>
                         <button
-                          onClick={() => navigate(`/admissions/requests/edit/${req._id}`)}
+                          onClick={() =>
+                            navigate(`/admissions/requests/edit/${req._id}`)
+                          }
                           className="h-9 px-3 text-xs bg-amber-50 hover:bg-amber-100 text-amber-750 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer border border-amber-100/50"
                         >
                           <Edit2 size={14} />
@@ -604,7 +814,7 @@ const AdmissionRequestList = () => {
                         </button>
                       </>
                     )}
-                    {user.role === 'teacher' && req.status === 'Rejected' && (
+                    {user.role === "teacher" && req.status === "Rejected" && (
                       <button
                         onClick={() => handleDuplicate(req)}
                         className="h-9 px-3 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-755 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer border border-emerald-100/50"
@@ -624,13 +834,14 @@ const AdmissionRequestList = () => {
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
             <span className="text-xs text-gray-500 font-bold">
-              Showing {(page - 1) * 10 + 1} to {Math.min(page * 10, totalCount)} of {totalCount} requests
+              Showing {(page - 1) * 10 + 1} to {Math.min(page * 10, totalCount)}{" "}
+              of {totalCount} requests
             </span>
             <div className="flex gap-2">
               <Button
                 variant="secondary"
                 disabled={page === 1}
-                onClick={() => setPage(p => Math.max(p - 1, 1))}
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
                 className="rounded-xl px-4 py-2 font-black text-xs uppercase"
               >
                 Previous
@@ -638,7 +849,7 @@ const AdmissionRequestList = () => {
               <Button
                 variant="secondary"
                 disabled={page === totalPages}
-                onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
                 className="rounded-xl px-4 py-2 font-black text-xs uppercase"
               >
                 Next

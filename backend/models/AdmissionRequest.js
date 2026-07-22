@@ -64,12 +64,33 @@ const admissionRequestSchema = new mongoose.Schema(
         trim: true,
         default: ''
       },
+      // Extended fields for direct admission form
+      penNumber: {
+        type: String,
+        trim: true,
+        default: ''
+      },
       previousSchool: {
         type: String,
         trim: true,
         default: ''
       },
+      previousLastClass: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      previousSchoolAddress: {
+        type: String,
+        trim: true,
+        default: ''
+      },
       transferCertificateNumber: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      house: {
         type: String,
         trim: true,
         default: ''
@@ -91,6 +112,52 @@ const admissionRequestSchema = new mongoose.Schema(
         trim: true
       },
       guardianName: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      // Extended parent detail fields
+      fatherMobile: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      fatherOccupation: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      fatherAadhar: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      motherMobile: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      motherOccupation: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      motherAadhar: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      guardianRelation: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      guardianMobile: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      guardianAddress: {
         type: String,
         trim: true,
         default: ''
@@ -133,6 +200,11 @@ const admissionRequestSchema = new mongoose.Schema(
         default: ''
       },
       city: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      district: {
         type: String,
         trim: true,
         default: ''
@@ -202,6 +274,11 @@ const admissionRequestSchema = new mongoose.Schema(
         type: Boolean,
         default: false
       },
+      route: {
+        type: String,
+        trim: true,
+        default: ''
+      },
       pickupPoint: {
         type: String,
         trim: true,
@@ -211,6 +288,10 @@ const admissionRequestSchema = new mongoose.Schema(
         type: String,
         trim: true,
         default: ''
+      },
+      transportFee: {
+        type: Number,
+        default: 0
       }
     },
     hostel: {
@@ -237,6 +318,21 @@ const admissionRequestSchema = new mongoose.Schema(
       remarks: { type: String, trim: true, default: '' },
       teacherComments: { type: String, trim: true, default: '' },
       specialRecommendation: { type: String, trim: true, default: '' }
+    },
+    // Top-level admission-specific fields used by direct admission
+    academicSession: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    admissionDate: {
+      type: Date
+    },
+    discountPercentage: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
     },
     status: {
       type: String,

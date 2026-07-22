@@ -13,7 +13,7 @@ import {
   Save,
   CheckCircle,
   X,
-  UploadCloud
+  UploadCloud,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -61,7 +61,7 @@ const AdmissionRequestForm = () => {
     admissionDate: getTodayDateString(),
     discountPercentage: 0,
     previousSchool: "",
-   
+
     studentPhoto: "",
   });
 
@@ -98,9 +98,15 @@ const AdmissionRequestForm = () => {
           setClasses(classData);
           if (classData.length > 0 && !studentInfo.admissionClass) {
             const firstClass = classData[0];
-            const className = firstClass && firstClass.name ? firstClass.name.split("-")[0] : "";
+            const className =
+              firstClass && firstClass.name
+                ? firstClass.name.split("-")[0]
+                : "";
             if (className) {
-              setStudentInfo(prev => ({ ...prev, admissionClass: className }));
+              setStudentInfo((prev) => ({
+                ...prev,
+                admissionClass: className,
+              }));
             }
           }
         }
@@ -118,7 +124,9 @@ const AdmissionRequestForm = () => {
       setStudentInfo({
         fullName: duplicateData.studentInfo?.fullName || "",
         gender: duplicateData.studentInfo?.gender || "Male",
-        dob: duplicateData.studentInfo?.dob ? duplicateData.studentInfo.dob.split("T")[0] : "",
+        dob: duplicateData.studentInfo?.dob
+          ? duplicateData.studentInfo.dob.split("T")[0]
+          : "",
         bloodGroup: duplicateData.studentInfo?.bloodGroup || "Unknown",
         email: duplicateData.parentInfo?.email || "",
         phone: duplicateData.parentInfo?.phone || "",
@@ -128,11 +136,13 @@ const AdmissionRequestForm = () => {
         section: duplicateData.studentInfo?.section || "A",
         session: "2026-2027",
         status: "Active",
-        transportMode: duplicateData.transport?.busRequired ? "School Bus" : "Private",
+        transportMode: duplicateData.transport?.busRequired
+          ? "School Bus"
+          : "Private",
         admissionDate: getTodayDateString(),
         discountPercentage: 0,
         previousSchool: duplicateData.studentInfo?.previousSchool || "",
-      
+
         studentPhoto: duplicateData.studentInfo?.studentPhoto || "",
       });
 
@@ -142,7 +152,10 @@ const AdmissionRequestForm = () => {
       });
 
       setAddress({
-        residentialAddress: duplicateData.address?.currentAddress || duplicateData.address?.permanentAddress || "",
+        residentialAddress:
+          duplicateData.address?.currentAddress ||
+          duplicateData.address?.permanentAddress ||
+          "",
       });
 
       setEmergencyContact({
@@ -151,7 +164,7 @@ const AdmissionRequestForm = () => {
 
       if (duplicateData.studentInfo?.studentPhoto) {
         setPreviews({
-          studentPhoto: `${api.defaults.baseURL.replace('/api', '')}${duplicateData.studentInfo.studentPhoto}`
+          studentPhoto: `${api.defaults.baseURL.replace("/api", "")}${duplicateData.studentInfo.studentPhoto}`,
         });
       }
       addToast("Form pre-filled with selected request details", "info");
@@ -166,7 +179,7 @@ const AdmissionRequestForm = () => {
             let sessVal = "2026-2027";
             let discVal = 0;
             let dateVal = getTodayDateString();
-            
+
             if (data.additionalNotes?.remarks) {
               const rem = data.additionalNotes.remarks;
               const sessMatch = rem.match(/Academic Session:\s*([^\s|]+)/);
@@ -180,7 +193,9 @@ const AdmissionRequestForm = () => {
             setStudentInfo({
               fullName: data.studentInfo?.fullName || "",
               gender: data.studentInfo?.gender || "Male",
-              dob: data.studentInfo?.dob ? data.studentInfo.dob.split("T")[0] : "",
+              dob: data.studentInfo?.dob
+                ? data.studentInfo.dob.split("T")[0]
+                : "",
               bloodGroup: data.studentInfo?.bloodGroup || "Unknown",
               email: data.parentInfo?.email || "",
               phone: data.parentInfo?.phone || "",
@@ -190,11 +205,13 @@ const AdmissionRequestForm = () => {
               section: data.studentInfo?.section || "A",
               session: sessVal,
               status: data.studentInfo?.status || "Active",
-              transportMode: data.transport?.busRequired ? "School Bus" : "Private",
+              transportMode: data.transport?.busRequired
+                ? "School Bus"
+                : "Private",
               admissionDate: dateVal,
               discountPercentage: discVal,
               previousSchool: data.studentInfo?.previousSchool || "",
-             
+
               studentPhoto: data.studentInfo?.studentPhoto || "",
             });
 
@@ -204,7 +221,10 @@ const AdmissionRequestForm = () => {
             });
 
             setAddress({
-              residentialAddress: data.address?.currentAddress || data.address?.permanentAddress || "",
+              residentialAddress:
+                data.address?.currentAddress ||
+                data.address?.permanentAddress ||
+                "",
             });
 
             setEmergencyContact({
@@ -213,7 +233,7 @@ const AdmissionRequestForm = () => {
 
             if (data.studentInfo?.studentPhoto) {
               setPreviews({
-                studentPhoto: `${api.defaults.baseURL.replace('/api', '')}${data.studentInfo.studentPhoto}`
+                studentPhoto: `${api.defaults.baseURL.replace("/api", "")}${data.studentInfo.studentPhoto}`,
               });
             }
           }
@@ -257,26 +277,26 @@ const AdmissionRequestForm = () => {
       addToast("Portrait file size must not exceed 2MB", "error");
       return;
     }
-    const ext = file.name.split('.').pop().toLowerCase();
-    const allowed = ['jpg', 'jpeg', 'png', 'webp'];
+    const ext = file.name.split(".").pop().toLowerCase();
+    const allowed = ["jpg", "jpeg", "png", "webp"];
     if (!allowed.includes(ext)) {
       addToast("Only JPG, JPEG, PNG, and WEBP formats are allowed", "error");
       return;
     }
 
-    setFiles(prev => ({ ...prev, studentPhoto: file }));
+    setFiles((prev) => ({ ...prev, studentPhoto: file }));
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setPreviews(prev => ({ ...prev, studentPhoto: reader.result }));
+      setPreviews((prev) => ({ ...prev, studentPhoto: reader.result }));
     };
     reader.readAsDataURL(file);
   };
 
   const removePhoto = () => {
-    setFiles(prev => ({ ...prev, studentPhoto: null }));
-    setPreviews(prev => ({ ...prev, studentPhoto: "" }));
-    setStudentInfo(prev => ({ ...prev, studentPhoto: "" }));
+    setFiles((prev) => ({ ...prev, studentPhoto: null }));
+    setPreviews((prev) => ({ ...prev, studentPhoto: "" }));
+    setStudentInfo((prev) => ({ ...prev, studentPhoto: "" }));
   };
 
   // Validations per step
@@ -284,25 +304,29 @@ const AdmissionRequestForm = () => {
     if (step === 1) {
       if (!studentInfo.fullName.trim()) return "Student Full Name is required";
       if (!studentInfo.dob) return "Date of Birth is required";
-      if (new Date(studentInfo.dob) > new Date()) return "Date of birth cannot be in the future";
+      if (new Date(studentInfo.dob) > new Date())
+        return "Date of birth cannot be in the future";
     }
     if (step === 2) {
       if (!studentInfo.admissionClass) return "Admission Class is required";
       if (!studentInfo.session.trim()) return "Academic Session is required";
       if (!studentInfo.admissionDate) return "Admission Date is required";
       const disc = Number(studentInfo.discountPercentage);
-      if (isNaN(disc) || disc < 0 || disc > 100) return "Discount percentage must be between 0 and 100";
+      if (isNaN(disc) || disc < 0 || disc > 100)
+        return "Discount percentage must be between 0 and 100";
     }
     if (step === 3) {
       if (!parentInfo.fatherName.trim()) return "Father's Name is required";
       if (!parentInfo.motherName.trim()) return "Mother's Name is required";
-      if (!emergencyContact.phone.trim()) return "Emergency Contact Number is required";
+      if (!emergencyContact.phone.trim())
+        return "Emergency Contact Number is required";
       if (!/^\d{10,15}$/.test(emergencyContact.phone.trim())) {
         return "Emergency contact number must be a valid 10-15 digit number";
       }
     }
     if (step === 4) {
-      if (!address.residentialAddress.trim()) return "Residential Address is required";
+      if (!address.residentialAddress.trim())
+        return "Residential Address is required";
     }
     return null;
   };
@@ -313,11 +337,11 @@ const AdmissionRequestForm = () => {
       addToast(errorMsg, "warning");
       return;
     }
-    setStep(prev => prev + 1);
+    setStep((prev) => prev + 1);
   };
 
   const handleBack = () => {
-    setStep(prev => prev - 1);
+    setStep((prev) => prev - 1);
   };
 
   // Map the flattened state values into the schema format
@@ -356,11 +380,11 @@ const AdmissionRequestForm = () => {
       transport: {
         busRequired: studentInfo.transportMode === "School Bus",
       },
-   
+
       additionalNotes: {
         remarks: `Academic Session: ${studentInfo.session.trim()} | Status: ${studentInfo.status} | Discount: ${studentInfo.discountPercentage}% | Admission Date: ${studentInfo.admissionDate}`,
-        teacherComments: `Created by teacher. Session: ${studentInfo.session.trim()}`
-      }
+        teacherComments: `Created by teacher. Session: ${studentInfo.session.trim()}`,
+      },
     };
   };
 
@@ -374,16 +398,22 @@ const AdmissionRequestForm = () => {
     setLoading(true);
     try {
       const payload = compileRequestBody(requestStatus);
-      
+
       const formData = new FormData();
       formData.append("status", payload.status);
       formData.append("studentInfo", JSON.stringify(payload.studentInfo));
       formData.append("parentInfo", JSON.stringify(payload.parentInfo));
       formData.append("address", JSON.stringify(payload.address));
-      formData.append("emergencyContact", JSON.stringify(payload.emergencyContact));
+      formData.append(
+        "emergencyContact",
+        JSON.stringify(payload.emergencyContact),
+      );
       formData.append("transport", JSON.stringify(payload.transport));
-     
-      formData.append("additionalNotes", JSON.stringify(payload.additionalNotes));
+
+      formData.append(
+        "additionalNotes",
+        JSON.stringify(payload.additionalNotes),
+      );
 
       if (files.studentPhoto) {
         formData.append("studentPhoto", files.studentPhoto);
@@ -392,26 +422,29 @@ const AdmissionRequestForm = () => {
       let res;
       if (isEditMode) {
         res = await api.put(`/admission-requests/${id}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" }
+          headers: { "Content-Type": "multipart/form-data" },
         });
       } else {
         res = await api.post("/admission-requests", formData, {
-          headers: { "Content-Type": "multipart/form-data" }
+          headers: { "Content-Type": "multipart/form-data" },
         });
       }
 
       if (res.data.success) {
         addToast(
-          isEditMode 
-            ? `Admission request draft updated successfully!` 
-            : `New admission request ${requestStatus === 'Submitted' ? 'submitted' : 'draft saved'} successfully!`, 
-          "success"
+          isEditMode
+            ? `Admission request draft updated successfully!`
+            : `New admission request ${requestStatus === "Submitted" ? "submitted" : "draft saved"} successfully!`,
+          "success",
         );
         navigate("/admissions/requests");
       }
     } catch (err) {
       console.error(err);
-      addToast(err.response?.data?.message || "Failed to process admission request", "error");
+      addToast(
+        err.response?.data?.message || "Failed to process admission request",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -432,7 +465,8 @@ const AdmissionRequestForm = () => {
             {isEditMode ? "Edit Admission Request" : "New Admission Request"}
           </h2>
           <p className="text-xs font-semibold text-gray-400 mt-2">
-            Submit dossiers for target students to be reviewed and approved by the administration.
+            Submit dossiers for target students to be reviewed and approved by
+            the administration.
           </p>
         </div>
 
@@ -462,26 +496,36 @@ const AdmissionRequestForm = () => {
             const Icon = s.icon;
             const isActive = step === s.id;
             const isCompleted = step > s.id;
-            
+
             return (
               <React.Fragment key={s.id}>
                 <div className="flex items-center gap-3">
                   <div
                     className={cn(
                       "w-10 h-10 rounded-2xl flex items-center justify-center border transition-all duration-300 font-black text-xs",
-                      isCompleted && "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100",
-                      isActive && "bg-white border-indigo-600 text-indigo-700 font-black scale-105 shadow-md shadow-indigo-50",
-                      !isActive && !isCompleted && "bg-white border-gray-200 text-gray-400"
+                      isCompleted &&
+                        "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100",
+                      isActive &&
+                        "bg-white border-indigo-600 text-indigo-700 font-black scale-105 shadow-md shadow-indigo-50",
+                      !isActive &&
+                        !isCompleted &&
+                        "bg-white border-gray-200 text-gray-400",
                     )}
                   >
-                    {isCompleted ? <CheckCircle size={16} /> : <Icon size={16} />}
+                    {isCompleted ? (
+                      <CheckCircle size={16} />
+                    ) : (
+                      <Icon size={16} />
+                    )}
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Step {s.id}</span>
+                    <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+                      Step {s.id}
+                    </span>
                     <span
                       className={cn(
                         "text-xs font-black",
-                        isActive ? "text-gray-900" : "text-gray-400"
+                        isActive ? "text-gray-900" : "text-gray-400",
                       )}
                     >
                       {s.title}
@@ -492,7 +536,7 @@ const AdmissionRequestForm = () => {
                   <div
                     className={cn(
                       "flex-1 h-[2px] mx-4 transition-all duration-500",
-                      step > s.id ? "bg-indigo-600" : "bg-gray-100"
+                      step > s.id ? "bg-indigo-600" : "bg-gray-100",
                     )}
                   />
                 )}
@@ -508,8 +552,12 @@ const AdmissionRequestForm = () => {
         {step === 1 && (
           <div className="space-y-6">
             <div className="border-b border-gray-50 pb-3">
-              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">1. Personal Information</h3>
-              <p className="text-xs text-gray-400 font-medium">Please enter student's basic details.</p>
+              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">
+                1. Personal Information
+              </h3>
+              <p className="text-xs text-gray-400 font-medium">
+                Please enter student's basic details.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -517,14 +565,20 @@ const AdmissionRequestForm = () => {
                 label="Full Name *"
                 placeholder="Enter student's full name"
                 value={studentInfo.fullName}
-                onChange={(e) => setStudentInfo({ ...studentInfo, fullName: e.target.value })}
+                onChange={(e) =>
+                  setStudentInfo({ ...studentInfo, fullName: e.target.value })
+                }
               />
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Gender *</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Gender *
+                </label>
                 <select
                   value={studentInfo.gender}
-                  onChange={(e) => setStudentInfo({ ...studentInfo, gender: e.target.value })}
+                  onChange={(e) =>
+                    setStudentInfo({ ...studentInfo, gender: e.target.value })
+                  }
                   className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-semibold rounded-2xl p-4 outline-none focus:border-indigo-600 transition-all focus:ring-4 focus:ring-indigo-50"
                 >
                   <option value="Male">Male</option>
@@ -537,18 +591,39 @@ const AdmissionRequestForm = () => {
                 label="Date of Birth *"
                 type="date"
                 value={studentInfo.dob}
-                onChange={(e) => setStudentInfo({ ...studentInfo, dob: e.target.value })}
+                onChange={(e) =>
+                  setStudentInfo({ ...studentInfo, dob: e.target.value })
+                }
               />
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Blood Group</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Blood Group
+                </label>
                 <select
                   value={studentInfo.bloodGroup}
-                  onChange={(e) => setStudentInfo({ ...studentInfo, bloodGroup: e.target.value })}
+                  onChange={(e) =>
+                    setStudentInfo({
+                      ...studentInfo,
+                      bloodGroup: e.target.value,
+                    })
+                  }
                   className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-semibold rounded-2xl p-4 outline-none focus:border-indigo-600 transition-all focus:ring-4 focus:ring-indigo-50"
                 >
-                  {['Unknown', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
-                    <option key={bg} value={bg}>{bg}</option>
+                  {[
+                    "Unknown",
+                    "A+",
+                    "A-",
+                    "B+",
+                    "B-",
+                    "AB+",
+                    "AB-",
+                    "O+",
+                    "O-",
+                  ].map((bg) => (
+                    <option key={bg} value={bg}>
+                      {bg}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -557,7 +632,9 @@ const AdmissionRequestForm = () => {
                 label="Personal Email"
                 placeholder="student@example.com"
                 value={studentInfo.email}
-                onChange={(e) => setStudentInfo({ ...studentInfo, email: e.target.value })}
+                onChange={(e) =>
+                  setStudentInfo({ ...studentInfo, email: e.target.value })
+                }
               />
 
               <Input
@@ -565,16 +642,20 @@ const AdmissionRequestForm = () => {
                 placeholder="10-digit Phone number"
                 value={studentInfo.phone}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 10);
                   setStudentInfo({ ...studentInfo, phone: val });
                 }}
               />
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Category / Cast</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Category / Cast
+                </label>
                 <select
                   value={studentInfo.category}
-                  onChange={(e) => setStudentInfo({ ...studentInfo, category: e.target.value })}
+                  onChange={(e) =>
+                    setStudentInfo({ ...studentInfo, category: e.target.value })
+                  }
                   className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-semibold rounded-2xl p-4 outline-none focus:border-indigo-600 transition-all focus:ring-4 focus:ring-indigo-50"
                 >
                   <option value="General">General</option>
@@ -589,7 +670,7 @@ const AdmissionRequestForm = () => {
                 placeholder="12-digit Aadhaar No"
                 value={studentInfo.aadhar}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 12);
                   setStudentInfo({ ...studentInfo, aadhar: val });
                 }}
               />
@@ -601,23 +682,36 @@ const AdmissionRequestForm = () => {
         {step === 2 && (
           <div className="space-y-6">
             <div className="border-b border-gray-50 pb-3">
-              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">2. Academic & Logistics</h3>
-              <p className="text-xs text-gray-400 font-medium">Select class alignment and other enrollment details.</p>
+              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">
+                2. Academic & Logistics
+              </h3>
+              <p className="text-xs text-gray-400 font-medium">
+                Select class alignment and other enrollment details.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Class Group *</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Class Group *
+                </label>
                 <select
                   value={studentInfo.admissionClass}
-                  onChange={(e) => setStudentInfo({ ...studentInfo, admissionClass: e.target.value })}
+                  onChange={(e) =>
+                    setStudentInfo({
+                      ...studentInfo,
+                      admissionClass: e.target.value,
+                    })
+                  }
                   className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-semibold rounded-2xl p-4 outline-none focus:border-indigo-600 transition-all focus:ring-4 focus:ring-indigo-50"
                 >
                   <option value="">Select Class Group</option>
-                  {classes.map(c => {
+                  {classes.map((c) => {
                     const className = c && c.name ? c.name.split("-")[0] : "";
                     return (
-                      <option key={c._id} value={className}>{c.name}</option>
+                      <option key={c._id} value={className}>
+                        {c.name}
+                      </option>
                     );
                   })}
                 </select>
@@ -627,21 +721,29 @@ const AdmissionRequestForm = () => {
                 label="Section (optional)"
                 placeholder="A, B, C etc."
                 value={studentInfo.section}
-                onChange={(e) => setStudentInfo({ ...studentInfo, section: e.target.value })}
+                onChange={(e) =>
+                  setStudentInfo({ ...studentInfo, section: e.target.value })
+                }
               />
 
               <Input
                 label="Academic Session *"
                 placeholder="2026-2027"
                 value={studentInfo.session}
-                onChange={(e) => setStudentInfo({ ...studentInfo, session: e.target.value })}
+                onChange={(e) =>
+                  setStudentInfo({ ...studentInfo, session: e.target.value })
+                }
               />
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Status</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Status
+                </label>
                 <select
                   value={studentInfo.status}
-                  onChange={(e) => setStudentInfo({ ...studentInfo, status: e.target.value })}
+                  onChange={(e) =>
+                    setStudentInfo({ ...studentInfo, status: e.target.value })
+                  }
                   className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-semibold rounded-2xl p-4 outline-none focus:border-indigo-600 transition-all focus:ring-4 focus:ring-indigo-50"
                 >
                   <option value="Active">Active</option>
@@ -652,10 +754,17 @@ const AdmissionRequestForm = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Transport Mode</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Transport Mode
+                </label>
                 <select
                   value={studentInfo.transportMode}
-                  onChange={(e) => setStudentInfo({ ...studentInfo, transportMode: e.target.value })}
+                  onChange={(e) =>
+                    setStudentInfo({
+                      ...studentInfo,
+                      transportMode: e.target.value,
+                    })
+                  }
                   className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-semibold rounded-2xl p-4 outline-none focus:border-indigo-600 transition-all focus:ring-4 focus:ring-indigo-50"
                 >
                   <option value="Private">Private</option>
@@ -669,7 +778,12 @@ const AdmissionRequestForm = () => {
                 label="Admission Date *"
                 type="date"
                 value={studentInfo.admissionDate}
-                onChange={(e) => setStudentInfo({ ...studentInfo, admissionDate: e.target.value })}
+                onChange={(e) =>
+                  setStudentInfo({
+                    ...studentInfo,
+                    admissionDate: e.target.value,
+                  })
+                }
               />
 
               <Input
@@ -679,7 +793,12 @@ const AdmissionRequestForm = () => {
                 max="100"
                 placeholder="Discount"
                 value={studentInfo.discountPercentage}
-                onChange={(e) => setStudentInfo({ ...studentInfo, discountPercentage: e.target.value })}
+                onChange={(e) =>
+                  setStudentInfo({
+                    ...studentInfo,
+                    discountPercentage: e.target.value,
+                  })
+                }
               />
 
               <div className="md:col-span-2">
@@ -687,13 +806,16 @@ const AdmissionRequestForm = () => {
                   label="Previous School Details"
                   placeholder="Saint Mary Convent"
                   value={studentInfo.previousSchool}
-                  onChange={(e) => setStudentInfo({ ...studentInfo, previousSchool: e.target.value })}
+                  onChange={(e) =>
+                    setStudentInfo({
+                      ...studentInfo,
+                      previousSchool: e.target.value,
+                    })
+                  }
                 />
               </div>
 
-              <div className="flex items-center gap-3 md:col-span-3 pt-4 pl-1">
-               
-              </div>
+              <div className="flex items-center gap-3 md:col-span-3 pt-4 pl-1"></div>
             </div>
           </div>
         )}
@@ -702,8 +824,12 @@ const AdmissionRequestForm = () => {
         {step === 3 && (
           <div className="space-y-6">
             <div className="border-b border-gray-50 pb-3">
-              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">3. Parent Details</h3>
-              <p className="text-xs text-gray-400 font-medium">Please enter emergency contact reference and parental details.</p>
+              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">
+                3. Parent Details
+              </h3>
+              <p className="text-xs text-gray-400 font-medium">
+                Please enter emergency contact reference and parental details.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -711,14 +837,18 @@ const AdmissionRequestForm = () => {
                 label="Father's Name *"
                 placeholder="Father's full name"
                 value={parentInfo.fatherName}
-                onChange={(e) => setParentInfo({ ...parentInfo, fatherName: e.target.value })}
+                onChange={(e) =>
+                  setParentInfo({ ...parentInfo, fatherName: e.target.value })
+                }
               />
 
               <Input
                 label="Mother's Name *"
                 placeholder="Mother's full name"
                 value={parentInfo.motherName}
-                onChange={(e) => setParentInfo({ ...parentInfo, motherName: e.target.value })}
+                onChange={(e) =>
+                  setParentInfo({ ...parentInfo, motherName: e.target.value })
+                }
               />
 
               <div className="md:col-span-2">
@@ -727,7 +857,7 @@ const AdmissionRequestForm = () => {
                   placeholder="Primary contact (10 digits)"
                   value={emergencyContact.phone}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
                     setEmergencyContact({ ...emergencyContact, phone: val });
                   }}
                 />
@@ -740,26 +870,40 @@ const AdmissionRequestForm = () => {
         {step === 4 && (
           <div className="space-y-6">
             <div className="border-b border-gray-50 pb-3">
-              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">4. Permanent Address & Student Portrait</h3>
-              <p className="text-xs text-gray-400 font-medium">Verify structural residential details and upload portrait imagery.</p>
+              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">
+                4. Permanent Address & Student Portrait
+              </h3>
+              <p className="text-xs text-gray-400 font-medium">
+                Verify structural residential details and upload portrait
+                imagery.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
               <div className="md:col-span-7 space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Residential Address *</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Residential Address *
+                </label>
                 <textarea
                   rows={6}
                   placeholder="House/Plot no., Street name, City, State, Country, Postal Code..."
                   value={address.residentialAddress}
-                  onChange={(e) => setAddress({ ...address, residentialAddress: e.target.value })}
+                  onChange={(e) =>
+                    setAddress({
+                      ...address,
+                      residentialAddress: e.target.value,
+                    })
+                  }
                   className="w-full bg-white border border-gray-200 text-gray-900 text-sm font-semibold rounded-[2rem] p-5 outline-none focus:border-indigo-600 transition-all focus:ring-4 focus:ring-indigo-50/50 resize-none"
                 />
               </div>
 
               {/* Photo Upload Zone */}
               <div className="md:col-span-5 space-y-2">
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Student Photo Portrait</label>
-                
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Student Photo Portrait
+                </label>
+
                 {previews.studentPhoto ? (
                   <div className="relative border border-indigo-100 rounded-[2rem] p-2 bg-indigo-50/20 overflow-hidden flex flex-col items-center justify-center group h-44">
                     <img
@@ -781,12 +925,14 @@ const AdmissionRequestForm = () => {
                     onDragOver={handleDrag}
                     onDragLeave={handleDrag}
                     onDrop={handleDrop}
-                    onClick={() => document.getElementById("portrait-picker").click()}
+                    onClick={() =>
+                      document.getElementById("portrait-picker").click()
+                    }
                     className={cn(
                       "border-2 border-dashed rounded-[2rem] p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 h-44 group",
                       isDragActive
                         ? "border-indigo-600 bg-indigo-50/30 scale-98"
-                        : "border-gray-200 hover:border-indigo-500 hover:bg-gray-50/40"
+                        : "border-gray-200 hover:border-indigo-500 hover:bg-gray-50/40",
                     )}
                   >
                     <input
@@ -796,9 +942,15 @@ const AdmissionRequestForm = () => {
                       className="hidden"
                       onChange={handleFileElementChange}
                     />
-                    <UploadCloud className={cn("w-10 h-10 transition-transform duration-300 group-hover:-translate-y-1", isDragActive ? "text-indigo-600" : "text-gray-400")} />
+                    <UploadCloud
+                      className={cn(
+                        "w-10 h-10 transition-transform duration-300 group-hover:-translate-y-1",
+                        isDragActive ? "text-indigo-600" : "text-gray-400",
+                      )}
+                    />
                     <span className="text-xs font-bold text-gray-700 mt-3 block">
-                      Drag & drop portrait, or <span className="text-indigo-600 underline">browse</span>
+                      Drag & drop portrait, or{" "}
+                      <span className="text-indigo-600 underline">browse</span>
                     </span>
                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight mt-1.5 leading-none block">
                       Supports JPEG, PNG, WEBP (Max 2MB)
@@ -814,91 +966,155 @@ const AdmissionRequestForm = () => {
         {step === 5 && (
           <div className="space-y-8">
             <div className="border-b border-gray-50 pb-3">
-              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">5. Review & Submit</h3>
-              <p className="text-xs text-gray-400 font-medium">Verify all information before submitting the request.</p>
+              <h3 className="text-lg font-black text-gray-800 tracking-tight uppercase">
+                5. Review & Submit
+              </h3>
+              <p className="text-xs text-gray-400 font-medium">
+                Verify all information before submitting the request.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Left Column: Personal details */}
               <div className="bg-gray-50/40 p-6 rounded-[2rem] border border-gray-100 space-y-4">
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2">Student Dossier</h4>
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2">
+                  Student Dossier
+                </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Full Name</span>
-                    <strong className="text-gray-800">{studentInfo.fullName}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Full Name
+                    </span>
+                    <strong className="text-gray-800">
+                      {studentInfo.fullName}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Gender</span>
-                    <strong className="text-gray-700">{studentInfo.gender}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Gender
+                    </span>
+                    <strong className="text-gray-700">
+                      {studentInfo.gender}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Date of Birth</span>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Date of Birth
+                    </span>
                     <strong className="text-gray-700">{studentInfo.dob}</strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Category / Cast</span>
-                    <strong className="text-gray-700">{studentInfo.category}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Category / Cast
+                    </span>
+                    <strong className="text-gray-700">
+                      {studentInfo.category}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Email / Phone</span>
-                    <strong className="text-gray-700">{studentInfo.email || "N/A"} / {studentInfo.phone || "N/A"}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Email / Phone
+                    </span>
+                    <strong className="text-gray-700">
+                      {studentInfo.email || "N/A"} /{" "}
+                      {studentInfo.phone || "N/A"}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Aadhaar Card No</span>
-                    <strong className="text-gray-700">{studentInfo.aadhar || "Not Provided"}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Aadhaar Card No
+                    </span>
+                    <strong className="text-gray-700">
+                      {studentInfo.aadhar || "Not Provided"}
+                    </strong>
                   </div>
                 </div>
               </div>
 
               {/* Right Column: Academic details */}
               <div className="bg-gray-50/40 p-6 rounded-[2rem] border border-gray-100 space-y-4">
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2">Academic & Logistics</h4>
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2">
+                  Academic & Logistics
+                </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Class & Section</span>
-                    <strong className="text-indigo-600">Class {studentInfo.admissionClass} - {studentInfo.section}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Class & Section
+                    </span>
+                    <strong className="text-indigo-600">
+                      Class {studentInfo.admissionClass} - {studentInfo.section}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Session</span>
-                    <strong className="text-gray-700">{studentInfo.session}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Session
+                    </span>
+                    <strong className="text-gray-700">
+                      {studentInfo.session}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Transport Mode</span>
-                    <strong className="text-gray-700">{studentInfo.transportMode}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Transport Mode
+                    </span>
+                    <strong className="text-gray-700">
+                      {studentInfo.transportMode}
+                    </strong>
+                  </div>
+                  <div></div>
+                  <div>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Admission Date
+                    </span>
+                    <strong className="text-gray-700">
+                      {studentInfo.admissionDate}
+                    </strong>
                   </div>
                   <div>
-                    
-                   
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Admission Date</span>
-                    <strong className="text-gray-700">{studentInfo.admissionDate}</strong>
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Fee Discount</span>
-                    <strong className="text-gray-700">{studentInfo.discountPercentage}%</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Fee Discount
+                    </span>
+                    <strong className="text-gray-700">
+                      {studentInfo.discountPercentage}%
+                    </strong>
                   </div>
                 </div>
               </div>
 
               {/* Parent & Emergency Details */}
               <div className="bg-gray-50/40 p-6 rounded-[2rem] border border-gray-100 space-y-4 md:col-span-2">
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2">Parent & Address Details</h4>
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2">
+                  Parent & Address Details
+                </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm">
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Father's Name</span>
-                    <strong className="text-gray-700">{parentInfo.fatherName}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Father's Name
+                    </span>
+                    <strong className="text-gray-700">
+                      {parentInfo.fatherName}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Mother's Name</span>
-                    <strong className="text-gray-700">{parentInfo.motherName}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Mother's Name
+                    </span>
+                    <strong className="text-gray-700">
+                      {parentInfo.motherName}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Emergency Contact</span>
-                    <strong className="text-gray-700">{emergencyContact.phone}</strong>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Emergency Contact
+                    </span>
+                    <strong className="text-gray-700">
+                      {emergencyContact.phone}
+                    </strong>
                   </div>
                   <div className="sm:col-span-3">
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Residential Address</span>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Residential Address
+                    </span>
                     <p className="text-xs text-gray-700 font-semibold mt-1 leading-relaxed bg-white border border-gray-100 rounded-xl p-3">
                       {address.residentialAddress}
                     </p>
@@ -934,7 +1150,7 @@ const AdmissionRequestForm = () => {
             >
               Cancel
             </Button>
-            
+
             {step < STEPS.length ? (
               <Button
                 className="h-12 rounded-xl text-xs font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 flex items-center gap-1"

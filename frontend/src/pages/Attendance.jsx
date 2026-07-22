@@ -32,14 +32,11 @@ import { useToast } from "../context/ToastContext";
 import { cn } from "../utils/cn";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import {
-  checkHolidayStatus,
-  getHolidays
-} from "../services/holidayApi";
+import { checkHolidayStatus, getHolidays } from "../services/holidayApi";
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { getTodayDateString } from "../utils/dateUtils";
-
+import { isDayHoliday as checkIsDayHoliday, getEffectiveAttendanceStatus } from "../utils/holidayUtils";
 // Memoized Mobile Student Attendance Card
 const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus, isHoliday }) => {
   const isEditingDisabled = isHoliday || (isMarked && sessionStatus !== 'draft');
@@ -608,6 +605,19 @@ const Attendance = () => {
     fetchStaffMonthly();
   }, [selectedMonth, selectedYear, activeTab]);
 
+  // 6. Fetch Yearly Holidays for History & Exports
+  useEffect(() => {
+    const fetchYearHolidays = async () => {
+      try {
+        const data = await getHolidays({ year: selectedYear });
+        setHolidays(data || []);
+      } catch (err) {
+        console.error("Fetch year holidays error:", err);
+      }
+    };
+    fetchYearHolidays();
+  }, [selectedYear]);
+
   const toggleStudentStatus = (id, status) => {
     if (holidayInfo && !holidayInfo.isWorkingDay) return;
     if (isMarked && sessionStatus !== 'draft') return; // Allow editing draft, block submitted/locked
@@ -776,6 +786,7 @@ const Attendance = () => {
       case "absent":  return "A";
       case "leave":   return "L";
       case "late":    return "T";
+      case "holiday": return "H";
       default:        return "-";
     }
   };
@@ -1058,20 +1069,24 @@ const Attendance = () => {
     if (!studentHistory.length) return;
     setExportLoading("pdf-student");
     try {
+      const totalDays = getDaysInMonth(selectedMonth, selectedYear);
       const rows = studentHistory.map((item) => {
         const records = item.attendance || {};
         let p = 0, a = 0, l = 0, t = 0;
-        Object.values(records).forEach((s) => {
-          const v = (s || "").toLowerCase();
-          if (v === "present") p++;
-          else if (v === "absent") a++;
-          else if (v === "leave") l++;
-          else if (v === "late") t++;
-        });
+        const effectiveRecords = {};
+        for (let d = 1; d <= totalDays; d++) {
+          const isHoliday = isDayHoliday(d, selectedMonth, selectedYear, "Students");
+          const eff = getEffectiveAttendanceStatus(records[d], isHoliday);
+          if (eff) effectiveRecords[d] = eff;
+          if (eff === "present") p++;
+          else if (eff === "absent") a++;
+          else if (eff === "leave") l++;
+          else if (eff === "late") t++;
+        }
         return {
           name: item.student?.fullName || "N/A",
           subInfo: `Roll: ${item.student?.rollNumber || "-"}`,
-          attendance: records,
+          attendance: effectiveRecords,
           p, a, l, t,
         };
       });
@@ -1090,20 +1105,24 @@ const Attendance = () => {
     if (!staffHistory.length) return;
     setExportLoading("pdf-staff");
     try {
+      const totalDays = getDaysInMonth(selectedMonth, selectedYear);
       const rows = staffHistory.map((item) => {
         const records = item.attendance || {};
         let p = 0, a = 0, l = 0, t = 0;
-        Object.values(records).forEach((s) => {
-          const v = (s || "").toLowerCase();
-          if (v === "present") p++;
-          else if (v === "absent") a++;
-          else if (v === "leave") l++;
-          else if (v === "late") t++;
-        });
+        const effectiveRecords = {};
+        for (let d = 1; d <= totalDays; d++) {
+          const isHoliday = isDayHoliday(d, selectedMonth, selectedYear, "Teachers");
+          const eff = getEffectiveAttendanceStatus(records[d], isHoliday);
+          if (eff) effectiveRecords[d] = eff;
+          if (eff === "present") p++;
+          else if (eff === "absent") a++;
+          else if (eff === "leave") l++;
+          else if (eff === "late") t++;
+        }
         return {
           name: item.teacher?.fullName || "N/A",
           subInfo: item.teacher?.subject || "",
-          attendance: records,
+          attendance: effectiveRecords,
           p, a, l, t,
         };
       });
@@ -1188,20 +1207,24 @@ const Attendance = () => {
     if (!studentHistory.length) return;
     setExportLoading("excel-student");
     try {
+      const totalDays = getDaysInMonth(selectedMonth, selectedYear);
       const rows = studentHistory.map((item) => {
         const records = item.attendance || {};
         let p = 0, a = 0, l = 0, t = 0;
-        Object.values(records).forEach((s) => {
-          const v = (s || "").toLowerCase();
-          if (v === "present") p++;
-          else if (v === "absent") a++;
-          else if (v === "leave") l++;
-          else if (v === "late") t++;
-        });
+        const effectiveRecords = {};
+        for (let d = 1; d <= totalDays; d++) {
+          const isHoliday = isDayHoliday(d, selectedMonth, selectedYear, "Students");
+          const eff = getEffectiveAttendanceStatus(records[d], isHoliday);
+          if (eff) effectiveRecords[d] = eff;
+          if (eff === "present") p++;
+          else if (eff === "absent") a++;
+          else if (eff === "leave") l++;
+          else if (eff === "late") t++;
+        }
         return {
           name: item.student?.fullName || "N/A",
           subInfo: `Roll: ${item.student?.rollNumber || "-"}`,
-          attendance: records,
+          attendance: effectiveRecords,
           p, a, l, t,
         };
       });
@@ -1220,20 +1243,24 @@ const Attendance = () => {
     if (!staffHistory.length) return;
     setExportLoading("excel-staff");
     try {
+      const totalDays = getDaysInMonth(selectedMonth, selectedYear);
       const rows = staffHistory.map((item) => {
         const records = item.attendance || {};
         let p = 0, a = 0, l = 0, t = 0;
-        Object.values(records).forEach((s) => {
-          const v = (s || "").toLowerCase();
-          if (v === "present") p++;
-          else if (v === "absent") a++;
-          else if (v === "leave") l++;
-          else if (v === "late") t++;
-        });
+        const effectiveRecords = {};
+        for (let d = 1; d <= totalDays; d++) {
+          const isHoliday = isDayHoliday(d, selectedMonth, selectedYear, "Teachers");
+          const eff = getEffectiveAttendanceStatus(records[d], isHoliday);
+          if (eff) effectiveRecords[d] = eff;
+          if (eff === "present") p++;
+          else if (eff === "absent") a++;
+          else if (eff === "leave") l++;
+          else if (eff === "late") t++;
+        }
         return {
           name: item.teacher?.fullName || "N/A",
           subInfo: item.teacher?.subject || "",
-          attendance: records,
+          attendance: effectiveRecords,
           p, a, l, t,
         };
       });
@@ -1289,20 +1316,8 @@ const Attendance = () => {
     }
   };
 
-  // Helper to check if a day is a holiday
   const isDayHoliday = (day, month, year, type = "Students") => {
-    const date = new Date(year, month - 1, day);
-    if (date.getDay() === 0) return true; // Sunday
-
-    return holidays.some(h => {
-      // Check if applicable to the given type
-      if (h.applicableTo !== 'Both' && h.applicableTo !== type) return false;
-      const start = new Date(h.startDate);
-      const end = new Date(h.endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      return date >= start && date <= end;
-    });
+    return checkIsDayHoliday(day, month, year, type, holidays);
   };
 
   // Filtering for list search
@@ -2372,12 +2387,13 @@ const Attendance = () => {
                             t = 0;
                           Object.entries(records).forEach(([dayStr, status]) => {
                             const dayNum = parseInt(dayStr, 10);
-                            if (isDayHoliday(dayNum, selectedMonth, selectedYear, "Students")) return;
-                            const val = status.toLowerCase();
-                            if (val === "present") p++;
-                            else if (val === "absent") a++;
-                            else if (val === "leave") l++;
-                            else if (val === "late") t++;
+                            const isHoliday = isDayHoliday(dayNum, selectedMonth, selectedYear, "Students");
+                            const eff = getEffectiveAttendanceStatus(status, isHoliday);
+                            if (eff === "holiday") return;
+                            if (eff === "present") p++;
+                            else if (eff === "absent") a++;
+                            else if (eff === "leave") l++;
+                            else if (eff === "late") t++;
                           });
 
                           return (
@@ -2401,30 +2417,30 @@ const Attendance = () => {
                               {Array.from({ length: daysInMonth }).map(
                                 (_, idx) => {
                                   const day = idx + 1;
-                                  const status = records[day];
-                                  const badge = getStatusBadge(status);
-                                  const weekend = isWeekend(
+                                  const rawStatus = records[day];
+                                  const isHoliday = isDayHoliday(
                                     day,
                                     selectedMonth,
                                     selectedYear,
+                                    "Students",
                                   );
-                                  const isHoliday = isDayHoliday(day, selectedMonth, selectedYear, "Students");
-                                  const displayStatus = status ? badge : (isHoliday ? getStatusBadge("holiday") : null);
+                                  const effectiveStatus = getEffectiveAttendanceStatus(rawStatus, isHoliday);
+                                  const displayStatus = getStatusBadge(effectiveStatus);
 
                                   return (
                                     <td
                                       key={day}
                                       className={cn(
                                         "p-1 border-r border-gray-100 text-center align-middle",
-                                        isHoliday && !status
+                                        isHoliday
                                           ? "bg-gray-50/40"
                                           : "",
                                       )}
                                     >
                                       <div className="flex items-center justify-center">
-                                        {displayStatus ? (
+                                        {displayStatus && displayStatus.label !== "-" ? (
                                           <span
-                                            title={status || "Holiday"}
+                                            title={effectiveStatus === "holiday" ? "Holiday" : (rawStatus || "Holiday")}
                                             className={cn(
                                               "w-7 h-7 rounded-full flex items-center justify-center font-black text-[10px] border shadow-sm",
                                               displayStatus.className,
@@ -2593,12 +2609,13 @@ const Attendance = () => {
                             t = 0;
                           Object.entries(records).forEach(([dayStr, status]) => {
                             const dayNum = parseInt(dayStr, 10);
-                            if (isDayHoliday(dayNum, selectedMonth, selectedYear, "Teachers")) return;
-                            const val = status.toLowerCase();
-                            if (val === "present") p++;
-                            else if (val === "absent") a++;
-                            else if (val === "leave") l++;
-                            else if (val === "late") t++;
+                            const isHoliday = isDayHoliday(dayNum, selectedMonth, selectedYear, "Teachers");
+                            const eff = getEffectiveAttendanceStatus(status, isHoliday);
+                            if (eff === "holiday") return;
+                            if (eff === "present") p++;
+                            else if (eff === "absent") a++;
+                            else if (eff === "leave") l++;
+                            else if (eff === "late") t++;
                           });
 
                           return (
@@ -2622,30 +2639,30 @@ const Attendance = () => {
                               {Array.from({ length: daysInMonth }).map(
                                 (_, idx) => {
                                   const day = idx + 1;
-                                  const status = records[day];
-                                  const badge = getStatusBadge(status);
-                                  const weekend = isWeekend(
+                                  const rawStatus = records[day];
+                                  const isHoliday = isDayHoliday(
                                     day,
                                     selectedMonth,
                                     selectedYear,
+                                    "Teachers",
                                   );
-                                  const isHoliday = isDayHoliday(day, selectedMonth, selectedYear, "Teachers");
-                                  const displayStatus = status ? badge : (isHoliday ? getStatusBadge("holiday") : null);
+                                  const effectiveStatus = getEffectiveAttendanceStatus(rawStatus, isHoliday);
+                                  const displayStatus = getStatusBadge(effectiveStatus);
 
                                   return (
                                     <td
                                       key={day}
                                       className={cn(
                                         "p-1 border-r border-gray-100 text-center align-middle",
-                                        isHoliday && !status
+                                        isHoliday
                                           ? "bg-gray-50/40"
                                           : "",
                                       )}
                                     >
                                       <div className="flex items-center justify-center">
-                                        {displayStatus ? (
+                                        {displayStatus && displayStatus.label !== "-" ? (
                                           <span
-                                            title={status || "Holiday"}
+                                            title={effectiveStatus === "holiday" ? "Holiday" : (rawStatus || "Holiday")}
                                             className={cn(
                                               "w-7 h-7 rounded-full flex items-center justify-center font-black text-[10px] border shadow-sm",
                                               displayStatus.className,

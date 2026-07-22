@@ -15,6 +15,7 @@ const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const adminService = require('./adminService');
 const holidayService = require('./holidayService');
+const { getStartOfDay, getEndOfDay, getStartOfMonth, getEndOfMonth, getCalendarDay } = require('../utils/dateUtils');
 
 class AttendanceService {
   /**
@@ -336,50 +337,54 @@ class AttendanceService {
 
   /**
    * Sync and automatically mark active teachers as absent if it is past 12:00 PM (IST)
-   * @param {Date} targetDate - Normalized date to check
+   * @param {Date|string} targetDate - Normalized date to check
    */
   async syncAutoAbsentTeachers(targetDate) {
     try {
-      const nowUtc = new Date();
-      // Shift UTC time to IST (UTC + 5:30)
-      const nowIst = new Date(nowUtc.getTime() + (5.5 * 60 * 60 * 1000));
-      const hoursIst = nowIst.getUTCHours();
+      if (!targetDate) return;
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Only sync if targetDate is today or in the past
-      if (targetDate.getTime() > today.getTime()) {
-        return;
-      }
+      const dayStart = getStartOfDay(targetDate);
+      const dayEnd = getEndOfDay(targetDate);
+      if (!dayStart || !dayEnd) return;
 
       // Check if targetDate is a working day
       const isWorkingDay = await holidayService.isWorkingDay(targetDate, 'Teachers');
       if (!isWorkingDay) {
-        return; // Skip auto-absent logic for holidays/Sundays
-      }
-
-      // If checking today, only sync if it is past 12:00 PM IST
-      if (targetDate.getTime() === today.getTime() && hoursIst < 12) {
+        // Automatically clean up any auto-marked absent records mistakenly created on holidays/Sundays
+        await StaffAttendance.deleteMany({
+          date: { $gte: dayStart, $lte: dayEnd },
+          remarks: { $regex: /Auto-marked absent/i }
+        });
         return;
       }
 
-      // Get all active teachers
-      const activeTeachers = await Teacher.find({ isActive: true });
+      const todayStart = getStartOfDay(new Date());
+      // Only sync if targetDate is today or in the past
+      if (dayStart.getTime() > todayStart.getTime()) {
+        return;
+      }
 
-      const tomorrow = new Date(targetDate);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const nowUtc = new Date();
+      const nowIst = new Date(nowUtc.getTime() + (5.5 * 60 * 60 * 1000));
+      const hoursIst = nowIst.getUTCHours();
+
+      // If checking today, only sync if it is past 12:00 PM IST
+      if (dayStart.getTime() === todayStart.getTime() && hoursIst < 12) {
+        return;
+      }
+
+      const activeTeachers = await Teacher.find({ isActive: true });
 
       for (const teacher of activeTeachers) {
         const existing = await StaffAttendance.findOne({
           teacher: teacher._id,
-          date: { $gte: targetDate, $lt: tomorrow }
+          date: { $gte: dayStart, $lte: dayEnd }
         });
 
         if (!existing) {
           await StaffAttendance.create({
             teacher: teacher._id,
-            date: targetDate,
+            date: dayStart,
             status: 'Absent',
             remarks: 'Auto-marked absent by system (did not mark before 12:00 PM)'
           });
@@ -396,8 +401,7 @@ class AttendanceService {
    * @param {Array} attendanceData - Array of { teacherId, status, remarks }
    */
   async markStaffAttendance(date, attendanceData) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = getStartOfDay(date);
 
     // Update or insert staff attendance records (Admin can overwrite multiple times)
     const updatePromises = attendanceData.map(item =>
@@ -417,13 +421,14 @@ class AttendanceService {
    * Fetch staff attendance report for a date
    */
   async getStaffAttendanceReport(date) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = getStartOfDay(date);
 
     await this.syncAutoAbsentTeachers(targetDate);
 
+    const dayEnd = getEndOfDay(date);
+
     const report = await StaffAttendance.find({
-      date: targetDate
+      date: { $gte: targetDate, $lte: dayEnd }
     })
     .populate('teacher', 'firstName lastName email subject phone')
     .sort({ 'teacher.firstName': 1 });
@@ -437,9 +442,10 @@ class AttendanceService {
   async getStudentMonthlyReport(classId, month, year) {
     const parsedMonth = parseInt(month);
     const parsedYear = parseInt(year);
+    const monthStr = String(parsedMonth).padStart(2, '0');
 
-    const startDate = new Date(parsedYear, parsedMonth - 1, 1);
-    const endDate = new Date(parsedYear, parsedMonth, 0, 23, 59, 59, 999);
+    const startDate = getStartOfMonth(`${parsedYear}-${monthStr}-01`);
+    const endDate = getEndOfMonth(`${parsedYear}-${monthStr}-01`);
 
     const students = await Student.find({ class: classId });
     students.sort((a, b) => (parseInt(a.rollNumber) || 0) - (parseInt(b.rollNumber) || 0));
@@ -453,8 +459,10 @@ class AttendanceService {
       const dailyStatus = {};
       
       studentRecords.forEach(r => {
-        const day = new Date(r.date).getDate();
-        dailyStatus[day] = r.status;
+        const day = getCalendarDay(r.date);
+        if (day) {
+          dailyStatus[day] = r.status;
+        }
       });
 
       return {
@@ -477,9 +485,10 @@ class AttendanceService {
   async getStaffMonthlyReport(month, year) {
     const parsedMonth = parseInt(month);
     const parsedYear = parseInt(year);
+    const monthStr = String(parsedMonth).padStart(2, '0');
 
-    const startDate = new Date(parsedYear, parsedMonth - 1, 1);
-    const endDate = new Date(parsedYear, parsedMonth, 0, 23, 59, 59, 999);
+    const startDate = getStartOfMonth(`${parsedYear}-${monthStr}-01`);
+    const endDate = getEndOfMonth(`${parsedYear}-${monthStr}-01`);
 
     const teachers = await Teacher.find({ isActive: true }).sort({ firstName: 1 });
     const attendanceRecords = await StaffAttendance.find({
@@ -491,8 +500,11 @@ class AttendanceService {
       const dailyStatus = {};
       
       teacherRecords.forEach(r => {
-        const day = new Date(r.date).getDate();
-        dailyStatus[day] = r.status;
+        const day = getCalendarDay(r.date);
+        if (day) {
+          // If record is auto-marked absent, check if date is a non-working day
+          dailyStatus[day] = r.status;
+        }
       });
 
       return {

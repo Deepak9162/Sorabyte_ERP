@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getHolidays } from '../services/holidayApi';
 import { extractYearMonth, getCalendarDay } from '../utils/dateUtils';
+import { isDayHoliday as checkIsDayHoliday, getEffectiveAttendanceStatus } from '../utils/holidayUtils';
 
 const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -44,19 +45,8 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
   }, [currentYear]);
 
   // Helper to check if a day is a holiday
-  const isDayHoliday = (day, month, year, type) => {
-    const date = new Date(year, month, day);
-    if (date.getDay() === 0) return true; // Sunday
-
-    return holidays.some(h => {
-      // Check if applicable to the given type
-      if (h.applicableTo !== 'Both' && h.applicableTo !== type && type !== 'Both') return false;
-      const start = new Date(h.startDate);
-      const end = new Date(h.endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      return date >= start && date <= end;
-    });
+  const isDayHoliday = (day, monthIndex, year, type) => {
+    return checkIsDayHoliday(day, monthIndex + 1, year, type, holidays);
   };
 
   const handlePrevMonth = () => setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
@@ -68,34 +58,31 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
     
     for (let day = 1; day <= daysInMonth; day++) {
       const record = attendanceMap[day];
-      const isHoliday = isDayHoliday(day, currentMonth, currentYear, userType);
-      
-      let status = record?.status;
-      if (!status && isHoliday) {
-        status = 'Holiday';
-      }
-      
-      if (status === 'Present') present++;
-      if (status === 'Absent') absent++;
-      if (status === 'Leave') leave++;
-      if (status === 'Late') late++;
-      if (status === 'Holiday') holiday++;
+      const isHol = isDayHoliday(day, currentMonth, currentYear, userType);
+      const eff = getEffectiveAttendanceStatus(record?.status, isHol);
+
+      if (eff === 'present') present++;
+      else if (eff === 'absent') absent++;
+      else if (eff === 'leave') leave++;
+      else if (eff === 'late') late++;
+      else if (eff === 'holiday') holiday++;
     }
     return { present, absent, leave, late, holiday };
   }, [attendanceMap, daysInMonth, currentMonth, currentYear, holidays, userType]);
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    const getStatusColor = (status) => {
-      switch (status) {
-        case 'Present': return 'bg-emerald-100 text-emerald-705 border-emerald-200';
-        case 'Absent': return 'bg-red-100 text-red-705 border-red-200';
-        case 'Leave': return 'bg-amber-100 text-amber-705 border-amber-200';
-        case 'Late': return 'bg-orange-100 text-orange-705 border-orange-200';
-        case 'Holiday': return 'bg-blue-100 text-blue-700 border-blue-200';
-        default: return 'bg-gray-50 text-gray-500 border-gray-100';
-      }
-    };
+  const getStatusColor = (status) => {
+    const s = String(status || '').toLowerCase();
+    switch (s) {
+      case 'present': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'absent': return 'bg-red-100 text-red-700 border-red-200';
+      case 'leave': return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'late': return 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'holiday': return 'bg-blue-100 text-blue-700 border-blue-200';
+      default: return 'bg-gray-50 text-gray-500 border-gray-100';
+    }
+  };
 
   return (
     <div className="bg-white p-3.5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -106,17 +93,17 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
           </h2>
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)} 
-            className="md:hidden flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-605 bg-indigo-50 border border-indigo-100/50 px-2.5 py-1 rounded-lg active:scale-95 transition-all cursor-pointer"
+            className="md:hidden flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-2.5 py-1 rounded-lg active:scale-95 transition-all cursor-pointer"
           >
             <CalendarDays size={12} />
             {isCollapsed ? "Show Grid" : "Hide Grid"}
           </button>
         </div>
         <div className="flex gap-1.5">
-          <button onClick={handlePrevMonth} className="p-1.5 md:p-2 hover:bg-gray-150 rounded-lg transition-colors cursor-pointer">
+          <button onClick={handlePrevMonth} className="p-1.5 md:p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
             <ChevronLeft size={18} className="text-gray-600" />
           </button>
-          <button onClick={handleNextMonth} className="p-1.5 md:p-2 hover:bg-gray-150 rounded-lg transition-colors cursor-pointer">
+          <button onClick={handleNextMonth} className="p-1.5 md:p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
             <ChevronRight size={18} className="text-gray-600" />
           </button>
         </div>
@@ -135,7 +122,7 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
           </div>
           <div className="p-2 bg-amber-50/70 rounded-xl border border-amber-100">
             <div className="text-[9px] font-bold text-amber-600 uppercase font-black">Leave</div>
-            <div className="text-base md:text-2xl font-black text-amber-705">{monthStats.leave}</div>
+            <div className="text-base md:text-2xl font-black text-amber-700">{monthStats.leave}</div>
           </div>
           <div className="p-2 bg-orange-50/70 rounded-xl border border-orange-100">
             <div className="text-[9px] font-bold text-orange-600 uppercase font-black">Late</div>
@@ -158,22 +145,19 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
           ))}
           
           {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-            <div key={`empty-${i}`} className="h-12 md:h-24 bg-gray-50/30 rounded-xl border border-gray-105 border-dashed" />
+            <div key={`empty-${i}`} className="h-12 md:h-24 bg-gray-50/30 rounded-xl border border-gray-100 border-dashed" />
           ))}
           
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const dateNum = i + 1;
             const record = attendanceMap[dateNum];
-            let status = record?.status;
             const markedAt = record?.markedAt;
-            const isHoliday = isDayHoliday(dateNum, currentMonth, currentYear, userType);
-            
-            if (!status && isHoliday) {
-                status = "Holiday";
-            }
+            const isHol = isDayHoliday(dateNum, currentMonth, currentYear, userType);
+            const effStatus = getEffectiveAttendanceStatus(record?.status, isHol);
+            const displayLabel = effStatus ? (effStatus === 'holiday' ? 'Holiday' : effStatus.charAt(0).toUpperCase() + effStatus.slice(1)) : null;
 
-            const tooltipText = status 
-              ? `${status} on ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}${markedAt ? ` at ${markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : ''}`
+            const tooltipText = displayLabel 
+              ? `${displayLabel} on ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}${markedAt ? ` at ${markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : ''}`
               : `No record for ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}`;
 
             return (
@@ -182,15 +166,15 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
                 title={tooltipText}
                 className={cn(
                   "h-12 md:h-24 p-1 md:p-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer",
-                  status ? getStatusColor(status) : (isHoliday ? getStatusColor('Holiday') : "bg-gray-50/40 text-gray-400 border-gray-100 hover:border-gray-250 hover:bg-white")
+                  effStatus ? getStatusColor(effStatus) : "bg-gray-50/40 text-gray-400 border-gray-100 hover:border-gray-200 hover:bg-white"
                 )}
               >
-                <span className={cn("text-xs md:text-lg font-black", status ? "" : "opacity-50")}>{dateNum}</span>
-                {status && (
+                <span className={cn("text-xs md:text-lg font-black", effStatus ? "" : "opacity-50")}>{dateNum}</span>
+                {displayLabel && (
                   <>
                     <div className="hidden md:flex flex-col items-center gap-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/60 shadow-sm animate-in fade-in duration-300">
-                        {status}
+                        {displayLabel}
                       </span>
                       {markedAt && (
                         <span className="text-[9px] font-semibold opacity-75 mt-0.5">
@@ -200,11 +184,11 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
                     </div>
                     <div className={cn(
                       "md:hidden w-1.5 h-1.5 rounded-full bg-current",
-                      status === 'Present' && "text-emerald-700",
-                      status === 'Absent' && "text-red-700",
-                      status === 'Leave' && "text-amber-700",
-                      status === 'Late' && "text-orange-700",
-                      status === 'Holiday' && "text-blue-700",
+                      effStatus === 'present' && "text-emerald-700",
+                      effStatus === 'absent' && "text-red-700",
+                      effStatus === 'leave' && "text-amber-700",
+                      effStatus === 'late' && "text-orange-700",
+                      effStatus === 'holiday' && "text-blue-700",
                     )} />
                   </>
                 )}

@@ -99,6 +99,153 @@ const getOrCreateClass = async (className, section) => {
   return targetClass;
 };
 
+/**
+ * Core helper to enroll a student from an admission request.
+ * 
+ * This is the SINGLE SOURCE OF TRUTH for student creation — used by both:
+ *   1. reviewRequest (Admin approves a teacher-submitted request)
+ *   2. directAdmission (Admin directly admits without teacher workflow)
+ * 
+ * Data flow: AdmissionRequest document → Student document → Class mapping → Fee ledger
+ */
+const enrollStudent = async (request, reviewerId) => {
+  const targetClass = await getOrCreateClass(
+    request.studentInfo.admissionClass, 
+    request.studentInfo.section
+  );
+
+  if (!targetClass) {
+    throw new Error('Failed to resolve or create class group for student enrolment');
+  }
+
+  // Use academicSession from the request document if set, otherwise fall back to
+  // a value parsed from additionalNotes.remarks, then default to current academic year.
+  let session = request.academicSession || '';
+  if (!session && request.additionalNotes && request.additionalNotes.remarks) {
+    const sessionMatch = request.additionalNotes.remarks.match(/Academic Session:\s*([^\s|]+)/);
+    if (sessionMatch) session = sessionMatch[1].trim();
+  }
+  if (!session) session = '2026-2027';
+
+  const rollNumber = await getNextRollNumber(
+    targetClass._id, 
+    request.studentInfo.section || 'A',
+    request.studentInfo.admissionClass,
+    session
+  );
+  const admissionNumber = await getNextAdmissionNumber();
+
+  // Address concatenation
+  const addressStr = request.address.currentAddress || request.address.permanentAddress || '';
+
+  // Resolve discount percentage: top-level field → additionalNotes.remarks fallback → 0
+  let discountPercentage = 0;
+  if (typeof request.discountPercentage === 'number') {
+    discountPercentage = request.discountPercentage;
+  } else if (request.additionalNotes && request.additionalNotes.remarks) {
+    const discountMatch = request.additionalNotes.remarks.match(/Discount:\s*(\d+(?:\.\d+)?)%/);
+    if (discountMatch) discountPercentage = parseFloat(discountMatch[1]);
+  }
+
+  // Resolve admission date: top-level field → additionalNotes.remarks fallback → now
+  let admissionDate = request.admissionDate || null;
+  if (!admissionDate && request.additionalNotes && request.additionalNotes.remarks) {
+    const dateMatch = request.additionalNotes.remarks.match(/Admission Date:\s*(\d{4}-\d{2}-\d{2})/);
+    if (dateMatch) admissionDate = new Date(dateMatch[1]);
+  }
+  if (!admissionDate) admissionDate = new Date();
+
+  const studentData = {
+    fullName: request.studentInfo.fullName,
+    gender: request.studentInfo.gender,
+    dob: request.studentInfo.dob,
+    bloodGroup: request.studentInfo.bloodGroup || 'Unknown',
+    cast: request.studentInfo.category || '',
+    aadhar: request.studentInfo.aadhar || '',
+    previousSchool: request.studentInfo.previousSchool || '',
+    className: request.studentInfo.admissionClass,
+    section: request.studentInfo.section || 'A',
+    class: targetClass._id,
+    rollNumber,
+    admissionNumber,
+    session,
+    admissionDate,
+    discountPercentage,
+    fatherName: request.parentInfo.fatherName,
+    motherName: request.parentInfo.motherName,
+    emergencyContact: request.emergencyContact.phone,
+    transportMode: request.transport.busRequired ? 'School Bus' : 'Private',
+    transportFee: request.transport.transportFee || 0,
+    hostelRequired: request.hostel ? request.hostel.hostelRequired : false,
+    studentPhoto: request.studentInfo.studentPhoto || '',
+    phone: request.parentInfo.phone || '',
+    email: request.parentInfo.email || '',
+    address: addressStr,
+    status: 'Active',
+    customFields: {
+      admissionRequestId: request._id.toString(),
+      // Student extended fields
+      religion: request.studentInfo.religion || '',
+      nationality: request.studentInfo.nationality || '',
+      penNumber: request.studentInfo.penNumber || '',
+      house: request.studentInfo.house || '',
+      birthCertificateNumber: request.studentInfo.birthCertificateNumber || '',
+      transferCertificateNumber: request.studentInfo.transferCertificateNumber || '',
+      previousLastClass: request.studentInfo.previousLastClass || '',
+      previousSchoolAddress: request.studentInfo.previousSchoolAddress || '',
+      // Parent extended fields
+      fatherMobile: request.parentInfo.fatherMobile || '',
+      fatherOccupation: request.parentInfo.fatherOccupation || '',
+      fatherAadhar: request.parentInfo.fatherAadhar || '',
+      motherMobile: request.parentInfo.motherMobile || '',
+      motherOccupation: request.parentInfo.motherOccupation || '',
+      motherAadhar: request.parentInfo.motherAadhar || '',
+      guardianName: request.parentInfo.guardianName || '',
+      guardianRelation: request.parentInfo.guardianRelation || '',
+      guardianMobile: request.parentInfo.guardianMobile || '',
+      guardianAddress: request.parentInfo.guardianAddress || '',
+      // Address extended fields
+      currentAddress: request.address.currentAddress || '',
+      permanentAddress: request.address.permanentAddress || '',
+      city: request.address.city || '',
+      district: request.address.district || '',
+      state: request.address.state || '',
+      pinCode: request.address.pinCode || '',
+      // Transport details
+      transportRoute: request.transport.route || '',
+      pickupPoint: request.transport.pickupPoint || '',
+      dropPoint: request.transport.dropPoint || '',
+      // Medical details
+      medicalConditions: request.medicalInfo ? request.medicalInfo.medicalConditions : '',
+      allergies: request.medicalInfo ? request.medicalInfo.allergies : '',
+      doctorName: request.medicalInfo ? request.medicalInfo.doctorName : '',
+    }
+  };
+
+  const Student = require('../models/Student');
+  const createdStudent = await Student.create(studentData);
+
+  await Class.findByIdAndUpdate(targetClass._id, {
+    $push: { students: createdStudent._id }
+  });
+
+  // Trigger fee ledger initialization if feeService is available
+  try {
+    const feeService = require('../services/feeService');
+    if (feeService && typeof feeService.ensureFeeLedger === 'function') {
+      await feeService.ensureFeeLedger(
+        createdStudent._id,
+        session,
+        targetClass.tuitionFee || 0
+      );
+    }
+  } catch (feeError) {
+    console.error("Warning: Failed to auto-initialize fee ledger for student:", feeError.message);
+  }
+
+  return { createdStudent, rollNumber, admissionNumber };
+};
+
 exports.createRequest = async (req, res, next) => {
   try {
     const teacher = await Teacher.findOne({ user: req.user._id });
@@ -431,58 +578,7 @@ exports.reviewRequest = async (req, res, next) => {
     });
 
     if (status === 'Approved') {
-      const targetClass = await getOrCreateClass(
-        request.studentInfo.admissionClass, 
-        request.studentInfo.section
-      );
-
-      if (!targetClass) {
-        throw new Error('Failed to resolve or create class group for student enrolment');
-      }
-
-      const session = "2026-2027";
-      const rollNumber = await getNextRollNumber(
-        targetClass._id, 
-        request.studentInfo.section || 'A',
-        request.studentInfo.admissionClass,
-        session
-      );
-      const admissionNumber = await getNextAdmissionNumber();
-
-      const studentData = {
-        fullName: request.studentInfo.fullName,
-        gender: request.studentInfo.gender,
-        dob: request.studentInfo.dob,
-        bloodGroup: request.studentInfo.bloodGroup || 'Unknown',
-        cast: request.studentInfo.category || '',
-        aadhar: request.studentInfo.aadhar || '',
-        previousSchool: request.studentInfo.previousSchool || '',
-        className: request.studentInfo.admissionClass,
-        section: request.studentInfo.section || 'A',
-        class: targetClass._id,
-        rollNumber,
-        admissionNumber,
-        session,
-        fatherName: request.parentInfo.fatherName,
-        motherName: request.parentInfo.motherName,
-        emergencyContact: request.emergencyContact.phone,
-        transportMode: request.transport.busRequired ? 'School Bus' : 'Private',
-        hostelRequired: request.hostel.hostelRequired,
-        studentPhoto: request.studentInfo.studentPhoto || '',
-        phone: request.parentInfo.phone || '',
-        email: request.parentInfo.email || '',
-        status: 'Active',
-        customFields: {
-          admissionRequestId: request._id.toString()
-        }
-      };
-
-      const Student = require('../models/Student');
-      const createdStudent = await Student.create(studentData);
-
-      await Class.findByIdAndUpdate(targetClass._id, {
-        $push: { students: createdStudent._id }
-      });
+      const { createdStudent, rollNumber, admissionNumber } = await enrollStudent(request, req.user._id);
       
       request.activityLogs.push({
         action: 'StudentCreated',
@@ -576,6 +672,104 @@ exports.addComment = async (req, res, next) => {
     }
 
     return successResponse(res, request, 'Comment added successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Direct Admission — Admin bypasses teacher workflow.
+ *
+ * Creates an AdmissionRequest with status 'Approved' and immediately calls
+ * enrollStudent() — the same function used when a teacher-submitted request
+ * is approved. No duplicate student-creation logic exists anywhere.
+ *
+ * Security: isAdmin middleware on the route ensures only admin roles reach here.
+ * Logging: admission event is logged with admin identity, student ID, class, session.
+ */
+exports.directAdmission = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return errorResponse(res, 'Only Administrators can perform direct admissions', 403);
+    }
+
+    // Find first teacher to satisfy schema required: true for teacher
+    const defaultTeacher = await Teacher.findOne({});
+    if (!defaultTeacher) {
+      return errorResponse(res, 'At least one teacher profile must exist in the system to create an admission request', 400);
+    }
+
+    // Resolve top-level fields sent by the direct admission form
+    const academicSession = req.body.academicSession || (req.body.studentInfo && req.body.studentInfo.session) || '2026-2027';
+    const discountPercentage = parseFloat(req.body.discountPercentage) || 0;
+    const admissionDate = req.body.admissionDate ? new Date(req.body.admissionDate) : new Date();
+
+    const requestData = {
+      ...req.body,
+      teacher: defaultTeacher._id,
+      status: 'Approved',
+      createdBy: req.user._id,
+      approvedBy: req.user._id,
+      reviewedAt: new Date(),
+      academicSession,
+      discountPercentage,
+      admissionDate,
+      timeline: [
+        {
+          action: 'Created',
+          performedBy: req.user._id,
+          performedByName: req.user.name,
+          notes: 'Direct admission created by Admin'
+        },
+        {
+          action: 'Approved',
+          performedBy: req.user._id,
+          performedByName: req.user.name,
+          notes: 'Direct admission approved automatically'
+        }
+      ],
+      activityLogs: [
+        {
+          action: 'Created',
+          performedBy: req.user._id,
+          details: 'Direct admission request created'
+        },
+        {
+          action: 'Approved',
+          performedBy: req.user._id,
+          details: 'Direct admission request approved'
+        }
+      ]
+    };
+
+    const request = await AdmissionRequest.create(requestData);
+
+    // Reuse the same enrollment pipeline as teacher-approval flow
+    const { createdStudent, rollNumber, admissionNumber } = await enrollStudent(request, req.user._id);
+
+    request.activityLogs.push({
+      action: 'StudentCreated',
+      performedBy: req.user._id,
+      details: `Student profile ${createdStudent.studentId} (${createdStudent.fullName}) created with Admission Number ${admissionNumber} and Roll Number ${rollNumber}`
+    });
+
+    await request.save();
+
+    // Structured audit log
+    console.log(JSON.stringify({
+      event: 'DirectAdmissionCreated',
+      createdBy: req.user.name,
+      createdById: req.user._id,
+      studentId: createdStudent.studentId,
+      admissionNumber,
+      className: createdStudent.className,
+      section: createdStudent.section,
+      session: createdStudent.session,
+      admissionDate: createdStudent.admissionDate,
+      timestamp: new Date().toISOString()
+    }));
+
+    return successResponse(res, { request, student: createdStudent }, 'Student direct admission completed successfully', 201);
   } catch (error) {
     next(error);
   }

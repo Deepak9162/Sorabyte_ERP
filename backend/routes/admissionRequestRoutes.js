@@ -10,11 +10,14 @@ const {
   deleteRequest,
   submitDraft,
   reviewRequest,
-  addComment
+  addComment,
+  directAdmission
 } = require('../controllers/admissionRequestController');
 
 // All routes require authentication
 router.use(protect);
+
+router.post('/direct-admission', isAdmin, admissionUpload, directAdmission);
 
 router.route('/')
   .post(admissionUpload, createRequest)

@@ -414,8 +414,14 @@ class AdminService {
 
     return {
       studentInfo: {
+        _id: student._id,
         name: student.fullName,
+        fullName: student.fullName,
         rollNo: student.rollNumber,
+        rollNumber: student.rollNumber,
+        admissionNumber: student.admissionNumber || 'N/A',
+        parentPhone: student.parentPhone || student.guardianPhone || 'N/A',
+        class: { name: student.class ? student.class.name : 'N/A' },
         className: student.class ? student.class.name : 'N/A',
         program: 'Regular'
       },
@@ -575,49 +581,8 @@ class AdminService {
    * @param {Date} targetDate - Normalized date to check
    */
   async syncAutoAbsentTeachers(targetDate) {
-    try {
-      const nowUtc = new Date();
-      // Shift UTC time to IST (UTC + 5:30)
-      const nowIst = new Date(nowUtc.getTime() + (5.5 * 60 * 60 * 1000));
-      const hoursIst = nowIst.getUTCHours();
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Only sync if targetDate is today or in the past
-      if (targetDate.getTime() > today.getTime()) {
-        return;
-      }
-
-      // If checking today, only sync if it is past 12:00 PM IST
-      if (targetDate.getTime() === today.getTime() && hoursIst < 12) {
-        return;
-      }
-
-      // Get all active teachers
-      const activeTeachers = await Teacher.find({ isActive: true });
-
-      const tomorrow = new Date(targetDate);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      for (const teacher of activeTeachers) {
-        const existing = await StaffAttendance.findOne({
-          teacher: teacher._id,
-          date: { $gte: targetDate, $lt: tomorrow }
-        });
-
-        if (!existing) {
-          await StaffAttendance.create({
-            teacher: teacher._id,
-            date: targetDate,
-            status: 'Absent',
-            remarks: 'Auto-marked absent by system (did not mark before 12:00 PM)'
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error syncing auto absent teachers in AdminService:', error);
-    }
+    const attendanceService = require('./attendanceService');
+    return await attendanceService.syncAutoAbsentTeachers(targetDate);
   }
 
   /**

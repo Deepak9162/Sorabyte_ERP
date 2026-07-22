@@ -144,6 +144,17 @@ const getEndOfMonth = (dateInput) => {
   return new Date(nextMonthFirst.getTime() - 1);
 };
 
+/**
+ * Safely parses a given date/time and extracts the localized day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+ * evaluated in Asia/Kolkata timezone
+ */
+const getDayOfWeek = (dateInput) => {
+  const formatted = formatDateString(dateInput);
+  if (!formatted) return null;
+  const noonIst = new Date(`${formatted}T12:00:00.000+05:30`);
+  return noonIst.getUTCDay();
+};
+
 module.exports = {
   getTodayDateString,
   formatDateString,
@@ -153,5 +164,7 @@ module.exports = {
   getEndOfDay,
   getStartOfMonth,
   getEndOfMonth,
-  getCalendarDay
+  getCalendarDay,
+  getDayOfWeek
 };
+
