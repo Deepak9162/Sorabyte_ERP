@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -26,6 +26,8 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import Button from "../components/ui/Button";
+import Modal from "../components/ui/Modal";
+import Input from "../components/ui/Input";
 import Skeleton, { TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import { useToast } from "../context/ToastContext";
@@ -295,9 +297,33 @@ const Attendance = () => {
 
   // Navigation states
   const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (tabParam) return tabParam;
     return localStorage.getItem("attendance_active_tab") || "mark-students";
   });
   const [loading, setLoading] = useState(false);
+
+  // Sync tab from URL query params (e.g. ?tab=leave-requests from notifications)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get("tab");
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [location.search]);
+
+  // Safe Date Formatter helper
+  const formatDateSafe = (dateVal) => {
+    if (!dateVal) return "N/A";
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "N/A";
+    return d.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   // Filter states
   const [classes, setClasses] = useState([]);
@@ -388,7 +414,73 @@ const Attendance = () => {
       icon: BarChart2,
       roles: ["admin"],
     },
+    {
+      id: "leave-requests",
+      label: "Leave Requests",
+      shortLabel: "Leaves",
+      icon: FileText,
+      roles: ["admin"],
+    },
   ].filter((tab) => tab.roles.includes(user?.role));
+
+  // Admin Leave Management states
+  const [adminLeaves, setAdminLeaves] = useState([]);
+  const [leaveFilterStatus, setLeaveFilterStatus] = useState("all");
+  const [leaveSearchQuery, setLeaveSearchQuery] = useState("");
+  const [selectedAdminLeave, setSelectedAdminLeave] = useState(null);
+  const [adminLeaveAction, setAdminLeaveAction] = useState(null); // 'approve' | 'reject' | 'cancel'
+  const [adminRemarksText, setAdminRemarksText] = useState("");
+  const [adminLeaveLoading, setAdminLeaveLoading] = useState(false);
+
+  const fetchAdminLeaves = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/leaves/admin", {
+        params: { status: leaveFilterStatus }
+      });
+      if (res.data.success) {
+        setAdminLeaves(res.data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin leaves:", err);
+      addToast("Failed to load leave requests", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [leaveFilterStatus, addToast]);
+
+  useEffect(() => {
+    if (activeTab === "leave-requests") {
+      fetchAdminLeaves();
+    }
+  }, [activeTab, leaveFilterStatus, fetchAdminLeaves]);
+
+  const handleAdminLeaveAction = async () => {
+    if (!selectedAdminLeave || !adminLeaveAction) return;
+    setAdminLeaveLoading(true);
+    try {
+      let endpoint = `/leaves/${selectedAdminLeave._id}/${adminLeaveAction}`;
+      let body = { remarks: adminRemarksText };
+      if (adminLeaveAction === 'cancel') {
+        body = { reason: adminRemarksText || 'Cancelled by administrator' };
+      }
+
+      const res = await api.put(endpoint, body);
+      if (res.data.success) {
+        addToast(`Leave request ${adminLeaveAction}d successfully`, "success");
+        setAdminLeaveAction(null);
+        setSelectedAdminLeave(null);
+        setAdminRemarksText("");
+        fetchAdminLeaves();
+      }
+    } catch (err) {
+      console.error("Leave action error:", err);
+      const msg = err.response?.data?.message || `Failed to ${adminLeaveAction} leave request`;
+      addToast(msg, "error");
+    } finally {
+      setAdminLeaveLoading(false);
+    }
+  };
 
   // 1. Fetch Classes on Load — scoped by role
   useEffect(() => {
@@ -1449,28 +1541,31 @@ const Attendance = () => {
   };
 
   // Filtering for list search
-  const filteredStudents = students.filter(
+  const filteredStudents = (students || []).filter(
     (s) =>
-      (s.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.rollNumber && s.rollNumber.includes(searchQuery)),
+      s &&
+      ((s.fullName || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+        (s.rollNumber && String(s.rollNumber).includes(searchQuery))),
   );
 
-  const filteredTeachers = teachers.filter(
+  const filteredTeachers = (teachers || []).filter(
     (t) =>
-      `${t.firstName} ${t.lastName}`
+      t &&
+      (`${t.firstName || ""} ${t.lastName || ""}`
         .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      (t.subject &&
-        t.subject.toLowerCase().includes(searchQuery.toLowerCase())),
+        .includes((searchQuery || "").toLowerCase()) ||
+        (t.subject &&
+          t.subject.toLowerCase().includes((searchQuery || "").toLowerCase()))),
   );
 
   // Summary counts for stats bar
   const currentMarkedData =
-    activeTab === "mark-students" ? attendanceData : staffAttendanceData;
+    activeTab === "mark-students" ? (attendanceData || {}) : (staffAttendanceData || {});
   const currentTotal =
-    activeTab === "mark-students" ? students.length : teachers.length;
+    activeTab === "mark-students" ? (students?.length || 0) : (teachers?.length || 0);
 
   const getStatusCount = (statusVal) => {
+    if (!currentMarkedData || typeof currentMarkedData !== "object") return 0;
     return Object.values(currentMarkedData).filter((s) => {
       const status = typeof s === "object" ? s?.status : s;
       return status === statusVal;
@@ -1478,7 +1573,7 @@ const Attendance = () => {
   };
 
   const stats = {
-    total: currentTotal,
+    total: currentTotal || 0,
     present: getStatusCount("present"),
     absent: getStatusCount("absent"),
     leave: getStatusCount("leave"),
@@ -1952,9 +2047,10 @@ const Attendance = () => {
       )}
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden mb-32 md:mb-0">
-        {/* Daily Mark - Student Tab */}
-        {activeTab === "mark-students" && (
+      {activeTab !== "leave-requests" && (
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden mb-32 md:mb-0">
+          {/* Daily Mark - Student Tab */}
+          {activeTab === "mark-students" && (
           <>
             <div className="sticky top-0 bg-white/95 backdrop-blur-md z-20 p-6 sm:p-10 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm md:shadow-none">
               <div>
@@ -2864,6 +2960,287 @@ const Attendance = () => {
           </>
         )}
       </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────── */}
+      {/* TAB 5: ADMIN LEAVE REQUESTS MANAGEMENT                   */}
+      {/* ───────────────────────────────────────────────────────── */}
+      {activeTab === "leave-requests" && (() => {
+        const safeAdminLeaves = Array.isArray(adminLeaves) ? adminLeaves : [];
+
+          return (
+            <div className="space-y-6">
+              {/* Top Stat Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest block">
+                    Pending Review
+                  </span>
+                  <span className="text-2xl font-black text-amber-600 mt-2">
+                    {safeAdminLeaves.filter((l) => l && l.status === "Pending").length}
+                  </span>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest block">
+                    Approved Leaves
+                  </span>
+                  <span className="text-2xl font-black text-emerald-600 mt-2">
+                    {safeAdminLeaves.filter((l) => l && l.status === "Approved").length}
+                  </span>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest block">
+                    Rejected Leaves
+                  </span>
+                  <span className="text-2xl font-black text-rose-600 mt-2">
+                    {safeAdminLeaves.filter((l) => l && l.status === "Rejected").length}
+                  </span>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">
+                    Total Submissions
+                  </span>
+                  <span className="text-2xl font-black text-indigo-600 mt-2">
+                    {safeAdminLeaves.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar */}
+              <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-gray-400 mr-2 flex items-center gap-1">
+                    <Filter size={14} /> Filter Status:
+                  </span>
+                  {["all", "Pending", "Approved", "Rejected", "Cancelled"].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setLeaveFilterStatus(st)}
+                      className={cn(
+                        "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer capitalize border",
+                        leaveFilterStatus === st
+                          ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                          : "bg-gray-50 text-gray-600 border-gray-100 hover:border-indigo-200"
+                      )}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Search Box */}
+                <div className="relative w-full sm:w-64">
+                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search faculty name..."
+                    value={leaveSearchQuery}
+                    onChange={(e) => setLeaveSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Leave Requests Table */}
+              <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+                {loading ? (
+                  <TableSkeleton rows={5} />
+                ) : safeAdminLeaves.length === 0 ? (
+                  <EmptyState
+                    title="No Leave Requests Found"
+                    description="No leave applications match the selected status filter."
+                    icon={FileText}
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50/70 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          <th className="px-6 py-4">Faculty Member</th>
+                          <th className="px-6 py-4">Leave Type</th>
+                          <th className="px-6 py-4">Duration & Dates</th>
+                          <th className="px-6 py-4">Reason</th>
+                          <th className="px-6 py-4">Applied Date</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 text-xs">
+                        {safeAdminLeaves
+                          .filter((leave) => {
+                            if (!leave) return false;
+                            const tName = `${leave.teacher?.firstName || ""} ${leave.teacher?.lastName || ""}`.toLowerCase();
+                            return tName.includes((leaveSearchQuery || "").toLowerCase());
+                          })
+                          .map((leave) => {
+                            const tName = leave.teacher
+                              ? `${leave.teacher.firstName || "Teacher"} ${leave.teacher.lastName || ""}`.trim()
+                              : "Teacher";
+                            const startStr = formatDateSafe(leave.startDate);
+                            const endStr = formatDateSafe(leave.endDate);
+
+                            return (
+                              <tr key={leave._id} className="hover:bg-gray-50/40 transition-colors">
+                                <td className="px-6 py-4 font-bold text-gray-900">
+                                  <div>
+                                    <span className="block text-gray-900 font-black">{tName}</span>
+                                    <span className="text-[10px] text-gray-400 font-semibold">{leave.teacher?.subject || "Faculty"}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-black text-[10px] uppercase rounded-lg border border-indigo-100">
+                                    {leave.leaveType || "Leave"}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 font-semibold text-gray-700">
+                                  <div>
+                                    <span>{startStr === endStr ? startStr : `${startStr} - ${endStr}`}</span>
+                                    <span className="block text-[10px] text-indigo-600 font-bold mt-0.5">
+                                      {leave.totalDays || 1} Day(s)
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 max-w-xs truncate text-gray-600 font-medium" title={leave.reason}>
+                                  "{leave.reason}"
+                                </td>
+                                <td className="px-6 py-4 text-gray-400 font-bold text-[11px]">
+                                  {formatDateSafe(leave.appliedAt || leave.createdAt)}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span
+                                    className={cn(
+                                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border inline-block",
+                                      leave.status === "Approved" && "bg-emerald-50 text-emerald-700 border-emerald-200",
+                                      leave.status === "Pending" && "bg-amber-50 text-amber-700 border-amber-200",
+                                      leave.status === "Rejected" && "bg-rose-50 text-rose-700 border-rose-200",
+                                      leave.status === "Cancelled" && "bg-gray-100 text-gray-500 border-gray-200"
+                                    )}
+                                  >
+                                    {leave.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    {leave.status === "Pending" ? (
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedAdminLeave(leave);
+                                            setAdminLeaveAction("approve");
+                                            setAdminRemarksText("");
+                                          }}
+                                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+                                        >
+                                          Approve
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedAdminLeave(leave);
+                                            setAdminLeaveAction("reject");
+                                            setAdminRemarksText("");
+                                          }}
+                                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                                        >
+                                          Reject
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedAdminLeave(leave);
+                                          setAdminLeaveAction("cancel");
+                                          setAdminRemarksText("");
+                                        }}
+                                        className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-[10px] rounded-lg transition-all cursor-pointer"
+                                      >
+                                        Manage
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* Admin Action Modal (Approve / Reject / Cancel) */}
+      <Modal
+        isOpen={!!adminLeaveAction}
+        onClose={() => {
+          setAdminLeaveAction(null);
+          setSelectedAdminLeave(null);
+        }}
+        title={
+          adminLeaveAction === "approve"
+            ? "Approve Leave Request"
+            : adminLeaveAction === "reject"
+            ? "Reject Leave Request"
+            : "Cancel Approved Leave"
+        }
+        maxWidth="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAdminLeaveAction(null)}>
+              Cancel
+            </Button>
+            <Button
+              className={cn(
+                adminLeaveAction === "approve" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"
+              )}
+              onClick={handleAdminLeaveAction}
+              loading={adminLeaveLoading}
+            >
+              Confirm {adminLeaveAction}
+            </Button>
+          </>
+        }
+      >
+        {selectedAdminLeave && (
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+              <div className="flex justify-between text-xs font-bold">
+                <span className="text-gray-500">Teacher:</span>
+                <span className="text-gray-900">
+                  {selectedAdminLeave.teacher?.firstName || "Teacher"} {selectedAdminLeave.teacher?.lastName || ""}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs font-bold">
+                <span className="text-gray-500">Leave Type:</span>
+                <span className="text-indigo-600">{selectedAdminLeave.leaveType}</span>
+              </div>
+              <div className="flex justify-between text-xs font-bold">
+                <span className="text-gray-500">Duration:</span>
+                <span className="text-gray-900">
+                  {formatDateSafe(selectedAdminLeave.startDate)} to {formatDateSafe(selectedAdminLeave.endDate)} ({selectedAdminLeave.totalDays} Days)
+                </span>
+              </div>
+              <div className="text-xs font-medium text-gray-700 bg-white p-3 rounded-xl border border-gray-100 mt-2">
+                "{selectedAdminLeave.reason}"
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-black text-gray-500 uppercase tracking-wider block mb-1.5">
+                Admin Remarks / Note (Optional)
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Enter remarks for the teacher..."
+                value={adminRemarksText}
+                onChange={(e) => setAdminRemarksText(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-none focus:border-indigo-600 transition-all"
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Sticky Mobile Submit Button for Marking */}
       {(activeTab === "mark-students" || activeTab === "mark-staff") && (

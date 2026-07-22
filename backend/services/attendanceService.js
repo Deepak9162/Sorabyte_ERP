@@ -374,8 +374,21 @@ class AttendanceService {
       }
 
       const activeTeachers = await Teacher.find({ isActive: true });
+      const leaveService = require('./leaveService');
 
       for (const teacher of activeTeachers) {
+        // Check if teacher has an Approved leave for targetDate
+        const isLeave = await leaveService.isTeacherOnApprovedLeave(teacher._id, targetDate);
+        if (isLeave) {
+          // Clean up any auto-marked absent record if it exists
+          await StaffAttendance.deleteMany({
+            teacher: teacher._id,
+            date: { $gte: dayStart, $lte: dayEnd },
+            remarks: { $regex: /Auto-marked absent/i }
+          });
+          continue; // APPROVED LEAVE HAS HIGHER PRIORITY THAN AUTO-ABSENT!
+        }
+
         const existing = await StaffAttendance.findOne({
           teacher: teacher._id,
           date: { $gte: dayStart, $lte: dayEnd }
@@ -495,14 +508,35 @@ class AttendanceService {
       date: { $gte: startDate, $lte: endDate }
     });
 
+    const LeaveRequest = require('../models/LeaveRequest');
+    const approvedLeaves = await LeaveRequest.find({
+      status: 'Approved',
+      startDate: { $lte: endDate },
+      endDate: { $gte: startDate }
+    });
+
     const report = teachers.map(teacher => {
       const teacherRecords = attendanceRecords.filter(r => r.teacher.toString() === teacher._id.toString());
+      const teacherLeaves = approvedLeaves.filter(l => l.teacher.toString() === teacher._id.toString());
       const dailyStatus = {};
       
+      // 1. Populate approved leave dates
+      teacherLeaves.forEach(l => {
+        const lStart = new Date(Math.max(new Date(l.startDate).getTime(), startDate.getTime()));
+        const lEnd = new Date(Math.min(new Date(l.endDate).getTime(), endDate.getTime()));
+        
+        for (let d = new Date(lStart); d <= lEnd; d.setDate(d.getDate() + 1)) {
+          const day = getCalendarDay(d);
+          if (day) {
+            dailyStatus[day] = 'Leave';
+          }
+        }
+      });
+
+      // 2. Explicit StaffAttendance records override or complement (Admin Early Return case: Present/Late/Absent > Leave)
       teacherRecords.forEach(r => {
         const day = getCalendarDay(r.date);
         if (day) {
-          // If record is auto-marked absent, check if date is a non-working day
           dailyStatus[day] = r.status;
         }
       });
@@ -538,6 +572,32 @@ class AttendanceService {
     const { formatDateString } = require('../utils/dateUtils');
     const uniqueRecordsMap = new Map();
     const holidayService = require('./holidayService');
+    const LeaveRequest = require('../models/LeaveRequest');
+
+    // 1. Populate approved leaves
+    const approvedLeaves = await LeaveRequest.find({
+      teacher: teacherId,
+      status: 'Approved'
+    });
+
+    for (const l of approvedLeaves) {
+      let cur = getStartOfDay(l.startDate);
+      const end = getStartOfDay(l.endDate);
+      while (cur.getTime() <= end.getTime()) {
+        if (await holidayService.isWorkingDay(cur, 'Teachers')) {
+          const dateKey = formatDateString(cur);
+          uniqueRecordsMap.set(dateKey, {
+            date: new Date(cur),
+            status: 'Leave',
+            remarks: `Approved Leave (${l.leaveType})`,
+            createdAt: l.updatedAt || l.createdAt
+          });
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+
+    // 2. Explicit StaffAttendance records override (Admin Early Return: Present/Late > Approved Leave)
     for (const r of allRecords) {
       if (await holidayService.isWorkingDay(r.date, 'Teachers')) {
         const dateKey = formatDateString(r.date);

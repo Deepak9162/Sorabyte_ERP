@@ -164,7 +164,11 @@ const NotificationDropdown = () => {
                           {notif.title}
                         </h4>
                         <span className="text-[9px] text-gray-400">
-                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {(() => {
+                            if (!notif.createdAt) return "";
+                            const d = new Date(notif.createdAt);
+                            return isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          })()}
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-500 leading-relaxed font-medium">
