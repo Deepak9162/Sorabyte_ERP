@@ -55,7 +55,7 @@ const getOrCreateClass = async (className, section) => {
  */
 const getAllStudents = async (req, res, next) => {
   try {
-    const { grade, className, class: classQuery, section, isActive, page = 1, limit = 20 } = req.query;
+    const { grade, className, class: classQuery, section, isActive, transportMode, page = 1, limit = 20 } = req.query;
 
     // Build filter object
     const filter = {};
@@ -75,6 +75,9 @@ const getAllStudents = async (req, res, next) => {
       } else {
         filter.status = 'Inactive';
       }
+    }
+    if (transportMode) {
+      filter.transportMode = transportMode;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

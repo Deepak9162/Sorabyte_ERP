@@ -49,6 +49,9 @@ const StudentList = () => {
   const [filterStatus, setFilterStatus] = useState(() => {
     return localStorage.getItem("student_list_filter_status") || "all";
   });
+  const [filterTransport, setFilterTransport] = useState(() => {
+    return localStorage.getItem("student_list_filter_transport") || "all";
+  });
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem("student_list_view_mode") || "list";
   }); // 'list' or 'grid'
@@ -68,6 +71,10 @@ const StudentList = () => {
   useEffect(() => {
     localStorage.setItem("student_list_filter_status", filterStatus);
   }, [filterStatus]);
+
+  useEffect(() => {
+    localStorage.setItem("student_list_filter_transport", filterTransport);
+  }, [filterTransport]);
 
   useEffect(() => {
     localStorage.setItem("student_list_view_mode", viewMode);
@@ -119,6 +126,9 @@ const StudentList = () => {
       }
       if (filterStatus !== "all") {
         params.isActive = filterStatus === "active" ? "true" : "false";
+      }
+      if (filterTransport !== "all") {
+        params.transportMode = filterTransport;
       }
 
       const res = await api.get("/students", { params });
@@ -237,6 +247,9 @@ const StudentList = () => {
       }
       if (filterStatus !== "all") {
         params.isActive = filterStatus === "active" ? "true" : "false";
+      }
+      if (filterTransport !== "all") {
+        params.transportMode = filterTransport;
       }
 
       const res = await api.get("/students", { params });
@@ -478,6 +491,10 @@ const StudentList = () => {
         params.isActive = filterStatus === "active" ? "true" : "false";
       }
 
+      if (filterTransport !== "all") {
+        params.transportMode = filterTransport;
+      }
+
       const res = await api.get("/students", { params });
       if (res.data.success) {
         setStudents(res.data.data.students || []);
@@ -517,7 +534,7 @@ const StudentList = () => {
   useEffect(() => {
     fetchStudents();
     setSelectedIds([]); // Clear selection when filters change
-  }, [currentPage, pageSize, filterClass, filterSection, filterStatus]);
+  }, [currentPage, pageSize, filterClass, filterSection, filterStatus, filterTransport]);
 
   const handleDelete = async () => {
     if (!selectedStudent) return;
@@ -543,12 +560,16 @@ const StudentList = () => {
     const fullName = (s.fullName || "").toLowerCase();
     const query = searchQuery.toLowerCase();
     const matchesSearch =
+      !query ||
       fullName.includes(query) ||
       (s.rollNumber && s.rollNumber.toLowerCase().includes(query)) ||
       (s.studentId && s.studentId.toLowerCase().includes(query)) ||
       (s.admissionNumber && s.admissionNumber.toLowerCase().includes(query));
     
-    return matchesSearch;
+    const matchesTransport =
+      filterTransport === "all" || s.transportMode === filterTransport;
+
+    return matchesSearch && matchesTransport;
   });
 
   // Bulk selection handlers
@@ -592,7 +613,7 @@ const StudentList = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
           
           {/* Search bar */}
-          <div className="lg:col-span-4 relative group">
+          <div className="lg:col-span-3 relative group">
             <Search
               className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors"
               size={18}
@@ -642,8 +663,28 @@ const StudentList = () => {
             />
           </div>
 
+          {/* Filter: Transport Mode */}
+          <div className="lg:col-span-3">
+            <AppCombobox
+              placeholder="All Transport Modes"
+              searchable={false}
+              clearable
+              value={filterTransport === "all" ? "" : filterTransport}
+              onChange={(val) => {
+                setFilterTransport(val || "all");
+                setCurrentPage(1);
+              }}
+              options={[
+                { value: "Private", label: "Private" },
+                { value: "School Bus", label: "School Bus" },
+                { value: "Self", label: "Self" },
+                { value: "Walking", label: "Walking" },
+              ]}
+            />
+          </div>
+
           {/* View Mode Toggle */}
-          <div className="lg:col-span-1.5 flex items-center justify-end gap-1 border-l border-gray-100 pl-4 h-9">
+          <div className="lg:col-span-1 flex items-center justify-end gap-1 border-l border-gray-100 pl-4 h-9">
             <button
               onClick={() => setViewMode("list")}
               className={cn(
