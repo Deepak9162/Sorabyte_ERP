@@ -137,13 +137,13 @@ const TeacherTimetableView = () => {
 
       {/* Class Selector / Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
-        <div className="md:col-span-3 relative group">
+        <div className="md:col-span-3 relative flex items-center group">
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors"
+            className="absolute left-4 text-gray-400 group-focus-within:text-indigo-600 transition-colors pointer-events-none z-10"
             size={18}
           />
           <select
-            className="w-full pl-12 pr-6 py-3 bg-white border border-gray-150 rounded-2xl shadow-sm text-xs md:text-sm font-bold focus:ring-4 focus:ring-indigo-50 outline-none transition-all cursor-pointer appearance-none"
+            className="w-full min-h-[56px] pl-12 pr-10 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm text-xs md:text-sm font-bold text-gray-900 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all cursor-pointer appearance-none"
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
           >
@@ -159,7 +159,7 @@ const TeacherTimetableView = () => {
           </select>
         </div>
 
-        <div className="bg-indigo-600 rounded-2xl p-3.5 md:p-4 flex items-center justify-between text-white shadow-xl shadow-indigo-100">
+        <div className="bg-indigo-600 rounded-2xl p-3.5 md:p-4 flex items-center justify-between text-white shadow-xl shadow-indigo-100 min-h-[56px]">
           <div className="flex flex-col">
             <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest opacity-70">
               Assigned Classes
