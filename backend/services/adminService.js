@@ -592,13 +592,16 @@ class AdminService {
    */
   async getAttendanceAnalytics(dateStr, instituteId = null) {
     const holidayService = require('./holidayService');
-    const targetDate = new Date(dateStr);
-    targetDate.setHours(0, 0, 0, 0);
+    const { getStartOfDay, getEndOfDay } = require('../utils/dateUtils');
+    const LeaveRequest = require('../models/LeaveRequest');
 
-    const isWorkingDayForStudents = await holidayService.isWorkingDay(targetDate, 'Students');
-    const isWorkingDayForTeachers = await holidayService.isWorkingDay(targetDate, 'Teachers');
+    const dayStart = getStartOfDay(dateStr);
+    const dayEnd = getEndOfDay(dateStr);
 
-    await this.syncAutoAbsentTeachers(targetDate);
+    const isWorkingDayForStudents = await holidayService.isWorkingDay(dayStart, 'Students');
+    const isWorkingDayForTeachers = await holidayService.isWorkingDay(dayStart, 'Teachers');
+
+    await this.syncAutoAbsentTeachers(dayStart);
 
     const now = Date.now();
     // Cache for 60 seconds
@@ -627,8 +630,8 @@ class AdminService {
       Class.countDocuments(classQuery)
     ]);
 
-    // 2. Fetch student attendance counts using MongoDB aggregation
-    const studentMatch = { date: targetDate };
+    // 2. Fetch student attendance counts using MongoDB aggregation with date range
+    const studentMatch = { date: { $gte: dayStart, $lte: dayEnd } };
     const studentDocMatch = { 'studentDoc.status': 'Active' };
     if (instituteId) {
       studentDocMatch['studentDoc.institute'] = new mongoose.Types.ObjectId(instituteId);
@@ -672,8 +675,8 @@ class AdminService {
 
     const studentStats = studentStatsArray[0] || { present: 0, absent: 0, leave: 0 };
 
-    // 3. Fetch teacher attendance counts using MongoDB aggregation
-    const teacherMatch = { date: targetDate };
+    // 3. Fetch teacher attendance counts using MongoDB aggregation with date range & Approved Leave integration
+    const teacherMatch = { date: { $gte: dayStart, $lte: dayEnd } };
     const teacherDocMatch = { 'teacherDoc.isActive': true };
     if (instituteId) {
       teacherDocMatch['teacherDoc.institute'] = new mongoose.Types.ObjectId(instituteId);
@@ -715,11 +718,45 @@ class AdminService {
       }
     ]);
 
-    const teacherStats = teacherStatsArray[0] || { present: 0, absent: 0, leave: 0 };
+    let teacherStats = teacherStatsArray[0] || { present: 0, absent: 0, leave: 0 };
+
+    // Check for approved leaves for teachers today that might not be in StaffAttendance
+    const approvedLeavesToday = await LeaveRequest.find({
+      status: 'Approved',
+      startDate: { $lte: dayEnd },
+      endDate: { $gte: dayStart }
+    });
+
+    if (approvedLeavesToday.length > 0) {
+      const activeTeachers = await Teacher.find(teacherQuery).select('_id');
+      const activeTeacherIds = new Set(activeTeachers.map(t => t._id.toString()));
+      
+      const teacherAttRecords = await StaffAttendance.find({
+        date: { $gte: dayStart, $lte: dayEnd },
+        teacher: { $in: Array.from(activeTeacherIds) }
+      });
+
+      const teachersWithAtt = new Set(teacherAttRecords.map(r => r.teacher.toString()));
+
+      let unrecordedLeaves = 0;
+      for (const l of approvedLeavesToday) {
+        const teacherIdStr = l.teacher.toString();
+        if (activeTeacherIds.has(teacherIdStr) && !teachersWithAtt.has(teacherIdStr)) {
+          unrecordedLeaves++;
+        }
+      }
+
+      if (unrecordedLeaves > 0) {
+        teacherStats = {
+          ...teacherStats,
+          leave: teacherStats.leave + unrecordedLeaves
+        };
+      }
+    }
 
     // 4. Fetch class completion status
     const classes = await Class.find(classQuery).populate('teacher', 'firstName lastName');
-    const sessionMatch = { date: targetDate };
+    const sessionMatch = { date: { $gte: dayStart, $lte: dayEnd } };
     const sessions = await AttendanceSession.find(sessionMatch);
     const sessionMap = new Map(sessions.map(s => [s.class.toString(), s.attendanceStatus]));
 
@@ -811,7 +848,7 @@ class AdminService {
       : null;
 
     // 5.1. Fetch Absent Students for Today
-    const allStudentTodayRecords = await Attendance.find({ date: targetDate })
+    const allStudentTodayRecords = await Attendance.find({ date: { $gte: dayStart, $lte: dayEnd } })
       .populate({
         path: 'student',
         match: { status: 'Active' },
@@ -840,7 +877,7 @@ class AdminService {
       }));
 
     // 5.2. Fetch Absent Teachers for Today
-    const allTeacherTodayRecords = await StaffAttendance.find({ date: targetDate })
+    const allTeacherTodayRecords = await StaffAttendance.find({ date: { $gte: dayStart, $lte: dayEnd } })
       .populate({
         path: 'teacher',
         match: { isActive: true },

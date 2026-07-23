@@ -15,7 +15,7 @@ const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const adminService = require('./adminService');
 const holidayService = require('./holidayService');
-const { getStartOfDay, getEndOfDay, getStartOfMonth, getEndOfMonth, getCalendarDay } = require('../utils/dateUtils');
+const { getStartOfDay, getEndOfDay, getStartOfMonth, getEndOfMonth, getCalendarDay, formatDateString } = require('../utils/dateUtils');
 
 class AttendanceService {
   /**
@@ -47,8 +47,8 @@ class AttendanceService {
    * @param {Object} userInfo - { userId, userName, ip, userAgent }
    */
   async markAttendance(classId, date, attendanceData, userInfo = {}) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0); // Normalize to start of day
+    const targetDate = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
 
     // 1. Verify class exists
     const cls = await Class.findById(classId);
@@ -57,13 +57,13 @@ class AttendanceService {
     }
 
     // 2. Check if attendance already exists for this class and date
-    const existing = await Attendance.findOne({ class: classId, date: targetDate });
+    const existing = await Attendance.findOne({ class: classId, date: { $gte: targetDate, $lte: dayEnd } });
     if (existing) {
-      throw new Error(`Attendance already marked for this class on ${targetDate.toDateString()}`);
+      throw new Error(`Attendance already marked for this class on ${formatDateString(date)}`);
     }
 
     // 3. Check if a session exists and is locked
-    const existingSession = await AttendanceSession.findOne({ class: classId, date: targetDate });
+    const existingSession = await AttendanceSession.findOne({ class: classId, date: { $gte: targetDate, $lte: dayEnd } });
     if (existingSession && existingSession.attendanceStatus === 'locked') {
       throw new Error('Attendance is locked for this date. Only an administrator can unlock it.');
     }
@@ -81,7 +81,7 @@ class AttendanceService {
 
     // 5. Create or update attendance session
     await AttendanceSession.findOneAndUpdate(
-      { class: classId, date: targetDate },
+      { class: classId, date: { $gte: targetDate, $lte: dayEnd } },
       {
         class: classId,
         date: targetDate,
@@ -116,11 +116,11 @@ class AttendanceService {
    * @param {Object} userInfo - { userId, userName, ip, userAgent }
    */
   async updateAttendance(classId, date, attendanceData, userInfo = {}) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
 
     // Check lock status (Admins can bypass the lock)
-    const session = await AttendanceSession.findOne({ class: classId, date: targetDate });
+    const session = await AttendanceSession.findOne({ class: classId, date: { $gte: targetDate, $lte: dayEnd } });
     if (session && session.attendanceStatus === 'locked' && userInfo.role !== 'admin') {
       throw new Error('Attendance is locked for this date. Only an administrator can unlock it.');
     }
@@ -133,7 +133,7 @@ class AttendanceService {
     // Update each student's attendance record
     const updatePromises = attendanceData.map(item =>
       Attendance.findOneAndUpdate(
-        { student: item.studentId, class: classId, date: targetDate },
+        { student: item.studentId, class: classId, date: { $gte: targetDate, $lte: dayEnd } },
         { status: item.status, remarks: item.remarks || '' },
         { new: true, upsert: true }
       )
@@ -168,10 +168,10 @@ class AttendanceService {
    * Submit attendance (draft → submitted)
    */
   async submitAttendance(classId, date, userInfo = {}) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
 
-    const session = await AttendanceSession.findOne({ class: classId, date: targetDate });
+    const session = await AttendanceSession.findOne({ class: classId, date: { $gte: targetDate, $lte: dayEnd } });
     if (!session) {
       throw new Error('No attendance record found for this class and date');
     }
@@ -210,10 +210,10 @@ class AttendanceService {
    * Lock attendance (admin only: submitted → locked)
    */
   async lockAttendance(classId, date, userInfo = {}) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
 
-    const session = await AttendanceSession.findOne({ class: classId, date: targetDate });
+    const session = await AttendanceSession.findOne({ class: classId, date: { $gte: targetDate, $lte: dayEnd } });
     if (!session) {
       throw new Error('No attendance record found for this class and date');
     }
@@ -254,10 +254,10 @@ class AttendanceService {
    * Unlock attendance (admin only: locked → submitted)
    */
   async unlockAttendance(classId, date, userInfo = {}) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
 
-    const session = await AttendanceSession.findOne({ class: classId, date: targetDate });
+    const session = await AttendanceSession.findOne({ class: classId, date: { $gte: targetDate, $lte: dayEnd } });
     if (!session) {
       throw new Error('No attendance record found for this class and date');
     }
@@ -297,10 +297,10 @@ class AttendanceService {
    * Get attendance session info for a class and date
    */
   async getAttendanceSession(classId, date) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
 
-    const session = await AttendanceSession.findOne({ class: classId, date: targetDate })
+    const session = await AttendanceSession.findOne({ class: classId, date: { $gte: targetDate, $lte: dayEnd } })
       .populate('markedBy', 'name')
       .populate('lockedBy', 'name');
 
@@ -311,12 +311,12 @@ class AttendanceService {
    * Fetch attendance report for a class and date
    */
   async getAttendanceReport(classId, date) {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
 
     const report = await Attendance.find({
       class: classId,
-      date: targetDate
+      date: { $gte: targetDate, $lte: dayEnd }
     })
     .populate('student', 'fullName rollNumber');
 
