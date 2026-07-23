@@ -597,6 +597,7 @@ class AdminService {
 
     const dayStart = getStartOfDay(dateStr);
     const dayEnd = getEndOfDay(dateStr);
+    const targetDate = dayStart;
 
     const isWorkingDayForStudents = await holidayService.isWorkingDay(dayStart, 'Students');
     const isWorkingDayForTeachers = await holidayService.isWorkingDay(dayStart, 'Teachers');
