@@ -40,8 +40,8 @@ import * as XLSX from "xlsx";
 import { getTodayDateString } from "../utils/dateUtils";
 import { isDayHoliday as checkIsDayHoliday, getEffectiveAttendanceStatus } from "../utils/holidayUtils";
 // Memoized Mobile Student Attendance Card
-const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus, isHoliday }) => {
-  const isEditingDisabled = isHoliday || (isMarked && sessionStatus !== 'draft');
+const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus, isHoliday, isAdmin }) => {
+  const isEditingDisabled = isHoliday || (!isAdmin && isMarked && sessionStatus !== 'draft') || (sessionStatus === 'locked' && !isAdmin);
   
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
@@ -163,8 +163,9 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
 StudentAttendanceCard.displayName = "StudentAttendanceCard";
 
 // Memoized Mobile Staff Attendance Card
-const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMarked, toggleStaffStatus, isHoliday }) => {
+const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMarked, toggleStaffStatus, isHoliday, isAdmin }) => {
   const fullName = `${teacher.firstName} ${teacher.lastName}`;
+  const isCardDisabled = (isStaffMarked && !isAdmin) || isHoliday;
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
@@ -257,7 +258,7 @@ const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMark
           return (
             <button
               key={option.id}
-              disabled={isStaffMarked || isHoliday}
+              disabled={isCardDisabled}
               aria-label={`Mark as ${option.tooltip}`}
               title={option.tooltip}
               onClick={() => toggleStaffStatus(teacher._id, option.id)}
@@ -275,7 +276,7 @@ const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMark
                 isSelected
                   ? option.color === "indigo" && "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100"
                   : "",
-                (isStaffMarked || isHoliday) && "opacity-60 cursor-not-allowed"
+                isCardDisabled && "opacity-60 cursor-not-allowed"
               )}
             >
               <option.icon size={14} />
@@ -712,8 +713,9 @@ const Attendance = () => {
 
   const toggleStudentStatus = (id, status) => {
     if (holidayInfo && !holidayInfo.isWorkingDay) return;
-    if (isMarked && sessionStatus !== 'draft') return; // Allow editing draft, block submitted/locked
-    if (sessionStatus === 'locked') return;
+    const isAdmin = user?.role === 'admin';
+    if (!isAdmin && isMarked && sessionStatus !== 'draft') return; // Teachers cannot edit after submission
+    if (!isAdmin && sessionStatus === 'locked') return;
     setAttendanceData((prev) => ({
       ...prev,
       [id]: status,
@@ -722,10 +724,11 @@ const Attendance = () => {
 
   const toggleStaffStatus = (id, status) => {
     if (holidayInfo && !holidayInfo.isWorkingDay) return;
-    if (isStaffMarked) return;
+    const isAdmin = user?.role === 'admin';
+    if (!isAdmin && isStaffMarked) return; // Admin can update staff attendance anytime
     setStaffAttendanceData((prev) => {
       const existing = prev[id];
-      const prevMarkedAt = typeof existing === 'object' ? existing.markedAt : null;
+      const prevMarkedAt = typeof existing === 'object' ? existing?.markedAt : null;
       return {
         ...prev,
         [id]: { status, markedAt: prevMarkedAt },
@@ -746,8 +749,8 @@ const Attendance = () => {
           attendanceData[s._id].slice(1), // 'present' -> 'Present'
       }));
 
-      if (isMarked && sessionStatus === 'draft') {
-        // Update existing attendance
+      if (isMarked) {
+        // Update existing attendance (works for draft, submitted or admin updates)
         const res = await api.put("/attendance", {
           classId: selectedClass,
           date: selectedDate,
@@ -1811,27 +1814,29 @@ const Attendance = () => {
         {/* Action Buttons for Mark tabs */}
         {(activeTab === "mark-students" || activeTab === "mark-staff") && (
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            {/* Save/Submit attendance */}
-            {activeTab === "mark-students" && sessionStatus !== 'locked' && (
+            {/* Save/Submit student attendance */}
+            {activeTab === "mark-students" && (sessionStatus !== 'locked' || user?.role === 'admin') && (
               <Button
                 onClick={handleStudentSubmit}
                 loading={loading}
-                disabled={sessionStatus === 'submitted' || sessionStatus === 'locked' || (holidayInfo && !holidayInfo.isWorkingDay)}
+                disabled={(user?.role !== 'admin' && (sessionStatus === 'submitted' || sessionStatus === 'locked')) || (holidayInfo && !holidayInfo.isWorkingDay)}
                 icon={Save}
                 className="rounded-2xl shadow-lg px-8 h-12"
               >
                 {!isMarked
                   ? "Submit Student Attendance"
-                  : sessionStatus === 'submitted'
-                    ? "Submitted"
-                    : sessionStatus === 'locked'
-                      ? "Locked"
-                      : "Update Attendance"}
+                  : user?.role === 'admin'
+                    ? "Update Student Attendance"
+                    : sessionStatus === 'submitted'
+                      ? "Submitted"
+                      : sessionStatus === 'locked'
+                        ? "Locked"
+                        : "Update Attendance"}
               </Button>
             )}
 
             {/* Submit for review (teacher: draft → submitted) */}
-            {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && (
+            {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && user?.role !== 'admin' && (
               <Button
                 onClick={handleSubmitForReview}
                 loading={loading}
@@ -1845,23 +1850,23 @@ const Attendance = () => {
             )}
 
             {/* Locked indicator */}
-            {activeTab === "mark-students" && sessionStatus === 'locked' && (
+            {activeTab === "mark-students" && sessionStatus === 'locked' && user?.role !== 'admin' && (
               <div className="flex items-center gap-2 px-6 py-3 bg-rose-50 text-rose-700 rounded-2xl border border-rose-200">
                 <Lock size={16} />
                 <span className="text-xs font-black uppercase tracking-wider">Attendance Locked</span>
               </div>
             )}
 
-            {/* Staff attendance button (unchanged) */}
+            {/* Staff attendance button */}
             {activeTab === "mark-staff" && (
               <Button
                 onClick={handleStaffSubmit}
                 loading={loading}
-                disabled={isStaffMarked || (holidayInfo && !holidayInfo.isWorkingDay)}
+                disabled={(isStaffMarked && user?.role !== 'admin') || (holidayInfo && !holidayInfo.isWorkingDay)}
                 icon={Save}
                 className="rounded-2xl shadow-lg px-8 h-12"
               >
-                {isStaffMarked ? "Roster Finalized" : "Submit Staff Attendance"}
+                {isStaffMarked ? (user?.role === 'admin' ? "Update Staff Attendance" : "Roster Finalized") : "Submit Staff Attendance"}
               </Button>
             )}
           </div>
@@ -2208,10 +2213,11 @@ const Attendance = () => {
                                     },
                                   ].map((option) => {
                                     const isSelected = status === option.id;
+                                    const isBtnDisabled = (user?.role !== 'admin' && (isMarked && sessionStatus !== 'draft')) || (sessionStatus === 'locked' && user?.role !== 'admin') || (holidayInfo && !holidayInfo.isWorkingDay);
                                     return (
                                       <button
                                         key={option.id}
-                                        disabled={isMarked || (holidayInfo && !holidayInfo.isWorkingDay)}
+                                        disabled={isBtnDisabled}
                                         title={option.tooltip}
                                         onClick={() =>
                                           toggleStudentStatus(
@@ -2237,6 +2243,7 @@ const Attendance = () => {
                                             ? option.color === "indigo" &&
                                                 "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
                                             : "",
+                                          isBtnDisabled && "opacity-60 cursor-not-allowed"
                                         )}
                                       >
                                         <option.icon size={16} />
@@ -2266,6 +2273,7 @@ const Attendance = () => {
                           sessionStatus={sessionStatus}
                           toggleStudentStatus={toggleStudentStatus}
                           isHoliday={holidayInfo && !holidayInfo.isWorkingDay}
+                          isAdmin={user?.role === 'admin'}
                         />
                       );
                     })}
@@ -2435,10 +2443,11 @@ const Attendance = () => {
                                     },
                                   ].map((option) => {
                                     const isSelected = status === option.id;
+                                    const isBtnDisabled = (isStaffMarked && user?.role !== 'admin') || (holidayInfo && !holidayInfo.isWorkingDay);
                                     return (
                                       <button
                                         key={option.id}
-                                        disabled={isStaffMarked || (holidayInfo && !holidayInfo.isWorkingDay)}
+                                        disabled={isBtnDisabled}
                                         title={option.tooltip}
                                         onClick={() =>
                                           toggleStaffStatus(
@@ -2464,6 +2473,7 @@ const Attendance = () => {
                                             ? option.color === "indigo" &&
                                                 "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
                                             : "",
+                                          isBtnDisabled && "opacity-60 cursor-not-allowed"
                                         )}
                                       >
                                         <option.icon size={16} />
@@ -2495,6 +2505,7 @@ const Attendance = () => {
                           isStaffMarked={isStaffMarked}
                           toggleStaffStatus={toggleStaffStatus}
                           isHoliday={holidayInfo && !holidayInfo.isWorkingDay}
+                          isAdmin={user?.role === 'admin'}
                         />
                       );
                     })}
@@ -3273,15 +3284,19 @@ const Attendance = () => {
             icon={Save}
             disabled={
               activeTab === "mark-students"
-                ? sessionStatus === 'submitted' || sessionStatus === 'locked'
-                : isStaffMarked
+                ? (user?.role !== 'admin' && (sessionStatus === 'submitted' || sessionStatus === 'locked'))
+                : (isStaffMarked && user?.role !== 'admin')
             }
           >
             {activeTab === "mark-students"
-              ? ((sessionStatus === 'submitted' || sessionStatus === 'locked')
-                ? "Attendance Submitted"
-                : "Submit Attendance")
-              : (isStaffMarked ? "Attendance Submitted" : "Submit Attendance")}
+              ? (user?.role === 'admin'
+                ? "Update Student Attendance"
+                : (sessionStatus === 'submitted' || sessionStatus === 'locked')
+                  ? "Attendance Submitted"
+                  : "Submit Attendance")
+              : (isStaffMarked
+                ? (user?.role === 'admin' ? "Update Staff Attendance" : "Attendance Submitted")
+                : "Submit Attendance")}
           </Button>
         </div>
       )}

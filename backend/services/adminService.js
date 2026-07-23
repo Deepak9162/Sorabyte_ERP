@@ -260,39 +260,54 @@ class AdminService {
   }
 
   async getClassAttendanceReport(classId) {
-    const students = await Student.find({ class: classId });
+    const holidayService = require('./holidayService');
+    
+    const [students, allAttendanceRecords, activeHolidays] = await Promise.all([
+      Student.find({ class: classId }).select('fullName rollNumber').lean(),
+      Attendance.find({ class: classId }).select('student date status').lean(),
+      holidayService.getActiveHolidays(null, null, 'Students')
+    ]);
+
     students.sort((a, b) => (parseInt(a.rollNumber) || 0) - (parseInt(b.rollNumber) || 0));
     
-    // Get unique dates where attendance was marked for this class
-    const holidayService = require('./holidayService');
-    const rawAttendanceDates = await Attendance.distinct('date', { class: classId });
-    const attendanceDates = [];
-    for (const d of rawAttendanceDates) {
-      if (await holidayService.isWorkingDay(d, 'Students')) {
-        attendanceDates.push(d);
+    const attendanceByStudent = new Map();
+    const rawDatesSet = new Set();
+
+    for (const r of allAttendanceRecords) {
+      if (r.student) {
+        const sIdStr = r.student.toString();
+        if (!attendanceByStudent.has(sIdStr)) {
+          attendanceByStudent.set(sIdStr, []);
+        }
+        attendanceByStudent.get(sIdStr).push(r);
+        rawDatesSet.add(new Date(r.date).toISOString().split('T')[0]);
       }
     }
-    const totalClasses = attendanceDates.length;
 
-    const report = [];
+    let totalClasses = 0;
+    for (const d of rawDatesSet) {
+      if (holidayService.isWorkingDaySync(d, activeHolidays)) {
+        totalClasses++;
+      }
+    }
 
-    for (const student of students) {
-      const records = await Attendance.find({ student: student._id, class: classId });
+    const report = students.map(student => {
+      const records = attendanceByStudent.get(student._id.toString()) || [];
       const presentCount = records.filter(r => r.status === 'Present' || r.status === 'Late').length;
       const absentCount = records.filter(r => r.status === 'Absent').length;
       const attendancePercentage = totalClasses > 0 
         ? ((presentCount / totalClasses) * 100).toFixed(2) 
         : 0;
 
-      report.push({
+      return {
         studentId: student._id,
         name: student.fullName,
         rollNo: student.rollNumber,
         presentCount,
         absentCount,
         attendancePercentage
-      });
-    }
+      };
+    });
 
     return { totalClasses, students: report };
   }
@@ -301,21 +316,23 @@ class AdminService {
    * Get detailed attendance for a single student
    */
   async getStudentAttendanceReport(studentId) {
-    const student = await Student.findById(studentId).populate('class', 'name');
+    const student = await Student.findById(studentId).populate('class', 'name').lean();
     if (!student) throw new Error('Student not found');
 
-    const records = await Attendance.find({ student: studentId }).sort({ date: -1 });
-    
-    // Total classes for this student's class (to be accurate about how many they MISSED vs how many records exist)
     const holidayService = require('./holidayService');
-    const rawAttendanceDates = await Attendance.distinct('date', { class: student.class._id });
-    const attendanceDates = [];
+
+    const [records, rawAttendanceDates, activeHolidays] = await Promise.all([
+      Attendance.find({ student: studentId }).sort({ date: -1 }).lean(),
+      Attendance.distinct('date', { class: student.class._id }),
+      holidayService.getActiveHolidays(null, null, 'Students')
+    ]);
+    
+    let totalClasses = 0;
     for (const d of rawAttendanceDates) {
-      if (await holidayService.isWorkingDay(d, 'Students')) {
-        attendanceDates.push(d);
+      if (holidayService.isWorkingDaySync(d, activeHolidays)) {
+        totalClasses++;
       }
     }
-    const totalClasses = attendanceDates.length;
 
     const present = records.filter(r => r.status === 'Present' || r.status === 'Late').length;
     const absent = records.filter(r => r.status === 'Absent').length;
@@ -347,11 +364,17 @@ class AdminService {
    * Get student attendance analysis with subject-wise simulation
    */
   async getStudentAttendanceAnalysis(studentId) {
-    const student = await Student.findById(studentId).populate('class', 'name');
+    const student = await Student.findById(studentId).populate('class', 'name').lean();
     if (!student) throw new Error('Student not found');
 
-    const allRecords = await Attendance.find({ student: studentId }).sort({ date: 1, updatedAt: 1 });
-    
+    const holidayService = require('./holidayService');
+
+    const [allRecords, rawAttendanceDates, activeHolidays] = await Promise.all([
+      Attendance.find({ student: studentId }).sort({ date: 1, updatedAt: 1 }).lean(),
+      Attendance.distinct('date', { class: student.class._id }),
+      holidayService.getActiveHolidays(null, null, 'Students')
+    ]);
+
     const { formatDateString } = require('../utils/dateUtils');
     const uniqueRecordsMap = new Map();
     allRecords.forEach(r => {
@@ -361,16 +384,12 @@ class AdminService {
     
     const records = Array.from(uniqueRecordsMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
     
-    // Overall classes
-    const holidayService = require('./holidayService');
-    const rawAttendanceDates = await Attendance.distinct('date', { class: student.class._id });
-    const attendanceDates = [];
+    let overallTotalHeld = 0;
     for (const d of rawAttendanceDates) {
-      if (await holidayService.isWorkingDay(d, 'Students')) {
-        attendanceDates.push(d);
+      if (holidayService.isWorkingDaySync(d, activeHolidays)) {
+        overallTotalHeld++;
       }
     }
-    const overallTotalHeld = attendanceDates.length;
 
     const overallPresent = records.filter(r => r.status === 'Present').length;
     const overallPercentage = overallTotalHeld > 0 

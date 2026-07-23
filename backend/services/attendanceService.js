@@ -10,6 +10,7 @@ const Attendance = require('../models/Attendance');
 const AttendanceSession = require('../models/AttendanceSession');
 const AttendanceAuditLog = require('../models/AttendanceAuditLog');
 const StaffAttendance = require('../models/StaffAttendance');
+const LeaveRequest = require('../models/LeaveRequest');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
@@ -373,35 +374,75 @@ class AttendanceService {
         return;
       }
 
-      const activeTeachers = await Teacher.find({ isActive: true });
-      const leaveService = require('./leaveService');
+      // Batch query 1: Active teachers
+      const activeTeachers = await Teacher.find({ isActive: true }).select('_id').lean();
+      if (!activeTeachers || activeTeachers.length === 0) return;
+
+      const activeTeacherIds = activeTeachers.map(t => t._id);
+
+      // Batch query 2: Approved leaves for targetDate
+      const LeaveRequest = require('../models/LeaveRequest');
+      const approvedLeaves = await LeaveRequest.find({
+        teacher: { $in: activeTeacherIds },
+        status: 'Approved',
+        startDate: { $lte: dayEnd },
+        endDate: { $gte: dayStart }
+      }).select('teacher').lean();
+
+      const approvedLeaveTeacherIds = new Set(approvedLeaves.map(l => l.teacher.toString()));
+
+      // Batch query 3: Existing staff attendance records for targetDate
+      const existingRecords = await StaffAttendance.find({
+        teacher: { $in: activeTeacherIds },
+        date: { $gte: dayStart, $lte: dayEnd }
+      }).select('_id teacher status remarks').lean();
+
+      const existingRecordMap = new Map();
+      existingRecords.forEach(r => {
+        existingRecordMap.set(r.teacher.toString(), r);
+      });
+
+      const newAbsentOps = [];
+      const cleanupTeacherIds = [];
 
       for (const teacher of activeTeachers) {
+        const tIdStr = teacher._id.toString();
+
         // Check if teacher has an Approved leave for targetDate
-        const isLeave = await leaveService.isTeacherOnApprovedLeave(teacher._id, targetDate);
-        if (isLeave) {
-          // Clean up any auto-marked absent record if it exists
-          await StaffAttendance.deleteMany({
-            teacher: teacher._id,
-            date: { $gte: dayStart, $lte: dayEnd },
-            remarks: { $regex: /Auto-marked absent/i }
-          });
+        if (approvedLeaveTeacherIds.has(tIdStr)) {
+          const existing = existingRecordMap.get(tIdStr);
+          if (existing && /Auto-marked absent/i.test(existing.remarks || '')) {
+            cleanupTeacherIds.push(teacher._id);
+          }
           continue; // APPROVED LEAVE HAS HIGHER PRIORITY THAN AUTO-ABSENT!
         }
 
-        const existing = await StaffAttendance.findOne({
-          teacher: teacher._id,
-          date: { $gte: dayStart, $lte: dayEnd }
-        });
-
+        const existing = existingRecordMap.get(tIdStr);
         if (!existing) {
-          await StaffAttendance.create({
+          newAbsentOps.push({
             teacher: teacher._id,
             date: dayStart,
             status: 'Absent',
             remarks: 'Auto-marked absent by system (did not mark before 12:00 PM)'
           });
         }
+      }
+
+      if (cleanupTeacherIds.length > 0) {
+        await StaffAttendance.deleteMany({
+          teacher: { $in: cleanupTeacherIds },
+          date: { $gte: dayStart, $lte: dayEnd },
+          remarks: { $regex: /Auto-marked absent/i }
+        });
+      }
+
+      if (newAbsentOps.length > 0) {
+        await StaffAttendance.insertMany(newAbsentOps, { ordered: false }).catch(err => {
+          // Ignore duplicate key errors if race condition occurs
+          if (!err.message.includes('E11000')) {
+            console.error('Error inserting auto absent records:', err.message);
+          }
+        });
       }
     } catch (error) {
       console.error('Error syncing auto absent teachers:', error);
@@ -560,36 +601,35 @@ class AttendanceService {
    * @param {string} teacherId - ID of the teacher
    */
   async getTeacherAttendanceAnalysis(teacherId) {
-    const teacher = await Teacher.findById(teacherId);
+    const teacher = await Teacher.findById(teacherId).lean();
     if (!teacher) throw new Error('Teacher not found');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     await this.syncAutoAbsentTeachers(today);
 
-    const allRecords = await StaffAttendance.find({ teacher: teacherId }).sort({ date: 1, updatedAt: 1 });
+    const [allRecords, approvedLeaves, activeHolidays] = await Promise.all([
+      StaffAttendance.find({ teacher: teacherId }).sort({ date: 1, updatedAt: 1 }).lean(),
+      LeaveRequest.find({ teacher: teacherId, status: 'Approved' }).lean(),
+      holidayService.getActiveHolidays(null, null, 'Teachers')
+    ]);
     
     const { formatDateString } = require('../utils/dateUtils');
     const uniqueRecordsMap = new Map();
-    const holidayService = require('./holidayService');
-    const LeaveRequest = require('../models/LeaveRequest');
 
     // 1. Populate approved leaves
-    const approvedLeaves = await LeaveRequest.find({
-      teacher: teacherId,
-      status: 'Approved'
-    });
-
     for (const l of approvedLeaves) {
+      if (!l.startDate || !l.endDate) continue;
       let cur = getStartOfDay(l.startDate);
       const end = getStartOfDay(l.endDate);
+      if (!cur || !end) continue;
       while (cur.getTime() <= end.getTime()) {
-        if (await holidayService.isWorkingDay(cur, 'Teachers')) {
+        if (holidayService.isWorkingDaySync(cur, activeHolidays)) {
           const dateKey = formatDateString(cur);
           uniqueRecordsMap.set(dateKey, {
             date: new Date(cur),
             status: 'Leave',
-            remarks: `Approved Leave (${l.leaveType})`,
+            remarks: `Approved Leave (${l.leaveType || 'Leave'})`,
             createdAt: l.updatedAt || l.createdAt
           });
         }
@@ -599,7 +639,7 @@ class AttendanceService {
 
     // 2. Explicit StaffAttendance records override (Admin Early Return: Present/Late > Approved Leave)
     for (const r of allRecords) {
-      if (await holidayService.isWorkingDay(r.date, 'Teachers')) {
+      if (holidayService.isWorkingDaySync(r.date, activeHolidays)) {
         const dateKey = formatDateString(r.date);
         uniqueRecordsMap.set(dateKey, r);
       }
@@ -654,16 +694,18 @@ class AttendanceService {
     today.setHours(0, 0, 0, 0);
     await this.syncAutoAbsentTeachers(today);
 
-    const teachers = await Teacher.find({ isActive: true }).sort({ firstName: 1 });
-    const allRecords = await StaffAttendance.find({}).sort({ date: 1, updatedAt: 1 });
+    const [teachers, allRecords, activeHolidays] = await Promise.all([
+      Teacher.find({ isActive: true }).select('firstName lastName subject phone').sort({ firstName: 1 }).lean(),
+      StaffAttendance.find({}).select('teacher date status').sort({ date: 1, updatedAt: 1 }).lean(),
+      holidayService.getActiveHolidays(null, null, 'Teachers')
+    ]);
     
     const { formatDateString } = require('../utils/dateUtils');
     const uniqueRecordsMap = new Map();
-    const holidayService = require('./holidayService');
     
     for (const r of allRecords) {
       if (r.teacher) {
-        if (await holidayService.isWorkingDay(r.date, 'Teachers')) {
+        if (holidayService.isWorkingDaySync(r.date, activeHolidays)) {
           const dateStr = formatDateString(r.date);
           const key = `${r.teacher.toString()}_${dateStr}`;
           uniqueRecordsMap.set(key, r);

@@ -18,6 +18,7 @@ const teacherSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Teacher must be linked to a User account'],
+      index: true,
     },
     lastName: {
 

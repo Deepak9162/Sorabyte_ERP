@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   BarChart3,
   Search,
@@ -48,8 +48,10 @@ const ClassAttendanceReport = () => {
   const [staffSearchQuery, setStaffSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchClasses();
-    if (user?.role === "admin" && activeTab === "staff") {
+    if (classes.length === 0) {
+      fetchClasses();
+    }
+    if (user?.role === "admin" && activeTab === "staff" && !staffReport) {
       fetchStaffReport();
     }
   }, [activeTab, user]);
@@ -80,7 +82,7 @@ const ClassAttendanceReport = () => {
     } catch (error) {
       console.error("Error fetching attendance report:", error);
     } finally {
-      setTimeout(() => setLoading(false), 500);
+      setLoading(false);
     }
   };
 
@@ -94,7 +96,7 @@ const ClassAttendanceReport = () => {
     } catch (error) {
       console.error("Error fetching staff summary report:", error);
     } finally {
-      setTimeout(() => setStaffLoading(false), 500);
+      setStaffLoading(false);
     }
   };
 
@@ -104,21 +106,29 @@ const ClassAttendanceReport = () => {
     fetchReport(classId);
   };
 
-  // Student filtering
-  const filteredStudents =
-    report?.students.filter(
+  // Student filtering (memoized)
+  const filteredStudents = useMemo(() => {
+    if (!report?.students) return [];
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return report.students;
+    return report.students.filter(
       (s) =>
-        (s.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.rollNo || "").includes(searchQuery)
-    ) || [];
+        (s.name || "").toLowerCase().includes(query) ||
+        (s.rollNo || "").includes(query)
+    );
+  }, [report?.students, searchQuery]);
 
-  // Staff filtering
-  const filteredStaff =
-    staffReport?.staff.filter(
+  // Staff filtering (memoized)
+  const filteredStaff = useMemo(() => {
+    if (!staffReport?.staff) return [];
+    const query = staffSearchQuery.toLowerCase().trim();
+    if (!query) return staffReport.staff;
+    return staffReport.staff.filter(
       (t) =>
-        (t.name || "").toLowerCase().includes(staffSearchQuery.toLowerCase()) ||
-        (t.subject || "").toLowerCase().includes(staffSearchQuery.toLowerCase())
-    ) || [];
+        (t.name || "").toLowerCase().includes(query) ||
+        (t.subject || "").toLowerCase().includes(query)
+    );
+  }, [staffReport?.staff, staffSearchQuery]);
 
   const getPercentageColor = (percentage) => {
     const pct = parseFloat(percentage);

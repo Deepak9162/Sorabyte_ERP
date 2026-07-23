@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -9,33 +9,40 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import Layout from "./layouts/Layout";
 
-import Dashboard from "./pages/Dashboard";
-import Login from "./pages/Login";
-import ClassManagement from "./pages/ClassManagement";
-import StudentList from "./pages/student/StudentList";
-import AddStudent from "./pages/student/AddStudent";
-import StudentProfile from "./pages/student/StudentProfile";
-import StudentIDCard from "./pages/student/StudentIDCard";
-import BulkIDCards from "./pages/student/BulkIDCards";
-import TeacherManagement from "./pages/TeacherManagement";
-import Attendance from "./pages/Attendance";
-import FeeCollection from "./pages/FeeCollection";
-import ClassAttendanceReport from "./pages/ClassAttendanceReport";
-import StudentAttendanceDetail from "./pages/StudentAttendanceDetail";
-import StudentAttendanceAnalysis from "./pages/StudentAttendanceAnalysis";
-import SubjectMaster from "./pages/SubjectMaster";
-import ClassSubjectMapping from "./pages/ClassSubjectMapping";
-import TimetableManagement from "./pages/TimetableManagement";
-import TeacherTimetableView from "./pages/TeacherTimetableView";
-import StaffAttendanceAnalysis from "./pages/StaffAttendanceAnalysis";
-import StaffCredentials from "./pages/StaffCredentials";
-import StaffAttendanceHistory from "./pages/admin/StaffAttendanceHistory";
-import MyAttendance from "./pages/teacher/MyAttendance";
-import AdmissionRequestList from "./pages/admission/AdmissionRequestList";
-import AdmissionRequestForm from "./pages/admission/AdmissionRequestForm";
-import AdmissionRequestDetails from "./pages/admission/AdmissionRequestDetails";
-import AdmissionDirectForm from "./pages/admission/AdmissionDirectForm";
-import HolidayManagement from "./pages/admin/HolidayManagement";
+// Code-split pages using React.lazy for optimized bundle chunking
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Login = lazy(() => import("./pages/Login"));
+const ClassManagement = lazy(() => import("./pages/ClassManagement"));
+const StudentList = lazy(() => import("./pages/student/StudentList"));
+const AddStudent = lazy(() => import("./pages/student/AddStudent"));
+const StudentProfile = lazy(() => import("./pages/student/StudentProfile"));
+const StudentIDCard = lazy(() => import("./pages/student/StudentIDCard"));
+const BulkIDCards = lazy(() => import("./pages/student/BulkIDCards"));
+const TeacherManagement = lazy(() => import("./pages/TeacherManagement"));
+const Attendance = lazy(() => import("./pages/Attendance"));
+const FeeCollection = lazy(() => import("./pages/FeeCollection"));
+const ClassAttendanceReport = lazy(() => import("./pages/ClassAttendanceReport"));
+const StudentAttendanceDetail = lazy(() => import("./pages/StudentAttendanceDetail"));
+const StudentAttendanceAnalysis = lazy(() => import("./pages/StudentAttendanceAnalysis"));
+const SubjectMaster = lazy(() => import("./pages/SubjectMaster"));
+const ClassSubjectMapping = lazy(() => import("./pages/ClassSubjectMapping"));
+const TimetableManagement = lazy(() => import("./pages/TimetableManagement"));
+const TeacherTimetableView = lazy(() => import("./pages/TeacherTimetableView"));
+const StaffAttendanceAnalysis = lazy(() => import("./pages/StaffAttendanceAnalysis"));
+const StaffCredentials = lazy(() => import("./pages/StaffCredentials"));
+const StaffAttendanceHistory = lazy(() => import("./pages/admin/StaffAttendanceHistory"));
+const MyAttendance = lazy(() => import("./pages/teacher/MyAttendance"));
+const AdmissionRequestList = lazy(() => import("./pages/admission/AdmissionRequestList"));
+const AdmissionRequestForm = lazy(() => import("./pages/admission/AdmissionRequestForm"));
+const AdmissionRequestDetails = lazy(() => import("./pages/admission/AdmissionRequestDetails"));
+const AdmissionDirectForm = lazy(() => import("./pages/admission/AdmissionDirectForm"));
+const HolidayManagement = lazy(() => import("./pages/admin/HolidayManagement"));
+
+const PageFallback = () => (
+  <div className="h-screen flex items-center justify-center bg-gray-50">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+  </div>
+);
 
 // Protected Route Wrapper
 
@@ -43,11 +50,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
 
   if (loading)
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
+    return <PageFallback />;
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -65,8 +68,9 @@ function App() {
     <Router>
       <AuthProvider>
         <ToastProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
 
             <Route
               path="/dashboard"
@@ -383,7 +387,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
-          </Routes>
+            </Routes>
+          </Suspense>
         </ToastProvider>
       </AuthProvider>
     </Router>

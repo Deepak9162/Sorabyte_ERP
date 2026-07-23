@@ -93,8 +93,8 @@ const createTeacher = async (req, res, next) => {
   try {
     const { user: userData, teacher: teacherData } = req.body;
     if (!userData || !teacherData) {
-        console.error('Missing user or teacher data in request');
-        return res.status(400).json({ success: false, message: 'Missing user or teacher data' });
+      console.error('Missing user or teacher data in request');
+      return res.status(400).json({ success: false, message: 'Missing user or teacher data' });
     }
     const result = await adminService.createTeacher(userData, teacherData);
     return successResponse(res, result, 'Teacher created successfully', 201);
@@ -159,7 +159,8 @@ const getAllClasses = async (req, res, next) => {
  */
 const getClassAttendanceReport = async (req, res, next) => {
   try {
-    const report = await adminService.getClassAttendanceReport(req.params.classId);
+    const { startDate, endDate } = req.query;
+    const report = await adminService.getClassAttendanceReport(req.params.classId, startDate, endDate);
     return successResponse(res, report, 'Class attendance report fetched successfully');
   } catch (error) {
     next(error);

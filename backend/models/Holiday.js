@@ -67,5 +67,6 @@ const holidaySchema = new mongoose.Schema(
 
 // Indexes to speed up range queries for the cron job and scheduler
 holidaySchema.index({ startDate: 1, endDate: 1, status: 1 });
+holidaySchema.index({ status: 1, applicableTo: 1, startDate: 1, endDate: 1 });
 
 module.exports = mongoose.model('Holiday', holidaySchema);

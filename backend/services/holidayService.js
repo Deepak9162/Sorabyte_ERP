@@ -43,6 +43,60 @@ class HolidayService {
   }
 
   /**
+   * Bulk fetch active holidays for a date range in one query
+   */
+  async getActiveHolidays(startDate, endDate, applicableTo = 'Both') {
+    const queryApplicable = ['Both'];
+    if (applicableTo !== 'Both') {
+      queryApplicable.push(applicableTo);
+    }
+
+    const filter = {
+      status: 'Active',
+      applicableTo: { $in: queryApplicable },
+    };
+
+    if (startDate && endDate) {
+      const dayStart = getStartOfDay(startDate);
+      const dayEnd = getEndOfDay(endDate);
+      if (dayStart && dayEnd) {
+        filter.startDate = { $lte: dayEnd };
+        filter.endDate = { $gte: dayStart };
+      }
+    }
+
+    return await Holiday.find(filter).lean();
+  }
+
+  /**
+   * Synchronously evaluate if a date is a working day using pre-fetched holidays array
+   */
+  isWorkingDaySync(date, holidays = []) {
+    if (!date) return true;
+    const dayOfWeek = getDayOfWeek(date);
+    if (dayOfWeek === 0) {
+      return false; // Sunday
+    }
+
+    const dayStart = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
+    if (!dayStart || !dayEnd) return true;
+
+    const tStart = dayStart.getTime();
+    const tEnd = dayEnd.getTime();
+
+    for (const h of holidays) {
+      const hStart = new Date(h.startDate).getTime();
+      const hEnd = new Date(h.endDate).getTime();
+      if (hStart <= tEnd && hEnd >= tStart) {
+        return false; // Overlaps with an official holiday
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Check if a given date is a Sunday or official Holiday and return the reason if so.
    * @param {Date|string} date
    * @param {string} applicableTo

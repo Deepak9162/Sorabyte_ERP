@@ -82,5 +82,6 @@ const leaveRequestSchema = new mongoose.Schema(
 // Compound index for efficient overlapping checks
 leaveRequestSchema.index({ teacher: 1, startDate: 1, endDate: 1 });
 leaveRequestSchema.index({ teacher: 1, status: 1 });
+leaveRequestSchema.index({ status: 1, startDate: 1, endDate: 1 });
 
 module.exports = mongoose.model('LeaveRequest', leaveRequestSchema);

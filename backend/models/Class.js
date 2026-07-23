@@ -25,6 +25,7 @@ const classSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Teacher',
       required: [true, 'A class must have a primary teacher'],
+      index: true,
     },
     students: [
       {
