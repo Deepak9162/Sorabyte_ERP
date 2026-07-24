@@ -60,7 +60,7 @@ class AttendanceService {
     // 2. Check if attendance already exists for this class and date
     const existing = await Attendance.findOne({ class: classId, date: { $gte: targetDate, $lte: dayEnd } });
     if (existing) {
-      throw new Error(`Attendance already marked for this class on ${formatDateString(date)}`);
+      return await this.updateAttendance(classId, date, attendanceData, userInfo);
     }
 
     // 3. Check if a session exists and is locked
@@ -81,13 +81,15 @@ class AttendanceService {
     const results = await Attendance.insertMany(operations);
 
     // 5. Create or update attendance session
+    const initialStatus = userInfo.role === 'admin' ? 'submitted' : 'draft';
     await AttendanceSession.findOneAndUpdate(
       { class: classId, date: { $gte: targetDate, $lte: dayEnd } },
       {
         class: classId,
         date: targetDate,
         markedBy: userInfo.userId || null,
-        attendanceStatus: 'draft',
+        attendanceStatus: initialStatus,
+        ...(userInfo.role === 'admin' ? { submittedAt: new Date() } : {})
       },
       { upsert: true, new: true }
     );
@@ -142,10 +144,26 @@ class AttendanceService {
 
     const results = await Promise.all(updatePromises);
 
-    // Update session status back to draft if it was submitted
-    if (session && session.attendanceStatus === 'submitted') {
-      session.attendanceStatus = 'draft';
+    // Update session status: if admin updates, ensure it is 'submitted' (or stays 'locked' if locked). If teacher updates a submitted entry, revert to draft.
+    if (session) {
+      if (userInfo.role === 'admin') {
+        if (session.attendanceStatus !== 'locked') {
+          session.attendanceStatus = 'submitted';
+          session.submittedAt = session.submittedAt || new Date();
+        }
+      } else if (session.attendanceStatus === 'submitted') {
+        session.attendanceStatus = 'draft';
+      }
       await session.save();
+    } else {
+      const initialStatus = userInfo.role === 'admin' ? 'submitted' : 'draft';
+      await AttendanceSession.create({
+        class: classId,
+        date: targetDate,
+        markedBy: userInfo.userId || null,
+        attendanceStatus: initialStatus,
+        ...(userInfo.role === 'admin' ? { submittedAt: new Date() } : {})
+      });
     }
 
     // Audit log

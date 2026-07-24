@@ -41,7 +41,7 @@ import { getTodayDateString } from "../utils/dateUtils";
 import { isDayHoliday as checkIsDayHoliday, getEffectiveAttendanceStatus } from "../utils/holidayUtils";
 // Memoized Mobile Student Attendance Card
 const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus, isHoliday, isAdmin }) => {
-  const isEditingDisabled = isHoliday || (!isAdmin && isMarked && sessionStatus !== 'draft') || (sessionStatus === 'locked' && !isAdmin);
+  const isEditingDisabled = isHoliday || isMarked || (sessionStatus === 'locked' && !isAdmin) || (!isAdmin && sessionStatus === 'submitted');
   
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
@@ -165,7 +165,7 @@ StudentAttendanceCard.displayName = "StudentAttendanceCard";
 // Memoized Mobile Staff Attendance Card
 const StaffAttendanceCard = React.memo(({ teacher, status, markedAt, isStaffMarked, toggleStaffStatus, isHoliday, isAdmin }) => {
   const fullName = `${teacher.firstName} ${teacher.lastName}`;
-  const isCardDisabled = (isStaffMarked && !isAdmin) || isHoliday;
+  const isCardDisabled = isStaffMarked || isHoliday;
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
@@ -350,6 +350,7 @@ const Attendance = () => {
   const [students, setStudents] = useState([]);
   const [attendanceData, setAttendanceData] = useState({});
   const [isMarked, setIsMarked] = useState(false);
+  const [hasExistingRecords, setHasExistingRecords] = useState(false);
 
   // Attendance Session status (draft/submitted/locked)
   const [sessionStatus, setSessionStatus] = useState(null);
@@ -505,6 +506,9 @@ const Attendance = () => {
           if (user?.role === "teacher" && classData.length === 0) {
             // Teacher is not assigned as Class Teacher of any class
             setIsClassTeacher(false);
+            setSelectedClass("");
+            setStudents([]);
+            setAttendanceData({});
             return;
           }
           setIsClassTeacher(true);
@@ -520,6 +524,9 @@ const Attendance = () => {
         console.error("Fetch classes error:", error);
         if (user?.role === "teacher") {
           setIsClassTeacher(false);
+          setSelectedClass("");
+          setStudents([]);
+          setAttendanceData({});
         }
       }
     };
@@ -528,7 +535,13 @@ const Attendance = () => {
 
   // 2. Fetch Daily Student Attendance Data
   useEffect(() => {
-    if (activeTab !== "mark-students" || !selectedClass) return;
+    if (activeTab !== "mark-students" || !selectedClass || (user?.role === "teacher" && !isClassTeacher)) {
+      if (user?.role === "teacher" && !isClassTeacher) {
+        setStudents([]);
+        setAttendanceData({});
+      }
+      return;
+    }
 
     const fetchStudentsAndStatus = async () => {
       setLoading(true);
@@ -552,6 +565,7 @@ const Attendance = () => {
 
           if (records.length > 0) {
             setIsMarked(true);
+            setHasExistingRecords(true);
             const markedData = {};
             records.forEach((entry) => {
               if (entry?.student?._id) {
@@ -561,6 +575,7 @@ const Attendance = () => {
             setAttendanceData(markedData);
           } else {
             setIsMarked(false);
+            setHasExistingRecords(false);
             setSessionStatus(null);
             const initialData = {};
             fetchedStudents.forEach((s) => {
@@ -570,6 +585,7 @@ const Attendance = () => {
           }
         } else {
           setIsMarked(false);
+          setHasExistingRecords(false);
           setSessionStatus(null);
           const initialData = {};
           fetchedStudents.forEach((s) => {
@@ -650,7 +666,7 @@ const Attendance = () => {
 
   // 4. Fetch Student Monthly History Grid Data
   useEffect(() => {
-    if (activeTab !== "student-history" || !selectedClass) return;
+    if (activeTab !== "student-history" || !selectedClass || (user?.role === "teacher" && !isClassTeacher)) return;
 
     const fetchStudentMonthly = async () => {
       setLoading(true);
@@ -713,9 +729,10 @@ const Attendance = () => {
 
   const toggleStudentStatus = (id, status) => {
     if (holidayInfo && !holidayInfo.isWorkingDay) return;
+    if (isMarked) return;
     const isAdmin = user?.role === 'admin';
-    if (!isAdmin && isMarked && sessionStatus !== 'draft') return; // Teachers cannot edit after submission
     if (!isAdmin && sessionStatus === 'locked') return;
+    if (!isAdmin && sessionStatus === 'submitted') return;
     setAttendanceData((prev) => ({
       ...prev,
       [id]: status,
@@ -724,8 +741,7 @@ const Attendance = () => {
 
   const toggleStaffStatus = (id, status) => {
     if (holidayInfo && !holidayInfo.isWorkingDay) return;
-    const isAdmin = user?.role === 'admin';
-    if (!isAdmin && isStaffMarked) return; // Admin can update staff attendance anytime
+    if (isStaffMarked) return;
     setStaffAttendanceData((prev) => {
       const existing = prev[id];
       const prevMarkedAt = typeof existing === 'object' ? existing?.markedAt : null;
@@ -749,7 +765,7 @@ const Attendance = () => {
           attendanceData[s._id].slice(1), // 'present' -> 'Present'
       }));
 
-      if (isMarked) {
+      if (hasExistingRecords || isMarked) {
         // Update existing attendance (works for draft, submitted or admin updates)
         const res = await api.put("/attendance", {
           classId: selectedClass,
@@ -757,6 +773,11 @@ const Attendance = () => {
           attendanceData: attendanceDataArray,
         });
         if (res.data.success) {
+          setIsMarked(true);
+          setHasExistingRecords(true);
+          if (user?.role === 'admin') {
+            setSessionStatus('submitted');
+          }
           addToast("Attendance updated successfully", "success");
         }
       } else {
@@ -768,7 +789,9 @@ const Attendance = () => {
         });
         if (res.data.success) {
           setIsMarked(true);
-          setSessionStatus('draft');
+          setHasExistingRecords(true);
+          const initialStatus = user?.role === 'admin' ? 'submitted' : 'draft';
+          setSessionStatus(initialStatus);
           addToast(
             `Student attendance for class archived successfully`,
             "success",
@@ -1623,8 +1646,8 @@ const Attendance = () => {
       </div>
 
       {/* Teacher Empty State — Not assigned as Class Teacher */}
-      {user?.role === "teacher" && !isClassTeacher && (
-        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {user?.role === "teacher" && !isClassTeacher ? (
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-500 my-4">
           <div className="w-20 h-20 mx-auto mb-6 bg-amber-50 rounded-3xl flex items-center justify-center shadow-inner shadow-amber-100/50">
             <Shield size={36} className="text-amber-500" />
           </div>
@@ -1644,7 +1667,8 @@ const Attendance = () => {
             </div>
           </div>
         </div>
-      )}
+      ) : (
+        <>
 
       {/* Control Bar: Filters depending on Active Tab */}
       <div className={cn(
@@ -2213,7 +2237,7 @@ const Attendance = () => {
                                     },
                                   ].map((option) => {
                                     const isSelected = status === option.id;
-                                    const isBtnDisabled = (user?.role !== 'admin' && (isMarked && sessionStatus !== 'draft')) || (sessionStatus === 'locked' && user?.role !== 'admin') || (holidayInfo && !holidayInfo.isWorkingDay);
+                                    const isBtnDisabled = (holidayInfo && !holidayInfo.isWorkingDay) || isMarked || (sessionStatus === 'locked' && user?.role !== 'admin') || (user?.role !== 'admin' && sessionStatus === 'submitted');
                                     return (
                                       <button
                                         key={option.id}
@@ -3301,9 +3325,10 @@ const Attendance = () => {
         </div>
       )}
 
-      {/* Synchronized Notification Banner */}
-      {((activeTab === "mark-students" && isMarked) ||
-        (activeTab === "mark-staff" && isStaffMarked)) && (
+      {/* Synchronized Notification Banner (Admin only) */}
+      {user?.role === 'admin' &&
+        ((activeTab === "mark-students" && isMarked) ||
+          (activeTab === "mark-staff" && isStaffMarked)) && (
         <div className="bg-emerald-600 p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] flex items-center gap-4 md:gap-6 border border-emerald-500 shadow-2xl shadow-emerald-100 animate-in zoom-in-95 duration-500">
           <div className="w-10 h-10 md:w-16 md:h-16 bg-white/20 backdrop-blur-md text-white rounded-xl md:rounded-[1.5rem] flex items-center justify-center shadow-inner shrink-0">
             <CheckCircle className="w-6 h-6 md:w-8 md:h-8" />
@@ -3331,6 +3356,8 @@ const Attendance = () => {
             </Button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
