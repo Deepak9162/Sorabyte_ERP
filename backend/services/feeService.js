@@ -847,7 +847,7 @@ class FeeService {
       FeeLedger.find({ academicYear, studentId: { $in: studentIds } }).lean(),
       FeeTransaction.find({ academicYear, student: { $in: studentIds }, status: 'Paid' })
         .sort({ paymentDate: -1 })
-        .select('student amount month paymentDate paymentMode receiptNumber')
+        .select('student amount month paymentDate paymentMode receiptNumber transactionId type remarks status')
         .lean()
     ]);
 
@@ -856,11 +856,16 @@ class FeeService {
     ledgers.forEach(l => ledgerMap.set(l.studentId.toString(), l));
 
     const lastPaymentMap = new Map();
+    const studentTransactionsMap = new Map();
     transactions.forEach(t => {
       const sKey = t.student.toString();
       if (!lastPaymentMap.has(sKey)) {
         lastPaymentMap.set(sKey, t.paymentDate);
       }
+      if (!studentTransactionsMap.has(sKey)) {
+        studentTransactionsMap.set(sKey, []);
+      }
+      studentTransactionsMap.get(sKey).push(t);
     });
 
     const allMonths = [
@@ -989,7 +994,8 @@ class FeeService {
           dueAmount: studentTotalDue,
           paymentStatus: overallStatus,
           lastPaymentDate: lastPaymentMap.get(sIdStr) || null,
-          monthBreakdown
+          monthBreakdown,
+          transactions: studentTransactionsMap.get(sIdStr) || []
         });
       }
     });
@@ -1005,6 +1011,57 @@ class FeeService {
         return rollA - rollB;
       }
       return String(a.rollNumber || '').localeCompare(String(b.rollNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    // Build Flat Transactions List for transaction-level table views & Excel/PDF exports
+    const flatTransactions = [];
+    studentReportList.forEach(s => {
+      const sTxs = s.transactions || [];
+      if (sTxs.length > 0) {
+        sTxs.forEach(t => {
+          flatTransactions.push({
+            id: t._id || (s.id + '-' + (t.receiptNumber || t.month)),
+            studentObjId: s.id,
+            studentId: s.studentId,
+            rollNumber: s.rollNumber,
+            fullName: s.fullName,
+            className: s.className,
+            section: s.section,
+            fatherName: s.fatherName,
+            parentPhone: s.parentPhone,
+            month: Array.isArray(t.month) ? t.month.join(', ') : (t.month || 'N/A'),
+            expectedFee: s.totalFee,
+            paidAmount: s.paidAmount,
+            dueAmount: s.dueAmount,
+            paymentStatus: s.paymentStatus,
+            paymentDate: t.paymentDate || null,
+            transactionAmount: t.amount || 0,
+            paymentMode: t.paymentMode || 'CASH',
+            receiptNumber: t.receiptNumber || t.transactionId || '-'
+          });
+        });
+      } else {
+        flatTransactions.push({
+          id: s.id + '-no-tx',
+          studentObjId: s.id,
+          studentId: s.studentId,
+          rollNumber: s.rollNumber,
+          fullName: s.fullName,
+          className: s.className,
+          section: s.section,
+          fatherName: s.fatherName,
+          parentPhone: s.parentPhone,
+          month: month !== 'ALL' ? month : 'Full Session',
+          expectedFee: s.totalFee,
+          paidAmount: s.paidAmount,
+          dueAmount: s.dueAmount,
+          paymentStatus: s.paymentStatus,
+          paymentDate: s.lastPaymentDate || null,
+          transactionAmount: 0,
+          paymentMode: '-',
+          receiptNumber: '-'
+        });
+      }
     });
 
     // 3. Compute Aggregated Summary Metrics
@@ -1110,7 +1167,8 @@ class FeeService {
       summary,
       details: studentReportList,
       classSummary,
-      monthSummary
+      monthSummary,
+      transactionsList: flatTransactions
     };
   }
 }
