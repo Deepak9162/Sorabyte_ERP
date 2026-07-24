@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import {
   FileText,
-  Printer,
   Filter,
   Coins,
   ArrowLeft,
@@ -550,13 +549,6 @@ const FeeReports = () => {
     }
   };
 
-  // ─────────────────────────────────────────────────────────
-  // PRINT HANDLER
-  // ─────────────────────────────────────────────────────────
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20">
       {/* ── HEADER BAR ── */}
@@ -738,15 +730,6 @@ const FeeReports = () => {
                 className="flex-1 sm:flex-none border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 text-xs font-black uppercase tracking-wider rounded-xl h-11"
               >
                 Download Excel
-              </Button>
-
-              <Button
-                variant="secondary"
-                onClick={handlePrint}
-                icon={Printer}
-                className="flex-1 sm:flex-none border-gray-200 text-gray-700 bg-gray-50 hover:bg-gray-100 text-xs font-black uppercase tracking-wider rounded-xl h-11"
-              >
-                Print Report
               </Button>
             </div>
           )}
