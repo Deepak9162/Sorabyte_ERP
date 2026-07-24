@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import {
   Search,
@@ -25,7 +25,8 @@ import {
   Sparkles,
   Users,
   Filter,
-  Check
+  Check,
+  FileText
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -36,14 +37,23 @@ import { cn } from "../utils/cn";
 import { formatToINR } from "../utils/format";
 import ReceiptPreview from "../components/ui/ReceiptPreview";
 
-const calendarMonthOrder = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+const academicMonthOrder = [
+  'April', 'May', 'June', 'July', 'August', 'September',
+  'October', 'November', 'December', 'January', 'February', 'March'
 ];
+
+const getFirstUnpaidMonth = (monthlyBreakdown) => {
+  if (!monthlyBreakdown || !Array.isArray(monthlyBreakdown)) return null;
+  const sorted = [...monthlyBreakdown].sort((a, b) => {
+    return academicMonthOrder.indexOf(a.month) - academicMonthOrder.indexOf(b.month);
+  });
+  return sorted.find((m) => m.status !== "PAID" && m.status !== "EXEMPTED");
+};
 
 const FeeCollection = () => {
   const { addToast } = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Core State variables
   const [classes, setClasses] = useState([]);
@@ -173,9 +183,7 @@ const FeeCollection = () => {
               setTransactions(txs || []);
               setIncludeTransport(false);
               
-              const firstUnpaid = (ledger?.monthlyBreakdown || []).find(
-                (m) => m.status !== "PAID" && m.status !== "EXEMPTED"
-              );
+              const firstUnpaid = getFirstUnpaidMonth(ledger?.monthlyBreakdown);
               if (firstUnpaid) {
                 setSelectedMonths([firstUnpaid.month]);
               } else {
@@ -400,9 +408,7 @@ const FeeCollection = () => {
         setTransactions(txs || []);
         setIncludeTransport(false);
         
-        const firstUnpaid = (ledger?.monthlyBreakdown || []).find(
-          (m) => m.status !== "PAID" && m.status !== "EXEMPTED"
-        );
+        const firstUnpaid = getFirstUnpaidMonth(ledger?.monthlyBreakdown);
         if (firstUnpaid) {
           setSelectedMonths([firstUnpaid.month]);
         } else {
@@ -465,9 +471,7 @@ const FeeCollection = () => {
         setTransactions(txs || []);
         setIncludeTransport(false);
         
-        const firstUnpaid = (ledger?.monthlyBreakdown || []).find(
-          (m) => m.status !== "PAID" && m.status !== "EXEMPTED"
-        );
+        const firstUnpaid = getFirstUnpaidMonth(ledger?.monthlyBreakdown);
         if (firstUnpaid) {
           setSelectedMonths([firstUnpaid.month]);
         } else {
@@ -617,7 +621,7 @@ const FeeCollection = () => {
 
   const filteredTimelineMonths = useMemo(() => {
     const breakdown = [...(student?.ledger?.monthlyBreakdown || [])].sort((a, b) => {
-      return calendarMonthOrder.indexOf(a.month) - calendarMonthOrder.indexOf(b.month);
+      return academicMonthOrder.indexOf(a.month) - academicMonthOrder.indexOf(b.month);
     });
     if (timelineFilter === "ALL") return breakdown;
     if (timelineFilter === "DUE") return breakdown.filter(m => m.status === "DUE" || m.status === "PARTIAL");
@@ -667,13 +671,22 @@ const FeeCollection = () => {
         {/* Compact Settings & Status row */}
         <div className="flex justify-between items-center border-b border-zinc-200/60 pb-3">
           <span className="text-[10px] font-black text-zinc-450 uppercase tracking-wider">Analytics Overview</span>
-          <button
-            onClick={() => setIsSettingsModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 border border-zinc-250 bg-white hover:bg-zinc-50 hover:border-zinc-300 rounded-xl text-[11px] font-bold text-zinc-600 transition-all shadow-sm cursor-pointer"
-          >
-            <Clock size={12} className="text-orange-500 animate-pulse" />
-            <span>Due Date: {monthlyFeeDueDate || 10}th of Month</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate("/reports/fees")}
+              className="flex items-center gap-1.5 px-3 py-1 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-xl text-[11px] font-black text-indigo-700 transition-all shadow-sm cursor-pointer"
+            >
+              <FileText size={13} className="text-indigo-600" />
+              <span>Fee Reports & Statements</span>
+            </button>
+            <button
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 border border-zinc-250 bg-white hover:bg-zinc-50 hover:border-zinc-300 rounded-xl text-[11px] font-bold text-zinc-600 transition-all shadow-sm cursor-pointer"
+            >
+              <Clock size={12} className="text-orange-500 animate-pulse" />
+              <span>Due Date: {monthlyFeeDueDate || 10}th of Month</span>
+            </button>
+          </div>
         </div>
 
         {/* 2. TOP SUMMARY SECTION: 4 ANALYTICS CARDS */}
@@ -1053,7 +1066,7 @@ const FeeCollection = () => {
                                               setStudent(activeStudent);
                                               setTransactions(txs || []);
                                               setIncludeTransport(false);
-                                              const firstUnpaid = (ledger?.monthlyBreakdown || []).find(m => m.status !== "PAID" && m.status !== "EXEMPTED");
+                                              const firstUnpaid = getFirstUnpaidMonth(ledger?.monthlyBreakdown);
                                               if (firstUnpaid) {
                                                 setSelectedMonths([firstUnpaid.month]);
                                               } else {
@@ -1137,7 +1150,7 @@ const FeeCollection = () => {
                                           setStudent(activeStudent);
                                           setTransactions(txs || []);
                                           setIncludeTransport(false);
-                                          const firstUnpaid = (ledger?.monthlyBreakdown || []).find(m => m.status !== "PAID" && m.status !== "EXEMPTED");
+                                          const firstUnpaid = getFirstUnpaidMonth(ledger?.monthlyBreakdown);
                                           if (firstUnpaid) {
                                             setSelectedMonths([firstUnpaid.month]);
                                           } else {
@@ -1515,7 +1528,7 @@ const FeeCollection = () => {
                         <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Payment Target Month *</label>
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                           {[...(student.ledger?.monthlyBreakdown || [])].sort((a, b) => {
-                            return calendarMonthOrder.indexOf(a.month) - calendarMonthOrder.indexOf(b.month);
+                            return academicMonthOrder.indexOf(a.month) - academicMonthOrder.indexOf(b.month);
                           }).map((m) => (
                             <button
                               key={m.month}

@@ -13,12 +13,16 @@ const {
   getStudentFeesByMonth,
   getPendingFeesStudents,
   getMonthlyFinancialSummary,
-  updateTransportFee
+  updateTransportFee,
+  getFeeReport,
 } = require('../controllers/feeController');
 const { protect, isAdmin } = require('../middleware/auth');
 
 // Protect all routes
 router.use(protect);
+
+// Isolated Read-Only Fee Report Endpoint
+router.get('/reports', getFeeReport);
 
 // GET /api/fees/student/:studentId → Month-wise fee status
 router.get('/student/:studentId', getStudentFeesByMonth);

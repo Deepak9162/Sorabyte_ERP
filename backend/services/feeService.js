@@ -797,6 +797,322 @@ class FeeService {
 
     return student;
   }
+
+  /**
+   * Dedicated Read-Only Fee Report Data Generator
+   * Uses optimized batch queries with .lean() to prevent N+1 queries.
+   */
+  async getFeeReportData(options = {}) {
+    const {
+      academicYear = '2026-2027',
+      classId = 'ALL',
+      month = 'ALL',
+      reportType = 'class-summary',
+      paymentStatus = 'ALL',
+      studentId = null,
+    } = options;
+
+    const FeeLedger = require('../models/FeeLedger');
+    const FeeTransaction = require('../models/FeeTransaction');
+
+    // 1. Build Student Query
+    const studentQuery = { status: 'Active' };
+    if (classId && classId !== 'ALL') {
+      studentQuery.class = classId;
+    }
+    if (studentId) {
+      studentQuery._id = studentId;
+    }
+
+    const students = await Student.find(studentQuery)
+      .populate('class', 'name section tuitionFee')
+      .select('fullName rollNumber studentId fatherName emergencyContact parentPhone transportMode transportFee discountPercentage admissionDate createdAt class status')
+      .sort({ rollNumber: 1 })
+      .lean();
+
+    if (!students || students.length === 0) {
+      return {
+        metadata: { academicYear, classId, month, reportType, paymentStatus, generatedAt: new Date() },
+        summary: { totalStudents: 0, paidStudents: 0, partiallyPaidStudents: 0, dueStudents: 0, totalExpectedFee: 0, totalCollected: 0, totalDue: 0 },
+        details: [],
+        classSummary: [],
+        monthSummary: []
+      };
+    }
+
+    const studentIds = students.map(s => s._id);
+
+    // 2. Fetch Fee Ledgers and Transactions in parallel (Single batch query)
+    const [ledgers, transactions] = await Promise.all([
+      FeeLedger.find({ academicYear, studentId: { $in: studentIds } }).lean(),
+      FeeTransaction.find({ academicYear, student: { $in: studentIds }, status: 'Paid' })
+        .sort({ paymentDate: -1 })
+        .select('student amount month paymentDate paymentMode receiptNumber')
+        .lean()
+    ]);
+
+    // Create lookup maps
+    const ledgerMap = new Map();
+    ledgers.forEach(l => ledgerMap.set(l.studentId.toString(), l));
+
+    const lastPaymentMap = new Map();
+    transactions.forEach(t => {
+      const sKey = t.student.toString();
+      if (!lastPaymentMap.has(sKey)) {
+        lastPaymentMap.set(sKey, t.paymentDate);
+      }
+    });
+
+    const allMonths = [
+      'April', 'May', 'June', 'July', 'August', 'September',
+      'October', 'November', 'December', 'January', 'February', 'March'
+    ];
+
+    const monthMapping = {
+      'April': { idx: 3, offset: 0 },
+      'May': { idx: 4, offset: 0 },
+      'June': { idx: 5, offset: 0 },
+      'July': { idx: 6, offset: 0 },
+      'August': { idx: 7, offset: 0 },
+      'September': { idx: 8, offset: 0 },
+      'October': { idx: 9, offset: 0 },
+      'November': { idx: 10, offset: 0 },
+      'December': { idx: 11, offset: 0 },
+      'January': { idx: 0, offset: 1 },
+      'February': { idx: 1, offset: 1 },
+      'March': { idx: 2, offset: 1 }
+    };
+
+    const startYear = parseInt(academicYear.split('-')[0]) || 2026;
+    const targetMonths = (month && month !== 'ALL') ? [month] : allMonths;
+
+    // Process per-student fee details
+    const studentReportList = [];
+
+    students.forEach(student => {
+      const sIdStr = student._id.toString();
+      const ledger = ledgerMap.get(sIdStr);
+      const admissionDate = student.admissionDate || student.createdAt || new Date();
+
+      let studentTotalExpected = 0;
+      let studentTotalPaid = 0;
+      const monthBreakdown = [];
+
+      targetMonths.forEach(mName => {
+        let mAmount = 0;
+        let mPaid = 0;
+        let mStatus = 'UNPAID';
+
+        if (ledger && ledger.monthlyFees) {
+          const mItem = ledger.monthlyFees.find(item => item.month === mName);
+          if (mItem) {
+            const tuitionExp = mItem.status === 'EXEMPTED' ? 0 : (mItem.amount || 0);
+            const transportExp = mItem.transportStatus === 'EXEMPTED' ? 0 : (mItem.transportAmount || 0);
+            mAmount = tuitionExp + transportExp;
+
+            const tuitionPaid = mItem.paidAmount || 0;
+            const transportPaid = mItem.transportPaidAmount || 0;
+            mPaid = tuitionPaid + transportPaid;
+
+            if (mItem.status === 'EXEMPTED' && mItem.transportStatus === 'EXEMPTED') {
+              mStatus = 'EXEMPTED';
+            } else if (mPaid >= mAmount && mAmount > 0) {
+              mStatus = 'PAID';
+            } else if (mPaid > 0) {
+              mStatus = 'PARTIAL';
+            } else {
+              mStatus = 'UNPAID';
+            }
+          }
+        } else {
+          // If ledger not present, calculate baseline expected
+          const mapping = monthMapping[mName];
+          if (mapping) {
+            const monthYear = startYear + mapping.offset;
+            const monthIdxVal = mapping.idx;
+            const monthEndDate = new Date(monthYear, monthIdxVal + 1, 0, 23, 59, 59, 999);
+            const isExempted = admissionDate > monthEndDate;
+
+            if (!isExempted && student.class && student.class.tuitionFee) {
+              const discount = student.discountPercentage || 0;
+              const tuitionBase = Math.round(student.class.tuitionFee * (1 - (discount / 100)));
+              const transportBase = student.transportMode === 'School Bus' ? (student.transportFee || 0) : 0;
+              mAmount = tuitionBase + transportBase;
+            } else {
+              mStatus = 'EXEMPTED';
+            }
+          }
+        }
+
+        studentTotalExpected += mAmount;
+        studentTotalPaid += mPaid;
+
+        monthBreakdown.push({
+          month: mName,
+          expected: mAmount,
+          paid: mPaid,
+          due: Math.max(0, mAmount - mPaid),
+          status: mStatus
+        });
+      });
+
+      const studentTotalDue = Math.max(0, studentTotalExpected - studentTotalPaid);
+      let overallStatus = 'UNPAID';
+      if (studentTotalExpected > 0 && studentTotalPaid >= studentTotalExpected) {
+        overallStatus = 'PAID';
+      } else if (studentTotalPaid > 0) {
+        overallStatus = 'PARTIAL';
+      } else if (studentTotalExpected === 0) {
+        overallStatus = 'EXEMPTED';
+      } else {
+        overallStatus = 'DUE';
+      }
+
+      // Filter by payment status if specified
+      let matchesFilter = true;
+      if (paymentStatus === 'PAID' && overallStatus !== 'PAID') matchesFilter = false;
+      if (paymentStatus === 'PARTIAL' && overallStatus !== 'PARTIAL') matchesFilter = false;
+      if (paymentStatus === 'DUE' && overallStatus !== 'DUE' && overallStatus !== 'UNPAID') matchesFilter = false;
+
+      if (matchesFilter) {
+        studentReportList.push({
+          id: student._id,
+          studentId: student.studentId || 'N/A',
+          rollNumber: student.rollNumber || '-',
+          fullName: student.fullName || 'N/A',
+          className: student.class ? student.class.name : 'N/A',
+          section: student.class ? (student.class.section || '-') : '-',
+          fatherName: student.fatherName || '-',
+          parentPhone: student.parentPhone || student.emergencyContact || '-',
+          totalFee: studentTotalExpected,
+          paidAmount: studentTotalPaid,
+          dueAmount: studentTotalDue,
+          paymentStatus: overallStatus,
+          lastPaymentDate: lastPaymentMap.get(sIdStr) || null,
+          monthBreakdown
+        });
+      }
+    });
+
+    // Sort studentReportList primarily by Class Name (natural/numeric) and secondarily by Roll Number (numeric)
+    studentReportList.sort((a, b) => {
+      const classCompare = (a.className || '').localeCompare((b.className || ''), undefined, { numeric: true, sensitivity: 'base' });
+      if (classCompare !== 0) return classCompare;
+
+      const rollA = parseInt(a.rollNumber, 10);
+      const rollB = parseInt(b.rollNumber, 10);
+      if (!isNaN(rollA) && !isNaN(rollB)) {
+        return rollA - rollB;
+      }
+      return String(a.rollNumber || '').localeCompare(String(b.rollNumber || ''), undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    // 3. Compute Aggregated Summary Metrics
+    let totalExpectedFee = 0;
+    let totalCollected = 0;
+    let totalDue = 0;
+    let paidStudents = 0;
+    let partiallyPaidStudents = 0;
+    let dueStudents = 0;
+
+    studentReportList.forEach(s => {
+      totalExpectedFee += s.totalFee;
+      totalCollected += s.paidAmount;
+      totalDue += s.dueAmount;
+
+      if (s.paymentStatus === 'PAID') paidStudents++;
+      else if (s.paymentStatus === 'PARTIAL') partiallyPaidStudents++;
+      else dueStudents++;
+    });
+
+    const summary = {
+      totalStudents: studentReportList.length,
+      paidStudents,
+      partiallyPaidStudents,
+      dueStudents,
+      totalExpectedFee,
+      totalCollected,
+      totalDue
+    };
+
+    // 4. Compute Class-wise Summary Breakdown
+    const classMap = new Map();
+    studentReportList.forEach(s => {
+      const cName = s.className;
+      if (!classMap.has(cName)) {
+        classMap.set(cName, {
+          className: cName,
+          section: s.section,
+          totalStudents: 0,
+          paidStudents: 0,
+          partiallyPaidStudents: 0,
+          dueStudents: 0,
+          totalExpectedFee: 0,
+          totalCollected: 0,
+          totalDue: 0,
+          students: []
+        });
+      }
+      const cObj = classMap.get(cName);
+      cObj.totalStudents++;
+      cObj.totalExpectedFee += s.totalFee;
+      cObj.totalCollected += s.paidAmount;
+      cObj.totalDue += s.dueAmount;
+      if (s.paymentStatus === 'PAID') cObj.paidStudents++;
+      else if (s.paymentStatus === 'PARTIAL') cObj.partiallyPaidStudents++;
+      else cObj.dueStudents++;
+
+      cObj.students.push(s);
+    });
+
+    const classSummary = Array.from(classMap.values());
+    classSummary.sort((a, b) => a.className.localeCompare(b.className, undefined, { numeric: true, sensitivity: 'base' }));
+
+    // 5. Compute Month-wise Summary Breakdown
+    const monthSummaryMap = new Map();
+    targetMonths.forEach(mName => {
+      monthSummaryMap.set(mName, {
+        month: mName,
+        totalStudents: 0,
+        paidStudents: 0,
+        dueStudents: 0,
+        totalExpectedFee: 0,
+        totalCollected: 0,
+        totalDue: 0
+      });
+    });
+
+    studentReportList.forEach(s => {
+      s.monthBreakdown.forEach(mb => {
+        if (monthSummaryMap.has(mb.month)) {
+          const mObj = monthSummaryMap.get(mb.month);
+          mObj.totalStudents++;
+          mObj.totalExpectedFee += mb.expected;
+          mObj.totalCollected += mb.paid;
+          mObj.totalDue += mb.due;
+          if (mb.status === 'PAID') mObj.paidStudents++;
+          else mObj.dueStudents++;
+        }
+      });
+    });
+
+    const monthSummary = Array.from(monthSummaryMap.values());
+
+    return {
+      metadata: {
+        academicYear,
+        classId,
+        month,
+        reportType,
+        paymentStatus,
+        generatedAt: new Date()
+      },
+      summary,
+      details: studentReportList,
+      classSummary,
+      monthSummary
+    };
+  }
 }
 
 module.exports = new FeeService();

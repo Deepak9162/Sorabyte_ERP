@@ -21,6 +21,7 @@ const BulkIDCards = lazy(() => import("./pages/student/BulkIDCards"));
 const TeacherManagement = lazy(() => import("./pages/TeacherManagement"));
 const Attendance = lazy(() => import("./pages/Attendance"));
 const FeeCollection = lazy(() => import("./pages/FeeCollection"));
+const FeeReports = lazy(() => import("./pages/FeeReports"));
 const ClassAttendanceReport = lazy(() => import("./pages/ClassAttendanceReport"));
 const StudentAttendanceDetail = lazy(() => import("./pages/StudentAttendanceDetail"));
 const StudentAttendanceAnalysis = lazy(() => import("./pages/StudentAttendanceAnalysis"));
@@ -255,6 +256,17 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <FeeCollection />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/reports/fees"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <FeeReports />
                   </Layout>
                 </ProtectedRoute>
               }

@@ -106,6 +106,11 @@ const routeHeaderConfig = {
     category: "System Administration",
     title: "Holiday Calendar",
     description: "Manage academic holidays, vacations, and emergency closures."
+  },
+  "/reports/fees": {
+    category: "Finance & Fee Management",
+    title: "Fee Reports & Statements",
+    description: "Generate class-wise and month-wise fee collection reports."
   }
 };
 

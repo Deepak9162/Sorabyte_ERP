@@ -429,6 +429,30 @@ const updateTransportFee = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Generate fee report data (isolated read-only)
+ * @route   GET /api/fees/reports
+ * @access  Protected
+ */
+const getFeeReport = async (req, res, next) => {
+  try {
+    const { academicYear, classId, month, reportType, paymentStatus, studentId } = req.query;
+
+    const reportData = await feeService.getFeeReportData({
+      academicYear: academicYear || '2026-2027',
+      classId: classId || 'ALL',
+      month: month || 'ALL',
+      reportType: reportType || 'class-summary',
+      paymentStatus: paymentStatus || 'ALL',
+      studentId: studentId || null,
+    });
+
+    return successResponse(res, reportData, 'Fee report generated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getFeeDetails,
   recordPayment,
@@ -437,4 +461,5 @@ module.exports = {
   getPendingFeesStudents,
   getMonthlyFinancialSummary,
   updateTransportFee,
+  getFeeReport,
 };
