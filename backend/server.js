@@ -47,6 +47,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const holidayRoutes = require('./routes/holidayRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
+const homeworkRoutes = require('./routes/homeworkRoutes');
 
 // Swagger
 const swaggerUi = require('swagger-ui-express');
@@ -223,6 +224,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/leaves', leaveRoutes); // Teacher Leave Request & Approval Routes
+app.use('/api/homework', homeworkRoutes);
 
 // Swagger Docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));

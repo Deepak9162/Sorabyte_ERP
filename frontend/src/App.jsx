@@ -38,6 +38,8 @@ const AdmissionRequestForm = lazy(() => import("./pages/admission/AdmissionReque
 const AdmissionRequestDetails = lazy(() => import("./pages/admission/AdmissionRequestDetails"));
 const AdmissionDirectForm = lazy(() => import("./pages/admission/AdmissionDirectForm"));
 const HolidayManagement = lazy(() => import("./pages/admin/HolidayManagement"));
+const TeacherHomework = lazy(() => import("./pages/teacher/TeacherHomework"));
+const AdminHomework = lazy(() => import("./pages/admin/AdminHomework"));
 
 const PageFallback = () => (
   <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -366,6 +368,28 @@ function App() {
                 <ProtectedRoute allowedRoles={["teacher"]}>
                   <Layout>
                     <MyAttendance />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/teacher/homework"
+              element={
+                <ProtectedRoute allowedRoles={["teacher"]}>
+                  <Layout>
+                    <TeacherHomework />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/homework"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Layout>
+                    <AdminHomework />
                   </Layout>
                 </ProtectedRoute>
               }

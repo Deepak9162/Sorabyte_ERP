@@ -111,6 +111,16 @@ const routeHeaderConfig = {
     category: "Finance & Fee Management",
     title: "Fee Reports & Statements",
     description: "Generate class-wise and month-wise fee collection reports."
+  },
+  "/teacher/homework": {
+    category: "Academic Workspace",
+    title: "Homework Management",
+    description: "Submit daily subject homework and review assigned class submissions."
+  },
+  "/admin/homework": {
+    category: "ERP Executive Console",
+    title: "Homework Management Center",
+    description: "Review, approve, and export class consolidated homework summaries."
   }
 };
 
@@ -227,6 +237,20 @@ const Layout = ({ children }) => {
       label: "My Attendance",
       icon: CalendarCheck,
       roles: ["teacher"],
+    },
+    {
+      id: "teacher-homework",
+      path: "/teacher/homework",
+      label: "Homework",
+      icon: BookOpen,
+      roles: ["teacher"],
+    },
+    {
+      id: "admin-homework",
+      path: "/admin/homework",
+      label: "Homework Center",
+      icon: BookOpen,
+      roles: ["admin"],
     },
     {
       id: "teachers",
