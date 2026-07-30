@@ -161,40 +161,48 @@ const ClassAttendanceReport = () => {
           </p>
         </div>
 
-        {/* Tab Selector & Filter Controls Row */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Tab Selector (Admin Only) */}
-          {user?.role === "admin" && (
-            <div className="flex bg-gray-100 p-0.5 rounded-xl border border-gray-200/50 shadow-inner w-fit select-none">
-              <button
-                onClick={() => setActiveTab("students")}
-                className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
-                  activeTab === "students"
-                    ? "bg-white text-indigo-650 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
-                )}
-              >
-                <ClipboardList size={13} />
-                Students
-              </button>
-              <button
-                onClick={() => setActiveTab("staff")}
-                className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
-                  activeTab === "staff"
-                    ? "bg-white text-indigo-650 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
-                )}
-              >
-                <UserCheck size={13} />
-                Staff
-              </button>
-            </div>
-          )}
+        {/* Tab Selector (Admin Only) */}
+        {user?.role === "admin" && (
+          <div className="flex bg-gray-100 p-0.5 rounded-xl border border-gray-200/50 shadow-inner w-fit select-none">
+            <button
+              onClick={() => setActiveTab("students")}
+              className={cn(
+                "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+                activeTab === "students"
+                  ? "bg-white text-indigo-650 shadow-sm"
+                  : "text-gray-500 hover:text-gray-900"
+              )}
+            >
+              <ClipboardList size={13} />
+              Students
+            </button>
+            <button
+              onClick={() => setActiveTab("staff")}
+              className={cn(
+                "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+                activeTab === "staff"
+                  ? "bg-white text-indigo-650 shadow-sm"
+                  : "text-gray-500 hover:text-gray-900"
+              )}
+            >
+              <UserCheck size={13} />
+              Staff
+            </button>
+          </div>
+        )}
+      </div>
 
-          {/* Student Class Filter (Only in Student Tab) */}
-          {activeTab === "students" && (
+      {/* STUDENT TAB CONTENT */}
+      {activeTab === "students" && (
+        <>
+          {/* Class Selection Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:px-5 rounded-2xl border border-zinc-200/80 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Filter className="text-indigo-600" size={16} />
+              <span className="text-xs font-black text-zinc-800 uppercase tracking-wider">
+                Select Class View
+              </span>
+            </div>
             <AppCombobox
               placeholder="Select Class"
               searchPlaceholder="Search class..."
@@ -205,15 +213,9 @@ const ClassAttendanceReport = () => {
                 value: c._id,
                 label: `Class ${c.name}`,
               }))}
-              containerClassName="min-w-[160px]"
+              containerClassName="w-full sm:w-64"
             />
-          )}
-        </div>
-      </div>
-
-      {/* STUDENT TAB CONTENT */}
-      {activeTab === "students" && (
-        <>
+          </div>
           {/* Summary Cards */}
           {report && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
