@@ -330,6 +330,8 @@ const getStudentProfile = async (req, res, next) => {
         gender: student.gender,
         dob: student.dob,
         studentPhoto: student.studentPhoto,
+        photoSource: student.photoSource || 'upload',
+        photoUrl: student.photoUrl || '',
         bloodGroup: student.bloodGroup,
         transportMode: student.transportMode || 'Private',
         cast: student.cast,

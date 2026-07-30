@@ -36,6 +36,7 @@ import {
 import api from "../../services/api";
 import Button from "../../components/ui/Button";
 import { cn } from "../../utils/cn";
+import { resolveStudentPhotoUrl } from "../../utils/imageUtils";
 
 const StudentProfile = () => {
   const { studentId } = useParams();
@@ -413,13 +414,9 @@ const StudentProfile = () => {
   const { personalDetails, academicDetails, contactDetails, feeSummary } =
     student;
 
-  // Resolve photo URL
-  const photoUrl = personalDetails?.studentPhoto
-    ? personalDetails.studentPhoto.startsWith("http") ||
-      personalDetails.studentPhoto.startsWith("data:")
-      ? personalDetails.studentPhoto
-      : `${apiHost}${personalDetails.studentPhoto}`
-    : null;
+  // Resolve photo URL & source
+  const photoUrl = resolveStudentPhotoUrl(personalDetails || student, apiHost);
+  const photoSource = personalDetails?.photoSource || student?.photoSource || (photoUrl && photoUrl.includes('google.com') ? 'link' : 'upload');
 
   return (
     <div className="min-h-screen bg-zinc-50/50 animate-in fade-in duration-500 pb-20 print:bg-white print:p-0">
@@ -469,23 +466,57 @@ const StudentProfile = () => {
         <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6 sm:p-8 relative overflow-hidden">
           <div className="absolute right-0 top-0 w-80 h-80 bg-indigo-50/20 rounded-full blur-3xl pointer-events-none" />
           <div className="flex flex-col md:flex-row items-center md:items-start lg:items-center gap-6 text-center md:text-left relative z-15">
-            {/* Circular Profile Avatar */}
-            <div className="w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 rounded-[2.2rem] flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-indigo-100 border-4 border-white shrink-0 overflow-hidden uppercase">
-              {photoUrl ? (
-                <img
-                  src={photoUrl}
-                  alt={personalDetails?.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span>
-                  {(personalDetails?.name || "??")
-                    .split(" ")
-                    .slice(0, 2)
-                    .map((n) => n[0])
-                    .join("")}
-                </span>
-              )}
+            {/* Profile Avatar & Actions */}
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              <div className="w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 rounded-[2.2rem] flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-indigo-100 border-4 border-white shrink-0 overflow-hidden uppercase relative group">
+                {photoUrl ? (
+                  <img
+                    src={photoUrl}
+                    alt={personalDetails?.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <span>
+                    {(personalDetails?.name || "??")
+                      .split(" ")
+                      .slice(0, 2)
+                      .map((n) => n[0])
+                      .join("")}
+                  </span>
+                )}
+              </div>
+
+              {/* Photo Source Badge */}
+              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-zinc-100 text-zinc-600 border border-zinc-200">
+                Source: {photoSource === 'link' ? 'Google Drive / Link' : 'Uploaded Image'}
+              </span>
+
+              {/* Photo Action Buttons */}
+              <div className="flex items-center gap-1.5 mt-0.5 print:hidden">
+                {photoUrl && (
+                  <a
+                    href={photoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1"
+                    title="View Image"
+                  >
+                    <Eye size={12} /> View
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigate(`/students/edit/${personalDetails?._id || student?._id}`)}
+                  className="px-2.5 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                  title="Change Photo"
+                >
+                  Change
+                </button>
+              </div>
             </div>
 
             {/* Student metadata info */}

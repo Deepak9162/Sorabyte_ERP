@@ -18,6 +18,7 @@ import { jsPDF } from "jspdf";
 import Button from "../../components/ui/Button";
 import Skeleton, { TableSkeleton } from "../../components/ui/Skeleton";
 import EmptyState from "../../components/ui/EmptyState";
+import { resolveStudentPhotoUrl } from "../../utils/imageUtils";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 import AppCombobox from "../../components/ui/AppCombobox";
 import { useToast } from "../../context/ToastContext";
@@ -806,12 +807,7 @@ const StudentList = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {searchedStudents.map((student) => {
-                    // Resolve photo URL
-                    const photoUrl = student.studentPhoto
-                      ? (student.studentPhoto.startsWith("http") || student.studentPhoto.startsWith("data:")
-                        ? student.studentPhoto
-                        : `${apiHost}${student.studentPhoto}`)
-                      : null;
+                    const photoUrl = resolveStudentPhotoUrl(student, apiHost);
 
                     return (
                       <tr
@@ -938,11 +934,7 @@ const StudentList = () => {
             /* Grid View */
             <div className="p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {searchedStudents.map((student) => {
-                const photoUrl = student.studentPhoto
-                  ? (student.studentPhoto.startsWith("http") || student.studentPhoto.startsWith("data:")
-                    ? student.studentPhoto
-                    : `${apiHost}${student.studentPhoto}`)
-                  : null;
+                const photoUrl = resolveStudentPhotoUrl(student, apiHost);
 
                 return (
                   <div

@@ -7,6 +7,7 @@ import api from "../../services/api";
 import { useToast } from "../../context/ToastContext";
 import Button from "../../components/ui/Button";
 import { cn } from "../../utils/cn";
+import { resolveStudentPhotoUrl } from "../../utils/imageUtils";
 import schoolLogoImg from "../../assets/schoollogo.png";
 
 // ─── Constants ─────────────────────────────────────────────────────────
@@ -302,7 +303,15 @@ export const IDCardFront = ({
                 src={photoUrl}
                 alt="Student"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  if (photoUrl && photoUrl.includes('googleusercontent.com')) {
+                    const fileId = photoUrl.split('/').pop();
+                    if (fileId) {
+                      e.target.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+                    }
+                  }
+                }}
               />
             ) : (
               <div
@@ -1462,13 +1471,9 @@ const StudentIDCard = () => {
           setStudent(st);
 
           // Resolve photo URL
-          const pUrl = st.personalDetails?.studentPhoto;
+          const pUrl = resolveStudentPhotoUrl(st, apiHost);
           if (pUrl) {
-            setPhotoUrl(
-              pUrl.startsWith("http") || pUrl.startsWith("data:")
-                ? pUrl
-                : `${apiHost}${pUrl}`,
-            );
+            setPhotoUrl(pUrl);
           }
 
           // Generate dynamic QR code payload

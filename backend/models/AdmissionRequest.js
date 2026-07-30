@@ -98,6 +98,16 @@ const admissionRequestSchema = new mongoose.Schema(
       studentPhoto: {
         type: String,
         default: ''
+      },
+      photoSource: {
+        type: String,
+        enum: ['upload', 'link'],
+        default: 'upload'
+      },
+      photoUrl: {
+        type: String,
+        trim: true,
+        default: ''
       }
     },
     parentInfo: {

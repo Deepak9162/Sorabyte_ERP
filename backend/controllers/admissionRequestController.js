@@ -178,6 +178,8 @@ const enrollStudent = async (request, reviewerId) => {
     transportFee: request.transport.transportFee || 0,
     hostelRequired: request.hostel ? request.hostel.hostelRequired : false,
     studentPhoto: request.studentInfo.studentPhoto || '',
+    photoSource: request.studentInfo.photoSource || 'upload',
+    photoUrl: request.studentInfo.photoUrl || '',
     phone: request.parentInfo.phone || '',
     email: request.parentInfo.email || '',
     address: addressStr,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { getTodayDateString } from "../../utils/dateUtils";
+import { normalizeImageUrl, resolveStudentPhotoUrl } from "../../utils/imageUtils";
 import {
   ArrowLeft,
   ChevronRight,
@@ -42,6 +43,32 @@ const AddStudent = () => {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoError, setPhotoError] = useState("");
+  const [photoSource, setPhotoSource] = useState("upload");
+  const [photoUrlInput, setPhotoUrlInput] = useState("");
+  const [photoUrlError, setPhotoUrlError] = useState("");
+
+  const handlePhotoUrlChange = (val) => {
+    setPhotoUrlError("");
+    setPhotoUrlInput(val);
+
+    if (!val.trim()) {
+      setPhotoPreview(null);
+      return;
+    }
+
+    if (val.length > 500) {
+      setPhotoUrlError("URL length cannot exceed 500 characters");
+      return;
+    }
+
+    const normalized = normalizeImageUrl(val);
+    if (normalized) {
+      setPhotoPreview(normalized);
+    } else {
+      setPhotoUrlError("Invalid URL protocol. Please enter a valid HTTPS URL.");
+    }
+  };
+
   const [isDragActive, setIsDragActive] = useState(false);
   const [classes, setClasses] = useState([]);
   const [totalStudents, setTotalStudents] = useState(0);
@@ -180,7 +207,12 @@ const AddStudent = () => {
             previousSchool: student.previousSchool || "",
           });
 
-          if (student.studentPhoto) {
+          if (student.photoSource === 'link' && student.photoUrl) {
+            setPhotoSource('link');
+            setPhotoUrlInput(student.photoUrl);
+            setPhotoPreview(normalizeImageUrl(student.photoUrl));
+          } else if (student.studentPhoto) {
+            setPhotoSource(student.photoSource || 'upload');
             const photoUrl = student.studentPhoto.startsWith("http") || student.studentPhoto.startsWith("data:")
               ? student.studentPhoto
               : `${apiHost}${student.studentPhoto}`;
@@ -198,24 +230,20 @@ const AddStudent = () => {
     fetchStudent();
   }, [id, isEditMode, reset, apiHost]);
 
-  // Step fields for trigger validation
-  const STEP_FIELDS = [
-    ["fullName", "gender", "dob", "bloodGroup", "email", "phone", "cast", "aadhar"],
-    ["admissionNumber", "rollNumber", "className", "section", "session", "status", "transportMode", "admissionDate", "discountPercentage"],
-    ["fatherName", "motherName", "emergencyContact"],
-    ["address"],
-  ];
-
   const handleNext = async () => {
-    const fieldsToValidate = STEP_FIELDS[currentStep];
-    const isStepValid = await trigger(fieldsToValidate);
-    
-    if (isStepValid) {
-      if (currentStep < STEPS.length - 1) {
-        setCurrentStep((prev) => prev + 1);
-      }
+    let isValid = false;
+    if (currentStep === 0) {
+      isValid = await trigger(["fullName", "gender", "dob", "email"]);
+    } else if (currentStep === 1) {
+      isValid = await trigger(["admissionNumber", "rollNumber", "className", "section", "session"]);
+    } else if (currentStep === 2) {
+      isValid = await trigger(["fatherName", "motherName", "emergencyContact", "address"]);
+    }
+
+    if (isValid) {
+      setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
     } else {
-      addToast("Please correct the errors in the current step", "error");
+      addToast("Please fix validation errors before proceeding", "error");
     }
   };
 
@@ -286,12 +314,14 @@ const AddStudent = () => {
   const removePhoto = () => {
     setPhotoPreview(null);
     setPhotoFile(null);
+    setPhotoUrlInput("");
     setPhotoError("");
+    setPhotoUrlError("");
   };
 
   // Submit handler
   const onSubmit = async (data) => {
-    if (photoError) {
+    if (photoError || photoUrlError) {
       addToast("Please resolve student photo errors first", "error");
       return;
     }
@@ -306,10 +336,11 @@ const AddStudent = () => {
         }
       });
 
-      // Append student photo base64 string directly into payload if present
       const payload = {
         ...data,
-        studentPhoto: photoPreview || "",
+        photoSource,
+        photoUrl: photoSource === 'link' ? photoUrlInput : '',
+        studentPhoto: photoSource === 'upload' ? (photoPreview || "") : (photoUrlInput || photoPreview || ""),
         customFields: customFieldsObj,
       };
 
@@ -538,6 +569,128 @@ const AddStudent = () => {
                       }}
                       {...register("aadhar")}
                     />
+                  </div>
+
+                  {/* Student Photo Section (Upload vs Photo Link) */}
+                  <div className="md:col-span-2 space-y-3 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 mt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                      <div>
+                        <label className="text-xs font-black text-gray-700 uppercase tracking-wider">
+                          Student Photograph
+                        </label>
+                        <p className="text-[10px] text-gray-400 font-medium">
+                          Upload from local device or paste Google Drive / public HTTPS image URL.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs font-bold text-gray-600 bg-white px-3 py-1.5 rounded-xl border border-gray-200 shadow-2xs">
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="photoSource"
+                            value="upload"
+                            checked={photoSource === 'upload'}
+                            onChange={() => {
+                              setPhotoSource('upload');
+                              setPhotoUrlInput('');
+                              setPhotoUrlError('');
+                            }}
+                            className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span>Upload File</span>
+                        </label>
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="photoSource"
+                            value="link"
+                            checked={photoSource === 'link'}
+                            onChange={() => {
+                              setPhotoSource('link');
+                              setPhotoFile(null);
+                              setPhotoError('');
+                            }}
+                            className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span>Use Photo Link</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {photoSource === 'upload' ? (
+                      <div className="flex items-center gap-4">
+                        <div
+                          onDragEnter={handleDrag}
+                          onDragLeave={handleDrag}
+                          onDragOver={handleDrag}
+                          onDrop={handleDrop}
+                          className={cn(
+                            "flex-1 border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all flex items-center justify-center gap-3",
+                            isDragActive ? "border-indigo-500 bg-indigo-50/50" : "border-gray-200 hover:border-indigo-300 bg-white"
+                          )}
+                          onClick={() => document.getElementById("studentPhotoInput").click()}
+                        >
+                          <UploadCloud className="w-5 h-5 text-indigo-500" />
+                          <span className="text-xs font-semibold text-gray-600">
+                            {photoFile ? photoFile.name : "Choose File or Drag & Drop (Max 2MB)"}
+                          </span>
+                          <input
+                            id="studentPhotoInput"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={handleFileChange}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          Student Photo URL (Google Drive / Public Image Link)
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://drive.google.com/file/d/.../view or https://example.com/photo.jpg"
+                          value={photoUrlInput}
+                          onChange={(e) => handlePhotoUrlChange(e.target.value)}
+                          maxLength={500}
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-xs font-semibold outline-none focus:ring-4 focus:ring-indigo-100"
+                        />
+                        {photoUrlError && (
+                          <p className="text-[10px] font-bold text-rose-500">{photoUrlError}</p>
+                        )}
+                        <p className="text-[10px] text-gray-400 font-semibold">
+                          Supports Google Drive public links & direct HTTPS image URLs.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Live Image Preview */}
+                    {photoPreview && (
+                      <div className="flex items-center gap-3 pt-2">
+                        <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200 bg-white shadow-2xs">
+                          <img
+                            src={photoPreview}
+                            alt="Student Preview"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              setPhotoUrlError("Unable to load image. Please verify the image URL.");
+                            }}
+                            onLoad={() => setPhotoUrlError("")}
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-emerald-600">✓ Image Preview Loaded</span>
+                          <button
+                            type="button"
+                            onClick={removePhoto}
+                            className="text-[10px] font-bold text-rose-600 hover:underline text-left mt-0.5 cursor-pointer"
+                          >
+                            Remove Photo
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

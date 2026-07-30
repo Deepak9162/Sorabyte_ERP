@@ -11,6 +11,7 @@ import { jsPDF } from "jspdf";
 import api from "../../services/api";
 import { useToast } from "../../context/ToastContext";
 import { cn } from "../../utils/cn";
+import { resolveStudentPhotoUrl } from "../../utils/imageUtils";
 import { IDCardFront, IDCardBack, injectFonts } from "./StudentIDCard";
 
 // ─── School Constants ───────────────────────────────────────────────
@@ -251,11 +252,7 @@ const BulkIDCards = () => {
         {students.map((student, index) => {
           const { personalDetails, academicDetails, contactDetails } = student;
 
-          const photoUrl = personalDetails?.studentPhoto
-            ? (personalDetails.studentPhoto.startsWith("http") || personalDetails.studentPhoto.startsWith("data:")
-              ? personalDetails.studentPhoto
-              : `${apiHost}${personalDetails.studentPhoto}`)
-            : null;
+          const photoUrl = resolveStudentPhotoUrl(student, apiHost);
 
           const qrPayload = `Name: ${personalDetails?.name || 'N/A'}\nID: ${personalDetails?.studentId || 'N/A'}\nClass: ${academicDetails?.className || ""}${academicDetails?.section ? ` (${academicDetails.section})` : ""}\nPhone: ${contactDetails?.parentMobile || contactDetails?.phone || "N/A"}\nSchool: Little Flower English School`;
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrPayload)}`;

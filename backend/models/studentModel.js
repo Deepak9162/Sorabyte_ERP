@@ -161,6 +161,17 @@ const studentSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    photoSource: {
+      type: String,
+      enum: ['upload', 'link'],
+      default: 'upload',
+    },
+    photoUrl: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Photo URL cannot exceed 500 characters'],
+      default: '',
+    },
     qrCode: {
       type: String,
       default: '',
