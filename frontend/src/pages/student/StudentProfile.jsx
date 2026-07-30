@@ -149,6 +149,157 @@ const StudentProfile = () => {
     return { present, absent, late, leave };
   }, [attendance]);
 
+  // ── Student Document Hub Mapping Engine (O(1) Map evaluation) ─────────────
+  const documentMap = useMemo(() => {
+    const map = new Map();
+
+    const aliases = {
+      AADHAAR: ['aadharCard', 'aadhar', 'aadhar_card', 'aadhaar', 'aadhaarCard', 'AADHAAR', 'AADHAAR_CARD', 'AADHAAR CARD', 'AADHAAR NUMBER', 'AADHAR NUMBER', 'AADHAR CARD', 'AADHAR'],
+      BIRTH_CERTIFICATE: ['birthCertificate', 'birth_certificate', 'dobCertificate', 'BIRTH_CERTIFICATE', 'BIRTH CERTIFICATE', 'BIRTH CERTIFICATE NO', 'BIRTH CERTIFICATE NUMBER', 'BIRTH CERTIFICATE #', 'DOB CERTIFICATE'],
+      TRANSFER_CERTIFICATE: ['transferCertificate', 'transfer_certificate', 'tc', 'TRANSFER_CERTIFICATE', 'TRANSFER CERTIFICATE', 'TRANSFER CERTIFICATE NO', 'TRANSFER CERTIFICATE NUMBER', 'TC NO', 'TC NUMBER']
+    };
+
+    const isInvalidVal = (val) => {
+      if (val === undefined || val === null) return true;
+      const str = String(val).trim().toLowerCase();
+      return str === '' || str === 'unknown' || str === 'n/a' || str === 'null' || str === 'undefined' || str === 'not provided';
+    };
+
+    const registerDoc = (typeKey, fileOrVal) => {
+      if (isInvalidVal(fileOrVal)) return;
+
+      const isObject = typeof fileOrVal === 'object' && fileOrVal !== null;
+      const url = isObject
+        ? (fileOrVal.url || fileOrVal.filePath || fileOrVal.path || fileOrVal.fileUrl || '')
+        : (typeof fileOrVal === 'string' && (fileOrVal.startsWith('/uploads/') || fileOrVal.startsWith('http') || fileOrVal.includes('.pdf') || fileOrVal.includes('.jpg') || fileOrVal.includes('.jpeg') || fileOrVal.includes('.png')) ? fileOrVal : '');
+
+      const docNo = typeof fileOrVal === 'string' && !url
+        ? fileOrVal
+        : (isObject ? (fileOrVal.number || fileOrVal.docNumber || fileOrVal.docNo || fileOrVal.value || '') : '');
+
+      const verificationStatus = isObject
+        ? (fileOrVal.verificationStatus || fileOrVal.status || 'Verified')
+        : 'Verified';
+
+      const existing = map.get(typeKey);
+
+      map.set(typeKey, {
+        type: typeKey,
+        url: url || existing?.url || '',
+        docNo: docNo || existing?.docNo || '',
+        raw: fileOrVal,
+        isSubmitted: true
+      });
+    };
+
+    // 1. Scan customFields from student.personalDetails, rawStudent, or student
+    const customFieldsData = rawStudent?.customFields || student?.personalDetails?.customFields || student?.customFields;
+    if (customFieldsData) {
+      let entries = [];
+      if (customFieldsData instanceof Map) {
+        entries = Array.from(customFieldsData.entries());
+      } else if (typeof customFieldsData === 'object' && customFieldsData !== null) {
+        entries = Object.entries(customFieldsData);
+      }
+
+      entries.forEach(([cfKey, cfVal]) => {
+        if (isInvalidVal(cfVal)) return;
+        const normKey = String(cfKey).trim().toUpperCase();
+
+        for (const [typeKey, aliasList] of Object.entries(aliases)) {
+          if (aliasList.some(a => a.toUpperCase() === normKey || normKey.includes(a.toUpperCase()))) {
+            registerDoc(typeKey, cfVal);
+            break;
+          }
+        }
+      });
+    }
+
+    // 2. Check top level student fields
+    const aadharVal = rawStudent?.aadhar || student?.personalDetails?.aadhar || student?.aadhar || rawStudent?.aadharCard || student?.personalDetails?.aadharCard || student?.aadharCard;
+    if (!isInvalidVal(aadharVal)) {
+      registerDoc('AADHAAR', aadharVal);
+    }
+
+    const birthVal = rawStudent?.birthCertificate || student?.personalDetails?.birthCertificate || student?.birthCertificate;
+    if (!isInvalidVal(birthVal)) {
+      registerDoc('BIRTH_CERTIFICATE', birthVal);
+    }
+
+    const tcVal = rawStudent?.transferCertificate || student?.personalDetails?.transferCertificate || student?.transferCertificate || rawStudent?.tc || student?.tc;
+    if (!isInvalidVal(tcVal)) {
+      registerDoc('TRANSFER_CERTIFICATE', tcVal);
+    }
+
+    // 3. Check array of documents if present
+    const docList = Array.isArray(rawStudent?.documents)
+      ? rawStudent.documents
+      : Array.isArray(student?.documents)
+      ? student.documents
+      : Array.isArray(student?.personalDetails?.documents)
+      ? student.personalDetails.documents
+      : [];
+
+    docList.forEach((docItem) => {
+      if (!docItem) return;
+      const docType = (docItem.type || docItem.documentType || docItem.category || docItem.name || docItem.key || '').toUpperCase();
+
+      for (const [key, aliasList] of Object.entries(aliases)) {
+        if (aliasList.some(alias => alias.toUpperCase() === docType || docType.includes(alias.toUpperCase()))) {
+          registerDoc(key, docItem);
+          break;
+        }
+      }
+    });
+
+    // 4. Scan objects (documents schemas)
+    const sources = [
+      rawStudent?.documents,
+      student?.documents,
+      student?.personalDetails?.documents,
+    ];
+
+    sources.forEach((src) => {
+      if (src && typeof src === 'object' && !Array.isArray(src)) {
+        for (const [propKey, propVal] of Object.entries(src)) {
+          if (isInvalidVal(propVal)) continue;
+          for (const [key, aliasList] of Object.entries(aliases)) {
+            if (aliasList.some(a => a.toLowerCase() === propKey.toLowerCase())) {
+              registerDoc(key, propVal);
+              break;
+            }
+          }
+        }
+      }
+    });
+
+    return map;
+  }, [student, rawStudent]);
+
+  const standardDocumentTypes = [
+    {
+      key: 'AADHAAR',
+      title: 'Aadhaar Card',
+      subtitle: 'Identification Doc',
+      iconBg: 'bg-indigo-50 text-indigo-600',
+      tag: 'Mandatory',
+    },
+    {
+      key: 'BIRTH_CERTIFICATE',
+      title: 'Birth Certificate',
+      subtitle: 'DOB Verification',
+      iconBg: 'bg-purple-50 text-purple-600',
+      tag: 'Optional',
+    },
+    {
+      key: 'TRANSFER_CERTIFICATE',
+      title: 'Transfer Certificate',
+      subtitle: 'Previous Institution',
+      iconBg: 'bg-amber-50 text-amber-600',
+      tag: 'Pending',
+    },
+  ];
+
   const timelineEvents = useMemo(() => {
     const events = [];
     if (!student) return events;
@@ -1108,74 +1259,77 @@ const StudentProfile = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {/* Document: Aadhaar Card */}
-            <div className="border border-zinc-200 rounded-2xl p-5 space-y-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
-                  <FileText size={18} />
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-zinc-800">
-                    Aadhaar Card
-                  </h5>
-                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">
-                    Identification Doc
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
-                <span className="text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded">
-                  Submitted
-                </span>
-                <span className="text-zinc-400 font-bold">Verified</span>
-              </div>
-            </div>
+            {standardDocumentTypes.map((docDef) => {
+              const docData = documentMap.get(docDef.key);
+              const isUploaded = Boolean(docData && docData.isSubmitted);
+              const verificationStatus = docData?.verificationStatus || (isUploaded ? 'Verified' : docDef.tag);
 
-            {/* Document: Birth Certificate */}
-            <div className="border border-zinc-200 rounded-2xl p-5 space-y-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
-                  <FileText size={18} />
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-zinc-800">
-                    Birth Certificate
-                  </h5>
-                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">
-                    DOB Verification
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
-                <span className="text-zinc-450 font-extrabold bg-zinc-50 px-2 py-0.5 rounded">
-                  Not Uploaded
-                </span>
-                <span className="text-zinc-400 font-bold">Optional</span>
-              </div>
-            </div>
+              return (
+                <div
+                  key={docDef.key}
+                  className={cn(
+                    "border rounded-2xl p-5 space-y-4 hover:shadow-md transition-all",
+                    isUploaded ? "border-emerald-200 bg-emerald-50/10" : "border-zinc-200 bg-white"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 ${docDef.iconBg} rounded-xl flex items-center justify-center font-bold`}>
+                        <FileText size={18} />
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-bold text-zinc-800">{docDef.title}</h5>
+                        <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">
+                          {docDef.subtitle}
+                        </span>
+                        {docData?.docNo && !docData.docNo.startsWith('/uploads/') && !docData.docNo.startsWith('http') && (
+                          <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-800 text-[10px] font-extrabold border border-zinc-200">
+                            <span className="text-zinc-500 font-semibold">No:</span>
+                            <span>{docData.docNo}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {docData?.url && (
+                      <a
+                        href={docData.url.startsWith('http') ? docData.url : `${apiHost}${docData.url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                        title="View Document"
+                      >
+                        <Eye size={15} />
+                      </a>
+                    )}
+                  </div>
 
-            {/* Document: Transfer Certificate */}
-            <div className="border border-zinc-200 rounded-2xl p-5 space-y-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-                  <FileText size={18} />
+                  <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
+                    {isUploaded ? (
+                      <span className="text-emerald-600 font-extrabold bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded">
+                        Submitted
+                      </span>
+                    ) : (
+                      <span className="text-zinc-500 font-extrabold bg-zinc-100 px-2 py-0.5 rounded">
+                        Not Uploaded
+                      </span>
+                    )}
+
+                    {isUploaded ? (
+                      <span className={cn(
+                        "font-bold px-2 py-0.5 rounded text-[10px]",
+                        verificationStatus === 'Rejected' ? "text-rose-600 bg-rose-50 border border-rose-200" :
+                        verificationStatus === 'Pending' || verificationStatus === 'Pending Verification' ? "text-amber-600 bg-amber-50 border border-amber-200" :
+                        "text-emerald-600 font-bold"
+                      )}>
+                        {verificationStatus}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400 font-bold">{docDef.tag}</span>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h5 className="text-xs font-bold text-zinc-800">
-                    Transfer Certificate
-                  </h5>
-                  <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider block">
-                    Previous Institution
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t border-zinc-100 pt-3 text-[10px]">
-                <span className="text-zinc-450 font-extrabold bg-zinc-50 px-2 py-0.5 rounded">
-                  Not Uploaded
-                </span>
-                <span className="text-zinc-400 font-bold">Pending</span>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
 
