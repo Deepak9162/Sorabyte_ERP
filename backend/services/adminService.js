@@ -261,6 +261,7 @@ class AdminService {
 
   async getClassAttendanceReport(classId) {
     const holidayService = require('./holidayService');
+    const { formatDateString } = require('../utils/dateUtils');
     
     const [students, allAttendanceRecords, activeHolidays] = await Promise.all([
       Student.find({ class: classId }).select('fullName rollNumber').lean(),
@@ -271,33 +272,34 @@ class AdminService {
     students.sort((a, b) => (parseInt(a.rollNumber) || 0) - (parseInt(b.rollNumber) || 0));
     
     const attendanceByStudent = new Map();
-    const rawDatesSet = new Set();
+    const workingDatesSet = new Set();
 
     for (const r of allAttendanceRecords) {
-      if (r.student) {
-        const sIdStr = r.student.toString();
-        if (!attendanceByStudent.has(sIdStr)) {
-          attendanceByStudent.set(sIdStr, []);
+      if (r.student && r.date) {
+        const dateKey = formatDateString(r.date);
+        if (dateKey && holidayService.isWorkingDaySync(r.date, activeHolidays)) {
+          const sIdStr = r.student.toString();
+          if (!attendanceByStudent.has(sIdStr)) {
+            attendanceByStudent.set(sIdStr, new Map());
+          }
+          // Deduplicate: keep latest record per unique working date per student
+          attendanceByStudent.get(sIdStr).set(dateKey, r);
+          workingDatesSet.add(dateKey);
         }
-        attendanceByStudent.get(sIdStr).push(r);
-        rawDatesSet.add(new Date(r.date).toISOString().split('T')[0]);
       }
     }
 
-    let totalClasses = 0;
-    for (const d of rawDatesSet) {
-      if (holidayService.isWorkingDaySync(d, activeHolidays)) {
-        totalClasses++;
-      }
-    }
+    const totalClasses = workingDatesSet.size;
 
     const report = students.map(student => {
-      const records = attendanceByStudent.get(student._id.toString()) || [];
+      const studentMap = attendanceByStudent.get(student._id.toString()) || new Map();
+      const records = Array.from(studentMap.values());
       const presentCount = records.filter(r => r.status === 'Present' || r.status === 'Late').length;
       const absentCount = records.filter(r => r.status === 'Absent').length;
-      const attendancePercentage = totalClasses > 0 
-        ? ((presentCount / totalClasses) * 100).toFixed(2) 
-        : 0;
+      
+      const totalEvaluated = Math.max(totalClasses, presentCount + absentCount);
+      const rawPct = totalEvaluated > 0 ? (presentCount / totalEvaluated) * 100 : 0;
+      const attendancePercentage = Math.min(100, Math.max(0, rawPct)).toFixed(2);
 
       return {
         studentId: student._id,
@@ -320,6 +322,7 @@ class AdminService {
     if (!student) throw new Error('Student not found');
 
     const holidayService = require('./holidayService');
+    const { formatDateString } = require('../utils/dateUtils');
 
     const [records, rawAttendanceDates, activeHolidays] = await Promise.all([
       Attendance.find({ student: studentId }).sort({ date: -1 }).lean(),
@@ -328,17 +331,34 @@ class AdminService {
     ]);
     
     let totalClasses = 0;
+    const workingDatesSet = new Set();
     for (const d of rawAttendanceDates) {
-      if (holidayService.isWorkingDaySync(d, activeHolidays)) {
-        totalClasses++;
+      const dateKey = formatDateString(d);
+      if (dateKey && holidayService.isWorkingDaySync(d, activeHolidays)) {
+        workingDatesSet.add(dateKey);
+      }
+    }
+    totalClasses = workingDatesSet.size;
+
+    const validRecordsMap = new Map();
+    for (const r of records) {
+      if (r.date) {
+        const dateKey = formatDateString(r.date);
+        if (dateKey && holidayService.isWorkingDaySync(r.date, activeHolidays)) {
+          if (!validRecordsMap.has(dateKey)) {
+            validRecordsMap.set(dateKey, r);
+          }
+        }
       }
     }
 
-    const present = records.filter(r => r.status === 'Present' || r.status === 'Late').length;
-    const absent = records.filter(r => r.status === 'Absent').length;
-    const percentage = totalClasses > 0 
-      ? ((present / totalClasses) * 100).toFixed(2) 
-      : 0;
+    const validRecords = Array.from(validRecordsMap.values());
+    const present = validRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
+    const absent = validRecords.filter(r => r.status === 'Absent').length;
+    
+    const totalEvaluated = Math.max(totalClasses, present + absent);
+    const rawPct = totalEvaluated > 0 ? (present / totalEvaluated) * 100 : 0;
+    const percentage = Math.min(100, Math.max(0, rawPct)).toFixed(2);
 
     return {
       studentDetails: {

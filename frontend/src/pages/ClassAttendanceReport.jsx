@@ -368,29 +368,35 @@ const ClassAttendanceReport = () => {
                         </td>
                         <td className="px-5 py-3.5 border-b border-zinc-50">
                           <div className="flex flex-col items-center gap-1.5">
-                            <div
-                              className={cn(
-                                "px-2.5 py-0.5 rounded-lg text-xs font-black border transition-all",
-                                getPercentageColor(
-                                  parseFloat(s.attendancePercentage)
-                                )
-                              )}
-                            >
-                              {s.attendancePercentage}%
-                            </div>
-                            <div className="w-20 h-1 bg-zinc-100 rounded-full overflow-hidden">
-                              <div
-                                className={cn(
-                                  "h-full rounded-full transition-all duration-1000",
-                                  parseFloat(s.attendancePercentage) >= 75
-                                    ? "bg-emerald-500"
-                                    : parseFloat(s.attendancePercentage) >= 60
-                                      ? "bg-amber-500"
-                                      : "bg-rose-500"
-                                )}
-                                style={{ width: `${s.attendancePercentage}%` }}
-                              />
-                            </div>
+                            {(() => {
+                              const raw = parseFloat(s.attendancePercentage) || 0;
+                              const clampedPct = Math.min(100, Math.max(0, raw)).toFixed(2);
+                              return (
+                                <>
+                                  <div
+                                    className={cn(
+                                      "px-2.5 py-0.5 rounded-lg text-xs font-black border transition-all",
+                                      getPercentageColor(clampedPct)
+                                    )}
+                                  >
+                                    {clampedPct}%
+                                  </div>
+                                  <div className="w-20 h-1 bg-zinc-100 rounded-full overflow-hidden">
+                                    <div
+                                      className={cn(
+                                        "h-full rounded-full transition-all duration-1000",
+                                        parseFloat(clampedPct) >= 75
+                                          ? "bg-emerald-500"
+                                          : parseFloat(clampedPct) >= 60
+                                            ? "bg-amber-500"
+                                            : "bg-rose-500"
+                                      )}
+                                      style={{ width: `${clampedPct}%` }}
+                                    />
+                                  </div>
+                                </>
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-5 py-3.5 border-b border-zinc-50 text-right">
