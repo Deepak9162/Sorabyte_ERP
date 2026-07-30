@@ -9,7 +9,7 @@ import {
   FileSpreadsheet,
   Download,
   ListFilter,
-  Receipt
+  Receipt,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import { TableSkeleton } from "../components/ui/Skeleton";
@@ -24,11 +24,22 @@ const SCHOOL_NAME = "LITTLE FLOWER ENGLISH SCHOOL";
 const SCHOOL_ADDRESS = "Siwan, Bihar";
 const SCHOOL_TAGLINE = "Nurturing Minds, Building Futures";
 
-const formatPDFCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString("en-IN")}`;
+const formatPDFCurrency = (amount) =>
+  `Rs. ${Number(amount || 0).toLocaleString("en-IN")}`;
 
 const monthsList = [
-  "April", "May", "June", "July", "August", "September",
-  "October", "November", "December", "January", "February", "March"
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+  "January",
+  "February",
+  "March",
 ];
 
 const FeeReports = () => {
@@ -104,7 +115,10 @@ const FeeReports = () => {
   // Handle Generate Report
   const handleGenerateReport = async () => {
     if (reportType === "student-statement" && !selectedStudent) {
-      addToast("Please select a student to generate the Student-wise Statement", "error");
+      addToast(
+        "Please select a student to generate the Student-wise Statement",
+        "error",
+      );
       return;
     }
 
@@ -128,7 +142,10 @@ const FeeReports = () => {
       }
     } catch (err) {
       console.error("Error generating fee report:", err);
-      addToast(err.response?.data?.message || "Failed to generate fee report", "error");
+      addToast(
+        err.response?.data?.message || "Failed to generate fee report",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -144,16 +161,31 @@ const FeeReports = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case "PAID":
-        return { label: "PAID", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+        return {
+          label: "PAID",
+          className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        };
       case "PARTIAL":
-        return { label: "PARTIAL", className: "bg-amber-50 text-amber-700 border-amber-200" };
+        return {
+          label: "PARTIAL",
+          className: "bg-amber-50 text-amber-700 border-amber-200",
+        };
       case "DUE":
       case "UNPAID":
-        return { label: "DUE", className: "bg-rose-50 text-rose-700 border-rose-200" };
+        return {
+          label: "DUE",
+          className: "bg-rose-50 text-rose-700 border-rose-200",
+        };
       case "EXEMPTED":
-        return { label: "WAIVED", className: "bg-purple-50 text-purple-700 border-purple-200" };
+        return {
+          label: "WAIVED",
+          className: "bg-purple-50 text-purple-700 border-purple-200",
+        };
       default:
-        return { label: status, className: "bg-gray-50 text-gray-700 border-gray-200" };
+        return {
+          label: status,
+          className: "bg-gray-50 text-gray-700 border-gray-200",
+        };
     }
   };
 
@@ -192,7 +224,9 @@ const FeeReports = () => {
       const pageW = doc.internal.pageSize.getWidth(); // 297mm
       const pageH = doc.internal.pageSize.getHeight(); // 210mm
       const margin = 10;
-      const generatedAtStr = new Date(reportData.metadata.generatedAt || Date.now()).toLocaleString("en-IN", {
+      const generatedAtStr = new Date(
+        reportData.metadata.generatedAt || Date.now(),
+      ).toLocaleString("en-IN", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -200,15 +234,20 @@ const FeeReports = () => {
         minute: "2-digit",
       });
 
-      const selectedClassName = selectedClass === "ALL" ? "All Classes" : (classes.find((c) => c._id === selectedClass)?.name || selectedClass);
-      const selectedMonthName = selectedMonth === "ALL" ? "All Months" : selectedMonth;
-      const reportTitleStr = reportType === "class-summary"
-        ? "CLASS-WISE FEE SUMMARY REPORT"
-        : reportType === "month-summary"
-        ? "MONTH-WISE FEE SUMMARY REPORT"
-        : reportType === "student-statement"
-        ? "STUDENT FEE STATEMENT & TRANSACTIONS"
-        : "CLASS & MONTH DETAILED FEE TRANSACTIONS REPORT";
+      const selectedClassName =
+        selectedClass === "ALL"
+          ? "All Classes"
+          : classes.find((c) => c._id === selectedClass)?.name || selectedClass;
+      const selectedMonthName =
+        selectedMonth === "ALL" ? "All Months" : selectedMonth;
+      const reportTitleStr =
+        reportType === "class-summary"
+          ? "CLASS-WISE FEE SUMMARY REPORT"
+          : reportType === "month-summary"
+            ? "MONTH-WISE FEE SUMMARY REPORT"
+            : reportType === "student-statement"
+              ? "STUDENT FEE STATEMENT & TRANSACTIONS"
+              : "CLASS & MONTH DETAILED FEE TRANSACTIONS REPORT";
 
       const drawHeaderAndFooter = (pageNum, totalPages) => {
         doc.setFillColor(15, 23, 42);
@@ -230,7 +269,9 @@ const FeeReports = () => {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8.5);
         doc.setTextColor(251, 146, 60);
-        doc.text("OFFICIAL FINANCIAL LEDGER REPORT", pageW - margin, 12, { align: "right" });
+        doc.text("OFFICIAL FINANCIAL LEDGER REPORT", pageW - margin, 12, {
+          align: "right",
+        });
 
         // Footer
         doc.setDrawColor(226, 232, 240);
@@ -242,10 +283,17 @@ const FeeReports = () => {
         doc.text(`${SCHOOL_NAME} ERP System`, margin, pageH - 5);
 
         doc.setFont("helvetica", "normal");
-        doc.text(`Generated: ${generatedAtStr}`, pageW / 2, pageH - 5, { align: "center" });
+        doc.text(`Generated: ${generatedAtStr}`, pageW / 2, pageH - 5, {
+          align: "center",
+        });
 
         doc.setFont("helvetica", "bold");
-        doc.text(`Page ${pageNum} of ${totalPages}`, pageW - margin, pageH - 5, { align: "right" });
+        doc.text(
+          `Page ${pageNum} of ${totalPages}`,
+          pageW - margin,
+          pageH - 5,
+          { align: "right" },
+        );
       };
 
       // Draw Top Info Card
@@ -263,7 +311,12 @@ const FeeReports = () => {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       doc.setTextColor(30, 64, 175);
-      doc.text(`Session: ${academicYear} | Class: ${selectedClassName} | Month: ${selectedMonthName}`, pageW - margin - 4, y + 6.5, { align: "right" });
+      doc.text(
+        `Session: ${academicYear} | Class: ${selectedClassName} | Month: ${selectedMonthName}`,
+        pageW - margin - 4,
+        y + 6.5,
+        { align: "right" },
+      );
 
       y += 14;
 
@@ -271,10 +324,22 @@ const FeeReports = () => {
       const summaryBoxW = (pageW - margin * 2) / 4;
       const summaryBoxH = 10;
       const summaryItems = [
-        { label: "TOTAL STUDENTS", val: String(reportData.summary.totalStudents || 0) },
-        { label: "TOTAL EXPECTED", val: formatPDFCurrency(reportData.summary.totalExpectedFee || 0) },
-        { label: "TOTAL COLLECTED", val: formatPDFCurrency(reportData.summary.totalCollected || 0) },
-        { label: "TOTAL DUE", val: formatPDFCurrency(reportData.summary.totalDue || 0) },
+        {
+          label: "TOTAL STUDENTS",
+          val: String(reportData.summary.totalStudents || 0),
+        },
+        {
+          label: "TOTAL EXPECTED",
+          val: formatPDFCurrency(reportData.summary.totalExpectedFee || 0),
+        },
+        {
+          label: "TOTAL COLLECTED",
+          val: formatPDFCurrency(reportData.summary.totalCollected || 0),
+        },
+        {
+          label: "TOTAL DUE",
+          val: formatPDFCurrency(reportData.summary.totalDue || 0),
+        },
       ];
 
       summaryItems.forEach((box, idx) => {
@@ -287,12 +352,16 @@ const FeeReports = () => {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6);
         doc.setTextColor(100, 116, 139);
-        doc.text(box.label, bx + (summaryBoxW - 2) / 2, y + 3.5, { align: "center" });
+        doc.text(box.label, bx + (summaryBoxW - 2) / 2, y + 3.5, {
+          align: "center",
+        });
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
         doc.setTextColor(15, 23, 42);
-        doc.text(box.val, bx + (summaryBoxW - 2) / 2, y + 8, { align: "center" });
+        doc.text(box.val, bx + (summaryBoxW - 2) / 2, y + 8, {
+          align: "center",
+        });
       });
 
       y += summaryBoxH + 6;
@@ -303,7 +372,17 @@ const FeeReports = () => {
       let colWidths = [];
 
       if (reportType === "class-summary") {
-        headers = ["S.No.", "Class", "Total Students", "Paid", "Partial", "Due", "Expected Fee", "Collected Fee", "Due Amount"];
+        headers = [
+          "S.No.",
+          "Class",
+          "Total Students",
+          "Paid",
+          "Partial",
+          "Due",
+          "Expected Fee",
+          "Collected Fee",
+          "Due Amount",
+        ];
         rowsData = (reportData.classSummary || []).map((row, idx) => [
           String(idx + 1),
           `Class ${row.className}`,
@@ -318,7 +397,16 @@ const FeeReports = () => {
         const availW = pageW - margin * 2; // 277mm
         colWidths = [15, 30, 25, 20, 20, 20, 38, 38, availW - 206];
       } else if (reportType === "month-summary") {
-        headers = ["S.No.", "Month", "Total Students", "Paid Students", "Due Students", "Expected Fee", "Collected Fee", "Due Amount"];
+        headers = [
+          "S.No.",
+          "Month",
+          "Total Students",
+          "Paid Students",
+          "Due Students",
+          "Expected Fee",
+          "Collected Fee",
+          "Due Amount",
+        ];
         rowsData = (reportData.monthSummary || []).map((row, idx) => [
           String(idx + 1),
           row.month,
@@ -332,7 +420,18 @@ const FeeReports = () => {
         const availW = pageW - margin * 2;
         colWidths = [15, 35, 30, 28, 28, 42, 42, availW - 220];
       } else {
-        headers = ["S.No.", "Student ID", "Roll", "Student Name", "Class", "Fee Month", "Payment Date", "Amount Paid", "Mode", "Receipt No."];
+        headers = [
+          "S.No.",
+          "Student ID",
+          "Roll",
+          "Student Name",
+          "Class",
+          "Fee Month",
+          "Payment Date",
+          "Amount Paid",
+          "Mode",
+          "Receipt No.",
+        ];
         rowsData = (reportData.transactionsList || []).map((tx, idx) => [
           String(idx + 1),
           tx.studentId || "-",
@@ -340,10 +439,12 @@ const FeeReports = () => {
           tx.fullName || "-",
           `Cls ${tx.className}`,
           tx.month || "-",
-          tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString("en-IN") : "-",
+          tx.paymentDate
+            ? new Date(tx.paymentDate).toLocaleDateString("en-IN")
+            : "-",
           formatPDFCurrency(tx.transactionAmount || 0),
           tx.paymentMode || "-",
-          tx.receiptNumber || "-"
+          tx.receiptNumber || "-",
         ]);
         const availW = pageW - margin * 2; // 277mm
         colWidths = [12, 24, 14, 48, 20, 32, 28, 30, 22, availW - 230];
@@ -378,7 +479,11 @@ const FeeReports = () => {
           currY += headerH;
         }
 
-        doc.setFillColor(rIdx % 2 === 0 ? 255 : 248, rIdx % 2 === 0 ? 255 : 250, rIdx % 2 === 0 ? 255 : 252);
+        doc.setFillColor(
+          rIdx % 2 === 0 ? 255 : 248,
+          rIdx % 2 === 0 ? 255 : 250,
+          rIdx % 2 === 0 ? 255 : 252,
+        );
         doc.rect(margin, currY, pageW - margin * 2, rowH, "F");
         doc.setDrawColor(241, 245, 249);
         doc.rect(margin, currY, pageW - margin * 2, rowH);
@@ -390,7 +495,8 @@ const FeeReports = () => {
         let cx = margin;
         rowCells.forEach((cText, cIdx) => {
           const textStr = String(cText || "");
-          const truncated = textStr.length > 30 ? textStr.substring(0, 27) + "..." : textStr;
+          const truncated =
+            textStr.length > 30 ? textStr.substring(0, 27) + "..." : textStr;
           doc.text(truncated, cx + 2, currY + 5);
           cx += colWidths[cIdx] || 20;
         });
@@ -413,13 +519,35 @@ const FeeReports = () => {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(71, 85, 105);
-      doc.text("Prepared By", margin + sigW / 2 - 5, finalY + 14, { align: "center" });
+      doc.text("Prepared By", margin + sigW / 2 - 5, finalY + 14, {
+        align: "center",
+      });
 
-      doc.line(margin + sigW + 5, finalY + 10, margin + sigW * 2 - 10, finalY + 10);
-      doc.text("Accountant Signature", margin + sigW + sigW / 2 - 5, finalY + 14, { align: "center" });
+      doc.line(
+        margin + sigW + 5,
+        finalY + 10,
+        margin + sigW * 2 - 10,
+        finalY + 10,
+      );
+      doc.text(
+        "Accountant Signature",
+        margin + sigW + sigW / 2 - 5,
+        finalY + 14,
+        { align: "center" },
+      );
 
-      doc.line(margin + sigW * 2 + 5, finalY + 10, pageW - margin - 5, finalY + 10);
-      doc.text("School Seal & Stamp", pageW - margin - sigW / 2 + 5, finalY + 14, { align: "center" });
+      doc.line(
+        margin + sigW * 2 + 5,
+        finalY + 10,
+        pageW - margin - 5,
+        finalY + 10,
+      );
+      doc.text(
+        "School Seal & Stamp",
+        pageW - margin - sigW / 2 + 5,
+        finalY + 14,
+        { align: "center" },
+      );
 
       // Apply Header & Footer to all pages
       const totalPages = doc.internal.getNumberOfPages();
@@ -428,7 +556,9 @@ const FeeReports = () => {
         drawHeaderAndFooter(i, totalPages);
       }
 
-      doc.save(`Fee_Report_${selectedClassName}_${selectedMonthName}_${Date.now()}.pdf`);
+      doc.save(
+        `Fee_Report_${selectedClassName}_${selectedMonthName}_${Date.now()}.pdf`,
+      );
     } catch (err) {
       console.error("PDF Export error:", err);
       addToast("Failed to generate PDF export", "error");
@@ -451,7 +581,9 @@ const FeeReports = () => {
       const summaryRows = [
         [SCHOOL_NAME],
         [`FEE COLLECTION REPORT — ${academicYear}`],
-        [`Class: ${selectedClass === "ALL" ? "All Classes" : selectedClass}  |  Month: ${selectedMonth}  |  Status: ${paymentStatus}`],
+        [
+          `Class: ${selectedClass === "ALL" ? "All Classes" : selectedClass}  |  Month: ${selectedMonth}  |  Status: ${paymentStatus}`,
+        ],
         [`Generated On: ${new Date().toLocaleString("en-IN")}`],
         [],
         ["METRIC", "VALUE"],
@@ -474,7 +606,17 @@ const FeeReports = () => {
 
       if (reportType === "class-summary") {
         detailRows = [
-          ["S.No.", "Class", "Total Students", "Paid Students", "Partial Students", "Due Students", "Expected Fee", "Collected Fee", "Due Amount"],
+          [
+            "S.No.",
+            "Class",
+            "Total Students",
+            "Paid Students",
+            "Partial Students",
+            "Due Students",
+            "Expected Fee",
+            "Collected Fee",
+            "Due Amount",
+          ],
           ...(reportData.classSummary || []).map((row, idx) => [
             idx + 1,
             `Class ${row.className}`,
@@ -487,10 +629,29 @@ const FeeReports = () => {
             row.totalDue,
           ]),
         ];
-        colWidths = [{ wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+        colWidths = [
+          { wch: 8 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 18 },
+          { wch: 18 },
+          { wch: 18 },
+        ];
       } else if (reportType === "month-summary") {
         detailRows = [
-          ["S.No.", "Month", "Total Students", "Paid Students", "Due Students", "Expected Fee", "Collected Fee", "Due Amount"],
+          [
+            "S.No.",
+            "Month",
+            "Total Students",
+            "Paid Students",
+            "Due Students",
+            "Expected Fee",
+            "Collected Fee",
+            "Due Amount",
+          ],
           ...(reportData.monthSummary || []).map((row, idx) => [
             idx + 1,
             row.month,
@@ -502,14 +663,35 @@ const FeeReports = () => {
             row.totalDue,
           ]),
         ];
-        colWidths = [{ wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+        colWidths = [
+          { wch: 8 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 18 },
+          { wch: 18 },
+          { wch: 18 },
+        ];
       } else {
         // Detailed Transaction Rows (Sheet 2)
         detailRows = [
           [
-            "S.No.", "Student ID", "Roll Number", "Student Name", "Class",
-            "Father Name", "Fee Month", "Expected Fee", "Paid Amount", "Due Amount",
-            "Payment Status", "Payment Date", "Transaction Amount", "Payment Mode", "Receipt Number"
+            "S.No.",
+            "Student ID",
+            "Roll Number",
+            "Student Name",
+            "Class",
+            "Father Name",
+            "Fee Month",
+            "Expected Fee",
+            "Paid Amount",
+            "Due Amount",
+            "Payment Status",
+            "Payment Date",
+            "Transaction Amount",
+            "Payment Mode",
+            "Receipt Number",
           ],
           ...(reportData.transactionsList || []).map((tx, idx) => [
             idx + 1,
@@ -523,16 +705,30 @@ const FeeReports = () => {
             tx.paidAmount || 0,
             tx.dueAmount || 0,
             tx.paymentStatus || "-",
-            tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString("en-IN") : "-",
+            tx.paymentDate
+              ? new Date(tx.paymentDate).toLocaleDateString("en-IN")
+              : "-",
             tx.transactionAmount || 0,
             tx.paymentMode || "-",
-            tx.receiptNumber || "-"
+            tx.receiptNumber || "-",
           ]),
         ];
         colWidths = [
-          { wch: 8 }, { wch: 16 }, { wch: 10 }, { wch: 25 }, { wch: 12 },
-          { wch: 22 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-          { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 20 }
+          { wch: 8 },
+          { wch: 16 },
+          { wch: 10 },
+          { wch: 25 },
+          { wch: 12 },
+          { wch: 22 },
+          { wch: 18 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 14 },
+          { wch: 16 },
+          { wch: 18 },
+          { wch: 14 },
+          { wch: 20 },
         ];
       }
 
@@ -562,7 +758,8 @@ const FeeReports = () => {
             Fee Reports & Statements
           </h1>
           <p className="text-gray-500 text-xs md:text-sm font-medium mt-1">
-            Generate class-wise, month-wise, and student-wise fee collection reports with payment transaction logs.
+            Generate class-wise, month-wise, and student-wise fee collection
+            reports with payment transaction logs.
           </p>
         </div>
 
@@ -590,7 +787,9 @@ const FeeReports = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Academic Session */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Academic Session</label>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+              Academic Session
+            </label>
             <select
               value={academicYear}
               onChange={(e) => setAcademicYear(e.target.value)}
@@ -603,7 +802,9 @@ const FeeReports = () => {
 
           {/* Report Type */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Report Structure</label>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+              Report Structure
+            </label>
             <select
               value={reportType}
               onChange={(e) => {
@@ -612,16 +813,22 @@ const FeeReports = () => {
               }}
               className="w-full h-11 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:ring-2 focus:ring-indigo-100 outline-none"
             >
-              <option value="class-month-detail">Class + Month Detailed Report</option>
+              <option value="class-month-detail">
+                Class + Month Detailed Report
+              </option>
               <option value="class-summary">Class-wise Summary Report</option>
               <option value="month-summary">Month-wise Summary Report</option>
-              <option value="student-statement">Student-wise Fee Statement</option>
+              <option value="student-statement">
+                Student-wise Fee Statement
+              </option>
             </select>
           </div>
 
           {/* Class Filter */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Academic Class</label>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+              Academic Class
+            </label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
@@ -629,14 +836,18 @@ const FeeReports = () => {
             >
               <option value="ALL">All Classes</option>
               {classes.map((cls) => (
-                <option key={cls._id} value={cls._id}>Class {cls.name}</option>
+                <option key={cls._id} value={cls._id}>
+                  Class {cls.name}
+                </option>
               ))}
             </select>
           </div>
 
           {/* Month Filter */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Fee Month</label>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+              Fee Month
+            </label>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
@@ -644,7 +855,9 @@ const FeeReports = () => {
             >
               <option value="ALL">All Months</option>
               {monthsList.map((m) => (
-                <option key={m} value={m}>{m}</option>
+                <option key={m} value={m}>
+                  {m}
+                </option>
               ))}
             </select>
           </div>
@@ -654,7 +867,9 @@ const FeeReports = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-gray-50">
           {/* Payment Status Filter */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Payment Status</label>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+              Payment Status
+            </label>
             <select
               value={paymentStatus}
               onChange={(e) => setPaymentStatus(e.target.value)}
@@ -670,12 +885,16 @@ const FeeReports = () => {
           {/* Student Search Combobox (Shown for Student-wise Fee Statement) */}
           {reportType === "student-statement" && (
             <div className="space-y-1.5 lg:col-span-2">
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Select Student *</label>
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Select Student *
+              </label>
               <AppCombobox
                 options={studentComboboxOptions}
                 value={selectedStudent?.value || selectedStudent || ""}
                 onChange={(val) => {
-                  const found = studentComboboxOptions.find(o => o.value === val);
+                  const found = studentComboboxOptions.find(
+                    (o) => o.value === val,
+                  );
                   setSelectedStudent(found || val);
                 }}
                 placeholder="Type Student Name or Roll Number..."
@@ -684,10 +903,14 @@ const FeeReports = () => {
           )}
 
           {/* Generate Button */}
-          <div className={cn(
-            "flex items-end",
-            reportType === "student-statement" ? "lg:col-span-1" : "lg:col-span-3 justify-end"
-          )}>
+          <div
+            className={cn(
+              "flex items-end",
+              reportType === "student-statement"
+                ? "lg:col-span-1"
+                : "lg:col-span-3 justify-end",
+            )}
+          >
             <Button
               onClick={handleGenerateReport}
               loading={loading}
@@ -704,8 +927,12 @@ const FeeReports = () => {
       <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-gray-100 shadow-sm print:hidden">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Export Official Documents</h3>
-            <p className="text-xs text-gray-500 font-medium mt-0.5">Download formatted PDF reports or Excel sheets for auditing</p>
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+              Export Official Documents
+            </h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              Download formatted PDF reports or Excel sheets for auditing
+            </p>
           </div>
 
           {reportData && (
@@ -738,11 +965,17 @@ const FeeReports = () => {
 
       {/* ── PRINT-ONLY HEADER ── */}
       <div className="hidden print:block text-center border-b-2 border-gray-900 pb-4 mb-6">
-        <h1 className="text-2xl font-black uppercase tracking-tight">{SCHOOL_NAME}</h1>
-        <p className="text-xs font-bold text-gray-600">{SCHOOL_ADDRESS}  •  OFFICIAL FINANCIAL REPORT</p>
+        <h1 className="text-2xl font-black uppercase tracking-tight">
+          {SCHOOL_NAME}
+        </h1>
+        <p className="text-xs font-bold text-gray-600">
+          {SCHOOL_ADDRESS} • OFFICIAL FINANCIAL REPORT
+        </p>
         <div className="mt-3 text-xs font-semibold flex justify-between px-4">
           <span>Academic Session: {academicYear}</span>
-          <span>Class: {selectedClass === "ALL" ? "All Classes" : selectedClass}</span>
+          <span>
+            Class: {selectedClass === "ALL" ? "All Classes" : selectedClass}
+          </span>
           <span>Month: {selectedMonth}</span>
           <span>Date: {new Date().toLocaleDateString("en-IN")}</span>
         </div>
@@ -752,28 +985,52 @@ const FeeReports = () => {
       {reportData && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Total Students</span>
-            <p className="text-2xl font-black text-gray-900 mt-1">{reportData.summary.totalStudents}</p>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">
+              Total Students
+            </span>
+            <p className="text-2xl font-black text-gray-900 mt-1">
+              {reportData.summary.totalStudents}
+            </p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">Paid Students</span>
-            <p className="text-2xl font-black text-emerald-700 mt-1">{reportData.summary.paidStudents}</p>
+            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">
+              Paid Students
+            </span>
+            <p className="text-2xl font-black text-emerald-700 mt-1">
+              {reportData.summary.paidStudents}
+            </p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest block">Partially Paid</span>
-            <p className="text-2xl font-black text-amber-700 mt-1">{reportData.summary.partiallyPaidStudents}</p>
+            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest block">
+              Partially Paid
+            </span>
+            <p className="text-2xl font-black text-amber-700 mt-1">
+              {reportData.summary.partiallyPaidStudents}
+            </p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-            <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest block">Due / Pending</span>
-            <p className="text-2xl font-black text-rose-700 mt-1">{reportData.summary.dueStudents}</p>
+            <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest block">
+              Due / Pending
+            </span>
+            <p className="text-2xl font-black text-rose-700 mt-1">
+              {reportData.summary.dueStudents}
+            </p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">Total Expected</span>
-            <p className="text-xl font-black text-indigo-700 mt-1">{formatToINR(reportData.summary.totalExpectedFee)}</p>
+            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">
+              Total Expected
+            </span>
+            <p className="text-xl font-black text-indigo-700 mt-1">
+              {formatToINR(reportData.summary.totalExpectedFee)}
+            </p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-            <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest block">Total Due Amount</span>
-            <p className="text-xl font-black text-rose-700 mt-1">{formatToINR(reportData.summary.totalDue)}</p>
+            <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest block">
+              Total Due Amount
+            </span>
+            <p className="text-xl font-black text-rose-700 mt-1">
+              {formatToINR(reportData.summary.totalDue)}
+            </p>
           </div>
         </div>
       )}
@@ -788,39 +1045,50 @@ const FeeReports = () => {
           <div className="w-16 h-16 mx-auto mb-4 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
             <FileText size={32} />
           </div>
-          <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">No Report Generated Yet</h3>
+          <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">
+            No Report Generated Yet
+          </h3>
           <p className="text-gray-500 text-xs max-w-sm mx-auto">
-            Select your desired report parameters above and click <span className="font-bold text-indigo-600">"Generate Report"</span> to load summary metrics and statements.
+            Select your desired report parameters above and click{" "}
+            <span className="font-bold text-indigo-600">"Generate Report"</span>{" "}
+            to load summary metrics and statements.
           </p>
         </div>
       ) : (
         <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden space-y-4">
-          
           {/* Detailed View Tab Switcher for Class+Month & Student Statement */}
-          {(reportType === "class-month-detail" || reportType === "student-statement") && (
+          {(reportType === "class-month-detail" ||
+            reportType === "student-statement") && (
             <div className="px-6 pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-100 pb-4 print:hidden">
               <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl">
                 <button
                   type="button"
-                  onClick={() => { setViewTab("transactions"); setCurrentPage(1); }}
+                  onClick={() => {
+                    setViewTab("transactions");
+                    setCurrentPage(1);
+                  }}
                   className={cn(
                     "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer",
                     viewTab === "transactions"
                       ? "bg-white text-indigo-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-900"
+                      : "text-gray-500 hover:text-gray-900",
                   )}
                 >
                   <Receipt size={16} />
-                  Payment Transactions Log ({reportData.transactionsList?.length || 0})
+                  Payment Transactions Log (
+                  {reportData.transactionsList?.length || 0})
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setViewTab("roster"); setCurrentPage(1); }}
+                  onClick={() => {
+                    setViewTab("roster");
+                    setCurrentPage(1);
+                  }}
                   className={cn(
                     "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer",
                     viewTab === "roster"
                       ? "bg-white text-indigo-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-900"
+                      : "text-gray-500 hover:text-gray-900",
                   )}
                 >
                   <ListFilter size={16} />
@@ -829,7 +1097,10 @@ const FeeReports = () => {
               </div>
 
               <span className="text-xs font-bold text-gray-400">
-                Showing {viewTab === "transactions" ? "exact payment transaction rows" : "summary balance roster per student"}
+                Showing{" "}
+                {viewTab === "transactions"
+                  ? "exact payment transaction rows"
+                  : "summary balance roster per student"}
               </span>
             </div>
           )}
@@ -853,16 +1124,37 @@ const FeeReports = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-50 text-xs">
                   {reportData.classSummary.map((row, idx) => (
-                    <tr key={row.className} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-gray-400">{idx + 1}</td>
-                      <td className="px-6 py-4 font-black text-gray-900">Class {row.className}</td>
-                      <td className="px-6 py-4 text-center font-bold text-gray-700">{row.totalStudents}</td>
-                      <td className="px-6 py-4 text-center font-black text-emerald-600">{row.paidStudents}</td>
-                      <td className="px-6 py-4 text-center font-black text-amber-600">{row.partiallyPaidStudents}</td>
-                      <td className="px-6 py-4 text-center font-black text-rose-600">{row.dueStudents}</td>
-                      <td className="px-6 py-4 text-right font-black text-gray-900">{formatToINR(row.totalExpectedFee)}</td>
-                      <td className="px-6 py-4 text-right font-black text-emerald-600">{formatToINR(row.totalCollected)}</td>
-                      <td className="px-6 py-4 text-right font-black text-rose-600">{formatToINR(row.totalDue)}</td>
+                    <tr
+                      key={row.className}
+                      className="hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="px-6 py-4 font-bold text-gray-400">
+                        {idx + 1}
+                      </td>
+                      <td className="px-6 py-4 font-black text-gray-900">
+                        Class {row.className}
+                      </td>
+                      <td className="px-6 py-4 text-center font-bold text-gray-700">
+                        {row.totalStudents}
+                      </td>
+                      <td className="px-6 py-4 text-center font-black text-emerald-600">
+                        {row.paidStudents}
+                      </td>
+                      <td className="px-6 py-4 text-center font-black text-amber-600">
+                        {row.partiallyPaidStudents}
+                      </td>
+                      <td className="px-6 py-4 text-center font-black text-rose-600">
+                        {row.dueStudents}
+                      </td>
+                      <td className="px-6 py-4 text-right font-black text-gray-900">
+                        {formatToINR(row.totalExpectedFee)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-black text-emerald-600">
+                        {formatToINR(row.totalCollected)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-black text-rose-600">
+                        {formatToINR(row.totalDue)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -888,15 +1180,34 @@ const FeeReports = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-50 text-xs">
                   {reportData.monthSummary.map((row, idx) => (
-                    <tr key={row.month} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-gray-400">{idx + 1}</td>
-                      <td className="px-6 py-4 font-black text-indigo-700">{row.month}</td>
-                      <td className="px-6 py-4 text-center font-bold text-gray-700">{row.totalStudents}</td>
-                      <td className="px-6 py-4 text-center font-black text-emerald-600">{row.paidStudents}</td>
-                      <td className="px-6 py-4 text-center font-black text-rose-600">{row.dueStudents}</td>
-                      <td className="px-6 py-4 text-right font-black text-gray-900">{formatToINR(row.totalExpectedFee)}</td>
-                      <td className="px-6 py-4 text-right font-black text-emerald-600">{formatToINR(row.totalCollected)}</td>
-                      <td className="px-6 py-4 text-right font-black text-rose-600">{formatToINR(row.totalDue)}</td>
+                    <tr
+                      key={row.month}
+                      className="hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="px-6 py-4 font-bold text-gray-400">
+                        {idx + 1}
+                      </td>
+                      <td className="px-6 py-4 font-black text-indigo-700">
+                        {row.month}
+                      </td>
+                      <td className="px-6 py-4 text-center font-bold text-gray-700">
+                        {row.totalStudents}
+                      </td>
+                      <td className="px-6 py-4 text-center font-black text-emerald-600">
+                        {row.paidStudents}
+                      </td>
+                      <td className="px-6 py-4 text-center font-black text-rose-600">
+                        {row.dueStudents}
+                      </td>
+                      <td className="px-6 py-4 text-right font-black text-gray-900">
+                        {formatToINR(row.totalExpectedFee)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-black text-emerald-600">
+                        {formatToINR(row.totalCollected)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-black text-rose-600">
+                        {formatToINR(row.totalDue)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -905,135 +1216,167 @@ const FeeReports = () => {
           )}
 
           {/* TAB 1: Payment Transactions Detailed Table */}
-          {(reportType === "class-month-detail" || reportType === "student-statement") && viewTab === "transactions" && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/70 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    <th className="px-6 py-4 w-16">S.No.</th>
-                    <th className="px-6 py-4">Student Details</th>
-                    <th className="px-6 py-4">Class</th>
-                    <th className="px-6 py-4">Fee Month</th>
-                    <th className="px-6 py-4">Payment Date</th>
-                    <th className="px-6 py-4 text-right">Amount Paid</th>
-                    <th className="px-6 py-4 text-center">Payment Mode</th>
-                    <th className="px-6 py-4 text-center">Receipt No.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 text-xs">
-                  {paginatedItems.map((txRow, idx) => (
-                    <tr key={txRow.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-gray-400">
-                        {(currentPage - 1) * pageSize + idx + 1}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-gray-900">
-                        <div>
-                          <span className="block text-gray-900 font-black">{txRow.fullName}</span>
-                          <span className="text-[10px] text-gray-400 font-bold">
-                            Roll: {txRow.rollNumber} • ID: {txRow.studentId}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-gray-700">
-                        Class {txRow.className}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-indigo-600">
-                        {txRow.month}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600 font-medium">
-                        {txRow.paymentDate ? new Date(txRow.paymentDate).toLocaleDateString("en-IN") : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-right font-black text-emerald-600">
-                        {formatToINR(txRow.transactionAmount)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-black uppercase">
-                          {txRow.paymentMode || "-"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center font-mono text-xs font-bold text-gray-700">
-                        {txRow.receiptNumber || "-"}
-                      </td>
+          {(reportType === "class-month-detail" ||
+            reportType === "student-statement") &&
+            viewTab === "transactions" && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/70 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      <th className="px-6 py-4 w-16">S.No.</th>
+                      <th className="px-6 py-4">Student Details</th>
+                      <th className="px-6 py-4">Class</th>
+                      <th className="px-6 py-4">Fee Month</th>
+                      <th className="px-6 py-4">Payment Date</th>
+                      <th className="px-6 py-4 text-right">Amount Paid</th>
+                      <th className="px-6 py-4 text-center">Payment Mode</th>
+                      <th className="px-6 py-4 text-center">Receipt No.</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* TAB 2: Student Billing Summary Roster */}
-          {(reportType === "class-month-detail" || reportType === "student-statement") && viewTab === "roster" && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/70 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    <th className="px-6 py-4 w-16">S.No.</th>
-                    <th className="px-6 py-4">Student Details</th>
-                    <th className="px-6 py-4">Class & Sec</th>
-                    <th className="px-6 py-4">Father / Parent</th>
-                    <th className="px-6 py-4 text-right">Expected Fee</th>
-                    <th className="px-6 py-4 text-right">Paid Amount</th>
-                    <th className="px-6 py-4 text-right">Due Amount</th>
-                    <th className="px-6 py-4 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 text-xs">
-                  {paginatedItems.map((studentRow, idx) => {
-                    const badge = getStatusBadge(studentRow.paymentStatus);
-                    return (
-                      <tr key={studentRow.id} className="hover:bg-gray-50/50 transition-colors">
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 text-xs">
+                    {paginatedItems.map((txRow, idx) => (
+                      <tr
+                        key={txRow.id}
+                        className="hover:bg-gray-50/50 transition-colors"
+                      >
                         <td className="px-6 py-4 font-bold text-gray-400">
                           {(currentPage - 1) * pageSize + idx + 1}
                         </td>
                         <td className="px-6 py-4 font-bold text-gray-900">
                           <div>
-                            <span className="block text-gray-900 font-black">{studentRow.fullName}</span>
+                            <span className="block text-gray-900 font-black">
+                              {txRow.fullName}
+                            </span>
                             <span className="text-[10px] text-gray-400 font-bold">
-                              Roll: {studentRow.rollNumber} • ID: {studentRow.studentId}
+                              Roll: {txRow.rollNumber} • ID: {txRow.studentId}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 font-bold text-gray-700">
-                          Class {studentRow.className} ({studentRow.section})
+                          Class {txRow.className}
+                        </td>
+                        <td className="px-6 py-4 font-bold text-indigo-600">
+                          {txRow.month}
                         </td>
                         <td className="px-6 py-4 text-gray-600 font-medium">
-                          <div>
-                            <span className="block">{studentRow.fatherName}</span>
-                            <span className="text-[10px] text-gray-400">{studentRow.parentPhone}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right font-black text-gray-900">
-                          {formatToINR(studentRow.totalFee)}
+                          {txRow.paymentDate
+                            ? new Date(txRow.paymentDate).toLocaleDateString(
+                                "en-IN",
+                              )
+                            : "-"}
                         </td>
                         <td className="px-6 py-4 text-right font-black text-emerald-600">
-                          {formatToINR(studentRow.paidAmount)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-black text-rose-600">
-                          {formatToINR(studentRow.dueAmount)}
+                          {formatToINR(txRow.transactionAmount)}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={cn("px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border inline-block", badge.className)}>
-                            {badge.label}
+                          <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-black uppercase">
+                            {txRow.paymentMode || "-"}
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-center font-mono text-xs font-bold text-gray-700">
+                          {txRow.receiptNumber || "-"}
+                        </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+          {/* TAB 2: Student Billing Summary Roster */}
+          {(reportType === "class-month-detail" ||
+            reportType === "student-statement") &&
+            viewTab === "roster" && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/70 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      <th className="px-6 py-4 w-16">S.No.</th>
+                      <th className="px-6 py-4">Student Details</th>
+                      <th className="px-6 py-4">Class & Sec</th>
+                      <th className="px-6 py-4">Father / Parent</th>
+                      <th className="px-6 py-4 text-right">Expected Fee</th>
+                      <th className="px-6 py-4 text-right">Paid Amount</th>
+                      <th className="px-6 py-4 text-right">Due Amount</th>
+                      <th className="px-6 py-4 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 text-xs">
+                    {paginatedItems.map((studentRow, idx) => {
+                      const badge = getStatusBadge(studentRow.paymentStatus);
+                      return (
+                        <tr
+                          key={studentRow.id}
+                          className="hover:bg-gray-50/50 transition-colors"
+                        >
+                          <td className="px-6 py-4 font-bold text-gray-400">
+                            {(currentPage - 1) * pageSize + idx + 1}
+                          </td>
+                          <td className="px-6 py-4 font-bold text-gray-900">
+                            <div>
+                              <span className="block text-gray-900 font-black">
+                                {studentRow.fullName}
+                              </span>
+                              <span className="text-[10px] text-gray-400 font-bold">
+                                Roll: {studentRow.rollNumber} • ID:{" "}
+                                {studentRow.studentId}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 font-bold text-gray-700">
+                            Class {studentRow.className} ({studentRow.section})
+                          </td>
+                          <td className="px-6 py-4 text-gray-600 font-medium">
+                            <div>
+                              <span className="block">
+                                {studentRow.fatherName}
+                              </span>
+                              <span className="text-[10px] text-gray-400">
+                                {studentRow.parentPhone}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right font-black text-gray-900">
+                            {formatToINR(studentRow.totalFee)}
+                          </td>
+                          <td className="px-6 py-4 text-right font-black text-emerald-600">
+                            {formatToINR(studentRow.paidAmount)}
+                          </td>
+                          <td className="px-6 py-4 text-right font-black text-rose-600">
+                            {formatToINR(studentRow.dueAmount)}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span
+                              className={cn(
+                                "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border inline-block",
+                                badge.className,
+                              )}
+                            >
+                              {badge.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
           {/* Preview Pagination Controls */}
           {totalDetailPages > 1 && (
             <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between print:hidden">
               <span className="text-xs font-bold text-gray-500">
-                Showing {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, activeItemsList.length)} of {activeItemsList.length} records
+                Showing {(currentPage - 1) * pageSize + 1} -{" "}
+                {Math.min(currentPage * pageSize, activeItemsList.length)} of{" "}
+                {activeItemsList.length} records
               </span>
               <div className="flex items-center gap-2">
                 <button
                   disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
                   className="px-3 py-1.5 rounded-lg border bg-white text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
                   Previous
@@ -1043,7 +1386,11 @@ const FeeReports = () => {
                 </span>
                 <button
                   disabled={currentPage === totalDetailPages}
-                  onClick={() => setCurrentPage((prev) => Math.min(totalDetailPages, prev + 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) =>
+                      Math.min(totalDetailPages, prev + 1),
+                    )
+                  }
                   className="px-3 py-1.5 rounded-lg border bg-white text-xs font-bold disabled:opacity-50 cursor-pointer"
                 >
                   Next

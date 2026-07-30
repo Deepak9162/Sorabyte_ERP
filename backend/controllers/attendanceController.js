@@ -12,6 +12,7 @@ const { createNotification } = require('../utils/notificationHelper');
 const Teacher = require('../models/Teacher');
 const Class = require('../models/Class');
 const holidayService = require('../services/holidayService');
+const { getStartOfDay } = require('../utils/dateUtils');
 
 /**
  * Extract user info from request for audit logging
@@ -436,8 +437,7 @@ const markSelfAttendance = async (req, res, next) => {
     const schoolLon = 84.477859;
     const maxRadius = 50; // meters
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getStartOfDay(new Date());
 
     // Check if it's a working day
     const isWorkingDay = await holidayService.isWorkingDay(today, 'Teachers');
@@ -450,10 +450,17 @@ const markSelfAttendance = async (req, res, next) => {
       return errorResponse(res, `You are ${Math.round(distance)} meters away from school. You must be within ${maxRadius} meters.`, 403);
     }
 
-    // Time constraints
+    // Time constraints in Asia/Kolkata (IST) timezone
     const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(now);
+    const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+    const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
 
     if (hours >= 12) {
       return errorResponse(res, 'Attendance marking is closed after 12:00 PM.', 403);
@@ -483,11 +490,18 @@ const markSelfAttendance = async (req, res, next) => {
       return errorResponse(res, `Attendance already marked as ${existing.status} for today.`, 409);
     }
 
+    const istTimeString = now.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
     const record = await StaffAttendance.create({
       teacher: teacher._id,
       date: today,
       status: status,
-      remarks: 'Self marked via Geofencing at ' + new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+      remarks: 'Self marked via Geofencing at ' + istTimeString
     });
 
     return successResponse(res, record, `Attendance successfully marked as ${status}`, 201);

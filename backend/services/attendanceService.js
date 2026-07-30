@@ -695,12 +695,28 @@ class AttendanceService {
         lateCount,
         percentage: attendancePercentage
       },
-      records: records.map(r => ({
-        date: r.date,
-        status: r.status,
-        remarks: r.remarks || '',
-        markedAt: r.createdAt
-      }))
+      records: records.map(r => {
+        let remarks = r.remarks || '';
+        const markedAt = r.createdAt || r.updatedAt;
+        if (remarks.includes('Self marked via Geofencing') && markedAt) {
+          const d = new Date(markedAt);
+          if (!isNaN(d.getTime())) {
+            const istTime = d.toLocaleTimeString('en-US', {
+              timeZone: 'Asia/Kolkata',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            });
+            remarks = `Self marked via Geofencing at ${istTime}`;
+          }
+        }
+        return {
+          date: r.date,
+          status: r.status,
+          remarks,
+          markedAt
+        };
+      })
     };
   }
 

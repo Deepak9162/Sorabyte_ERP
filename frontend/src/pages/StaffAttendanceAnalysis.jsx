@@ -577,7 +577,22 @@ const StaffAttendanceAnalysis = () => {
                               </span>
                             </td>
                             <td className="px-5 py-2.5 border-b border-zinc-100 text-xs text-zinc-450 font-semibold">
-                              {record.remarks || <span className="italic text-zinc-200">—</span>}
+                              {(() => {
+                                let remarks = record.remarks;
+                                if (remarks && remarks.includes('Self marked via Geofencing') && record.markedAt) {
+                                  const d = new Date(record.markedAt);
+                                  if (!isNaN(d.getTime())) {
+                                    const istTime = d.toLocaleTimeString('en-US', {
+                                      timeZone: 'Asia/Kolkata',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: true
+                                    });
+                                    remarks = `Self marked via Geofencing at ${istTime}`;
+                                  }
+                                }
+                                return remarks || <span className="italic text-zinc-200">—</span>;
+                              })()}
                             </td>
                           </tr>
                         );
