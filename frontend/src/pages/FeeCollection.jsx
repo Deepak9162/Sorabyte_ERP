@@ -373,7 +373,18 @@ const FeeCollection = () => {
     if (!searchQuery) return;
     setLoading(true);
     try {
-      const res = await api.get(`/fees/${selectedClass}/${searchQuery}?academicYear=2026-2027`);
+      // Resolve roll number: if searchQuery is not a pure number, try matching by student name
+      let resolvedRoll = searchQuery.trim();
+      if (!/^\d+$/.test(resolvedRoll) && classStudents.length > 0) {
+        const q = resolvedRoll.toLowerCase();
+        const match = classStudents.find(s =>
+          s.fullName && s.fullName.toLowerCase().includes(q)
+        );
+        if (match) {
+          resolvedRoll = match.rollNumber;
+        }
+      }
+      const res = await api.get(`/fees/${selectedClass}/${resolvedRoll}?academicYear=2026-2027`);
       if (res.data.success) {
         const {
           student: sData,
