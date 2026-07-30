@@ -41,17 +41,18 @@ import { getTodayDateString } from "../utils/dateUtils";
 import { isDayHoliday as checkIsDayHoliday, getEffectiveAttendanceStatus } from "../utils/holidayUtils";
 // Memoized Mobile Student Attendance Card
 const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus, isHoliday, isAdmin }) => {
-  const isEditingDisabled = isHoliday || isMarked || (sessionStatus === 'locked' && !isAdmin) || (!isAdmin && sessionStatus === 'submitted');
+  const isInactive = student.status && student.status !== 'Active';
+  const isEditingDisabled = isInactive || isHoliday || isMarked || (sessionStatus === 'locked' && !isAdmin) || (!isAdmin && sessionStatus === 'submitted');
   
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md">
+    <div className={cn("bg-white rounded-2xl border shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md", isInactive ? "border-red-100 opacity-60" : "border-gray-100")}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="w-10 h-10 flex items-center justify-center bg-indigo-50 text-indigo-600 font-black rounded-xl text-sm shadow-inner">
+          <span className={cn("w-10 h-10 flex items-center justify-center font-black rounded-xl text-sm shadow-inner", isInactive ? "bg-red-50 text-red-400" : "bg-indigo-50 text-indigo-600")}>
             {student.rollNumber}
           </span>
           <div>
-            <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm leading-snug">
+            <h4 className={cn("font-black uppercase tracking-tight text-sm leading-snug", isInactive ? "text-gray-400" : "text-gray-900")}>
               {student.fullName || "N/A"}
             </h4>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
@@ -61,7 +62,12 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
         </div>
         
         <div>
-          {isHoliday ? (
+          {isInactive ? (
+            <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border bg-red-50 text-red-500 border-red-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              Inactive
+            </span>
+          ) : isHoliday ? (
              <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border bg-slate-50 text-slate-600 border-slate-100">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                 Holiday
@@ -95,6 +101,11 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
         </div>
       </div>
 
+      {isInactive ? (
+        <div className="pt-2 border-t border-red-50 text-center">
+          <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Attendance Disabled — Student Inactive</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-4 gap-2 pt-2 border-t border-gray-50/50">
         {[
           {
@@ -157,6 +168,7 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
           );
         })}
       </div>
+      )}
     </div>
   );
 });
@@ -579,6 +591,7 @@ const Attendance = () => {
             setSessionStatus(null);
             const initialData = {};
             fetchedStudents.forEach((s) => {
+              if (s.status && s.status !== 'Active') return; // Skip inactive students
               initialData[s._id] = "present";
             });
             setAttendanceData(initialData);
@@ -589,6 +602,7 @@ const Attendance = () => {
           setSessionStatus(null);
           const initialData = {};
           fetchedStudents.forEach((s) => {
+            if (s.status && s.status !== 'Active') return; // Skip inactive students
             initialData[s._id] = "present";
           });
           setAttendanceData(initialData);
@@ -730,6 +744,9 @@ const Attendance = () => {
   const toggleStudentStatus = (id, status) => {
     if (holidayInfo && !holidayInfo.isWorkingDay) return;
     if (isMarked) return;
+    // Block attendance toggle for inactive students
+    const studentObj = students.find(s => s._id === id);
+    if (studentObj && studentObj.status && studentObj.status !== 'Active') return;
     const isAdmin = user?.role === 'admin';
     if (!isAdmin && sessionStatus === 'locked') return;
     if (!isAdmin && sessionStatus === 'submitted') return;
@@ -758,7 +775,9 @@ const Attendance = () => {
 
     setLoading(true);
     try {
-      const attendanceDataArray = students.map((s) => ({
+      // Exclude inactive students from attendance submission
+      const activeStudents = students.filter(s => !s.status || s.status === 'Active');
+      const attendanceDataArray = activeStudents.map((s) => ({
         studentId: s._id,
         status:
           attendanceData[s._id].charAt(0).toUpperCase() +
@@ -2145,25 +2164,26 @@ const Attendance = () => {
                       <tbody className="divide-y divide-gray-50">
                         {filteredStudents.map((student) => {
                           const status = attendanceData[student._id];
+                          const isStudentInactive = student.status && student.status !== 'Active';
                           return (
                             <tr
                               key={student._id}
-                              className="group hover:bg-gray-50/50 transition-all duration-300"
+                              className={cn("group transition-all duration-300", isStudentInactive ? "opacity-50 bg-red-50/30" : "hover:bg-gray-50/50")}
                             >
                               <td className="px-10 py-6">
-                                <span className="w-12 h-12 flex items-center justify-center bg-gray-100 text-gray-500 font-black rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                                <span className={cn("w-12 h-12 flex items-center justify-center font-black rounded-2xl transition-all shadow-inner", isStudentInactive ? "bg-red-100 text-red-400" : "bg-gray-100 text-gray-500 group-hover:bg-indigo-600 group-hover:text-white")}>
                                   {student.rollNumber}
                                 </span>
                               </td>
                               <td className="px-10 py-6">
                                 <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-black text-sm">
+                                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm", isStudentInactive ? "bg-red-50 text-red-400" : "bg-indigo-50 text-indigo-600")}>
                                     {student.fullName
                                       ? student.fullName.charAt(0)
                                       : "S"}
                                   </div>
                                   <div>
-                                    <p className="font-black text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
+                                    <p className={cn("font-black transition-colors uppercase tracking-tight", isStudentInactive ? "text-gray-400" : "text-gray-900 group-hover:text-indigo-600")}>
                                       {student.fullName || "N/A"}
                                     </p>
                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
@@ -2173,7 +2193,12 @@ const Attendance = () => {
                                 </div>
                               </td>
                               <td className="px-10 py-6">
-                                {status ? (
+                                {isStudentInactive ? (
+                                  <span className="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 border bg-red-50 text-red-500 border-red-100">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                    Inactive
+                                  </span>
+                                ) : status ? (
                                   <span
                                     className={cn(
                                       "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 border",
@@ -2205,6 +2230,11 @@ const Attendance = () => {
                                 )}
                               </td>
                               <td className="px-10 py-6 text-right">
+                                {isStudentInactive ? (
+                                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">
+                                    Attendance Disabled
+                                  </span>
+                                ) : (
                                 <div className="flex items-center justify-end gap-1.5">
                                   {[
                                     {
@@ -2276,6 +2306,7 @@ const Attendance = () => {
                                     );
                                   })}
                                 </div>
+                                )}
                               </td>
                             </tr>
                           );

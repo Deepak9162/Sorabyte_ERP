@@ -435,7 +435,7 @@ const markSelfAttendance = async (req, res, next) => {
     // Configured School Location
     const schoolLat = 26.227863;
     const schoolLon = 84.477859;
-    const maxRadius = 50; // meters
+    const maxRadius = 150; // meters
 
     const today = getStartOfDay(new Date());
 
