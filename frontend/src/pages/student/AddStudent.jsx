@@ -43,7 +43,7 @@ const AddStudent = () => {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoError, setPhotoError] = useState("");
-  const [photoSource, setPhotoSource] = useState("upload");
+  const [photoSource, setPhotoSource] = useState("link");
   const [photoUrlInput, setPhotoUrlInput] = useState("");
   const [photoUrlError, setPhotoUrlError] = useState("");
 
@@ -338,9 +338,9 @@ const AddStudent = () => {
 
       const payload = {
         ...data,
-        photoSource,
-        photoUrl: photoSource === 'link' ? photoUrlInput : '',
-        studentPhoto: photoSource === 'upload' ? (photoPreview || "") : (photoUrlInput || photoPreview || ""),
+        photoSource: 'link',
+        photoUrl: photoUrlInput || '',
+        studentPhoto: photoUrlInput || photoPreview || "",
         customFields: customFieldsObj,
       };
 
@@ -571,98 +571,38 @@ const AddStudent = () => {
                     />
                   </div>
 
-                  {/* Student Photo Section (Upload vs Photo Link) */}
-                  <div className="md:col-span-2 space-y-3 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 mt-2">
+                   {/* Student Photo Section (Photo Link Only) */}
+                   <div className="md:col-span-2 space-y-3 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 mt-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
                       <div>
                         <label className="text-xs font-black text-gray-700 uppercase tracking-wider">
                           Student Photograph
                         </label>
                         <p className="text-[10px] text-gray-400 font-medium">
-                          Upload from local device or paste Google Drive / public HTTPS image URL.
+                          Paste Google Drive / public HTTPS image URL.
                         </p>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs font-bold text-gray-600 bg-white px-3 py-1.5 rounded-xl border border-gray-200 shadow-2xs">
-                        <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="photoSource"
-                            value="upload"
-                            checked={photoSource === 'upload'}
-                            onChange={() => {
-                              setPhotoSource('upload');
-                              setPhotoUrlInput('');
-                              setPhotoUrlError('');
-                            }}
-                            className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                          />
-                          <span>Upload File</span>
-                        </label>
-                        <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="photoSource"
-                            value="link"
-                            checked={photoSource === 'link'}
-                            onChange={() => {
-                              setPhotoSource('link');
-                              setPhotoFile(null);
-                              setPhotoError('');
-                            }}
-                            className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                          />
-                          <span>Use Photo Link</span>
-                        </label>
                       </div>
                     </div>
 
-                    {photoSource === 'upload' ? (
-                      <div className="flex items-center gap-4">
-                        <div
-                          onDragEnter={handleDrag}
-                          onDragLeave={handleDrag}
-                          onDragOver={handleDrag}
-                          onDrop={handleDrop}
-                          className={cn(
-                            "flex-1 border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all flex items-center justify-center gap-3",
-                            isDragActive ? "border-indigo-500 bg-indigo-50/50" : "border-gray-200 hover:border-indigo-300 bg-white"
-                          )}
-                          onClick={() => document.getElementById("studentPhotoInput").click()}
-                        >
-                          <UploadCloud className="w-5 h-5 text-indigo-500" />
-                          <span className="text-xs font-semibold text-gray-600">
-                            {photoFile ? photoFile.name : "Choose File or Drag & Drop (Max 2MB)"}
-                          </span>
-                          <input
-                            id="studentPhotoInput"
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            className="hidden"
-                            onChange={handleFileChange}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          Student Photo URL (Google Drive / Public Image Link)
-                        </label>
-                        <input
-                          type="url"
-                          placeholder="https://drive.google.com/file/d/.../view or https://example.com/photo.jpg"
-                          value={photoUrlInput}
-                          onChange={(e) => handlePhotoUrlChange(e.target.value)}
-                          maxLength={500}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-xs font-semibold outline-none focus:ring-4 focus:ring-indigo-100"
-                        />
-                        {photoUrlError && (
-                          <p className="text-[10px] font-bold text-rose-500">{photoUrlError}</p>
-                        )}
-                        <p className="text-[10px] text-gray-400 font-semibold">
-                          Supports Google Drive public links & direct HTTPS image URLs.
-                        </p>
-                      </div>
-                    )}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        Student Photo URL (Google Drive / Public Image Link)
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://drive.google.com/file/d/.../view or https://example.com/photo.jpg"
+                        value={photoUrlInput}
+                        onChange={(e) => handlePhotoUrlChange(e.target.value)}
+                        maxLength={500}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-xs font-semibold outline-none focus:ring-4 focus:ring-indigo-100"
+                      />
+                      {photoUrlError && (
+                        <p className="text-[10px] font-bold text-rose-500">{photoUrlError}</p>
+                      )}
+                      <p className="text-[10px] text-gray-400 font-semibold">
+                        Supports Google Drive public links & direct HTTPS image URLs.
+                      </p>
+                    </div>
 
                     {/* Live Image Preview */}
                     {photoPreview && (
