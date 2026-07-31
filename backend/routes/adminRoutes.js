@@ -19,6 +19,7 @@ const {
   getStudentAttendanceReport,
   getStudentAttendanceAnalysis,
   getDashboardStats,
+  getTodayCollectionStats,
   getStaffCredentials,
   resetStaffPassword,
   getAttendanceAnalytics
@@ -35,6 +36,8 @@ const sharedAccess = authorize('admin', 'teacher');
 
 // Stats route (Admin only)
 router.get('/stats', adminOnly, getDashboardStats);
+router.get('/today-collection', adminOnly, getTodayCollectionStats);
+
 
 // Attendance Analytics route (Admin only)
 router.get('/attendance-analytics', adminOnly, getAttendanceAnalytics);

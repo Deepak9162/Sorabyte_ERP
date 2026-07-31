@@ -78,5 +78,8 @@ const feeTransactionSchema = new mongoose.Schema(
 
 // Index student for faster reporting
 feeTransactionSchema.index({ student: 1 });
+feeTransactionSchema.index({ status: 1, paymentDate: 1 });
+feeTransactionSchema.index({ status: 1, createdAt: 1 });
 
 module.exports = mongoose.model('FeeTransaction', feeTransactionSchema);
+

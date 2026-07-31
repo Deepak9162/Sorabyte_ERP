@@ -182,7 +182,7 @@ const AdminDashboard = () => {
       value: "0",
       icon: Users,
       color: "indigo",
-      change: "+4.5%",
+      change: "Live",
       route: "/students",
       hint: "View Student Directory",
     },
@@ -191,7 +191,7 @@ const AdminDashboard = () => {
       value: "0",
       icon: UserSquare2,
       color: "emerald",
-      change: "+2",
+      change: "Live",
       route: "/teachers",
       hint: "View Staff List",
     },
@@ -200,30 +200,36 @@ const AdminDashboard = () => {
       value: "0",
       icon: BookOpen,
       color: "amber",
-      change: "0",
+      change: "Live",
       route: "/classes",
       hint: "View Class Groups",
     },
     {
-      label: "Fees Collected",
-      value: "$0",
+      label: "Today's Collection",
+      value: "₹0.00",
       icon: CreditCard,
       color: "rose",
-      change: "+12.2%",
+      change: "Live",
+      subtitle: "0 Payments Today",
       route: "/fees",
       hint: "View Fee Console",
     },
   ]);
   const [loading, setLoading] = useState(true);
 
-  // API Integration
+  // API Integration with Live Events & Auto Refresh
   useEffect(() => {
-    const fetchStats = async () => {
+    let intervalId;
+
+    const fetchStats = async (isBackground = false) => {
       if (user?.role !== "admin") return;
-      setLoading(true);
+      if (!isBackground) setLoading(true);
       try {
-        const res = await api.get("/admin/stats");
+        const res = await api.get(`/admin/stats?t=${Date.now()}`);
         const data = res.data.data;
+
+        const todayColl = data.todayCollection !== undefined ? data.todayCollection : 0;
+        const txCount = data.todayTransactionCount !== undefined ? data.todayTransactionCount : 0;
 
         setStats([
           {
@@ -254,11 +260,12 @@ const AdminDashboard = () => {
             hint: "View Class Groups",
           },
           {
-            label: "Fees Collected",
-            value: formatToINR(data.totalFeesCollected),
+            label: "Today's Collection",
+            value: formatToINR(todayColl),
             icon: CreditCard,
             color: "rose",
             change: "Live",
+            subtitle: `${txCount} ${txCount === 1 ? "Payment Today" : "Payments Today"}`,
             route: "/fees",
             hint: "View Fee Console",
           },
@@ -266,12 +273,47 @@ const AdminDashboard = () => {
       } catch (error) {
         console.error("Dashboard error:", error);
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
     };
 
     fetchStats();
+
+    // Event listeners for live updates across components, tabs, and focus state
+    const handleLiveUpdate = () => fetchStats(true);
+
+    window.addEventListener("fee-payment-completed", handleLiveUpdate);
+    window.addEventListener("focus", handleLiveUpdate);
+
+    const handleStorageChange = (e) => {
+      if (e.key === "last_fee_payment_timestamp") {
+        fetchStats(true);
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchStats(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Dynamic auto-refresh every 15 seconds
+    intervalId = setInterval(() => {
+      fetchStats(true);
+    }, 15000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      window.removeEventListener("fee-payment-completed", handleLiveUpdate);
+      window.removeEventListener("focus", handleLiveUpdate);
+      window.removeEventListener("storage", handleStorageChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [user?.role]);
+
+
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -363,7 +405,7 @@ const AdminDashboard = () => {
                       {stat.change}
                     </span>
                     <span className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">
-                      vs last month
+                      {stat.subtitle || "vs last month"}
                     </span>
                   </div>
                 </div>

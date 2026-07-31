@@ -568,6 +568,14 @@ const FeeCollection = () => {
         setIsSuccessModalOpen(true);
         addToast("Transaction processed successfully", "success");
         handleSearch();
+
+        // Trigger dynamic dashboard refresh
+        window.dispatchEvent(new CustomEvent("fee-payment-completed", { detail: tx }));
+        try {
+          localStorage.setItem("last_fee_payment_timestamp", Date.now().toString());
+        } catch (e) {
+          console.error("Failed to write payment timestamp to localStorage", e);
+        }
       }
     } catch (error) {
       console.error("Payment Error:", error);

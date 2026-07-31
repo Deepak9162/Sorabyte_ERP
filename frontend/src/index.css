@@ -96,3 +96,23 @@ main .space-y-8 > .flex.flex-col.md\:flex-row.items-start.md\:items-center.justi
   display: none !important;
 }
 
+/* Hardware Acceleration & Fluid Scroll Performance Optimizations */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+@layer utilities {
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+}
+
+/* Optimize dynamic card transforms and eliminate repaints */
+.group {
+  will-change: transform, opacity;
+}
+
+

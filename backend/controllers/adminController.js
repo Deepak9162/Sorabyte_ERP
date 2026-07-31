@@ -207,6 +207,20 @@ const getDashboardStats = async (req, res, next) => {
 };
 
 /**
+ * @desc    Get today's fee collection statistics
+ * @route   GET /api/dashboard/today-collection
+ */
+const getTodayCollectionStats = async (req, res, next) => {
+  try {
+    const data = await adminService.getTodayCollection();
+    return successResponse(res, data, 'Today fee collection fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+/**
  * @desc    Get dynamic summary for a specific class
  * @route   GET /api/admin/classes/:id/summary
  */
@@ -324,6 +338,7 @@ module.exports = {
   getStudentAttendanceReport,
   getStudentAttendanceAnalysis,
   getDashboardStats,
+  getTodayCollectionStats,
   getStaffCredentials,
   resetStaffPassword,
   getAttendanceAnalytics

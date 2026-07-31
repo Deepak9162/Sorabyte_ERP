@@ -130,22 +130,51 @@ class AdminService {
     const startOfMonth = getStartOfMonth(currentDate);
     const endOfMonth = getEndOfMonth(currentDate);
 
-    const collectedThisMonthStats = await FeeTransaction.aggregate([
-      { 
-        $match: { 
-          status: 'Paid',
-          paymentDate: { $gte: startOfMonth, $lte: endOfMonth }
-        } 
-      },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const [collectedThisMonthStats, todayStats] = await Promise.all([
+      FeeTransaction.aggregate([
+        { 
+          $match: { 
+            status: 'Paid',
+            paymentDate: { $gte: startOfMonth, $lte: endOfMonth }
+          } 
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      FeeTransaction.aggregate([
+        {
+          $match: {
+            status: 'Paid',
+            $or: [
+              { paymentDate: { $gte: startOfToday, $lte: endOfToday } },
+              { paymentDate: { $exists: false }, createdAt: { $gte: startOfToday, $lte: endOfToday } }
+            ]
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            todayCollection: { $sum: '$amount' },
+            transactionCount: { $sum: 1 }
+          }
+        }
+      ])
     ]);
+
     const collectedThisMonth = collectedThisMonthStats.length > 0 ? collectedThisMonthStats[0].total : 0;
+    const todayCollData = todayStats.length > 0 ? todayStats[0] : { todayCollection: 0, transactionCount: 0 };
 
     const statsData = {
       totalStudents: students.length,
       totalTeachers: teacherCount,
       totalClasses: classCount,
       totalFeesCollected,
+      todayCollection: todayCollData.todayCollection || 0,
+      todayTransactionCount: todayCollData.transactionCount || 0,
       currentDueAmount,
       upcomingFeeAmount,
       collectedThisMonth
@@ -156,6 +185,43 @@ class AdminService {
 
     return statsData;
   }
+
+  /**
+   * Get today's fee collection statistics using optimized MongoDB aggregation
+   */
+  async getTodayCollection() {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const todayStats = await FeeTransaction.aggregate([
+      {
+        $match: {
+          status: 'Paid',
+          $or: [
+            { paymentDate: { $gte: startOfToday, $lte: endOfToday } },
+            { paymentDate: { $exists: false }, createdAt: { $gte: startOfToday, $lte: endOfToday } }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          todayCollection: { $sum: '$amount' },
+          transactionCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const result = todayStats.length > 0 ? todayStats[0] : { todayCollection: 0, transactionCount: 0 };
+    return {
+      todayCollection: result.todayCollection || 0,
+      transactionCount: result.transactionCount || 0,
+      currency: 'INR'
+    };
+  }
+
 
   /**
    * Create a new class

@@ -232,6 +232,20 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 // ──────────────────────────────────────────────
 // Protected Routes Examples
 // ──────────────────────────────────────────────
+app.get('/api/dashboard/today-collection', protect, isAdmin, async (req, res, next) => {
+  try {
+    const adminService = require('./services/adminService');
+    const data = await adminService.getTodayCollection();
+    res.json({
+      success: true,
+      data,
+      message: 'Today fee collection fetched successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/admin/dashboard', protect, isAdmin, (req, res) => {
   res.json({
     success: true,
