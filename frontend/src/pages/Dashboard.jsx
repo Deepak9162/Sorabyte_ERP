@@ -48,8 +48,10 @@ const AdminDashboard = () => {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceErrorState, setAttendanceErrorState] = useState(null);
   const [isPendingModalOpen, setIsPendingModalOpen] = useState(false);
-  const [isAbsentStudentsModalOpen, setIsAbsentStudentsModalOpen] = useState(false);
-  const [isAbsentTeachersModalOpen, setIsAbsentTeachersModalOpen] = useState(false);
+  const [isAbsentStudentsModalOpen, setIsAbsentStudentsModalOpen] =
+    useState(false);
+  const [isAbsentTeachersModalOpen, setIsAbsentTeachersModalOpen] =
+    useState(false);
 
   const fetchAttendanceAnalytics = async () => {
     setAttendanceLoading(true);
@@ -63,7 +65,9 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error("Error fetching attendance analytics:", error);
-      setAttendanceErrorState(error.response?.data?.message || "Failed to load real-time analytics");
+      setAttendanceErrorState(
+        error.response?.data?.message || "Failed to load real-time analytics",
+      );
     } finally {
       setAttendanceLoading(false);
     }
@@ -228,8 +232,12 @@ const AdminDashboard = () => {
         const res = await api.get(`/admin/stats?t=${Date.now()}`);
         const data = res.data.data;
 
-        const todayColl = data.todayCollection !== undefined ? data.todayCollection : 0;
-        const txCount = data.todayTransactionCount !== undefined ? data.todayTransactionCount : 0;
+        const todayColl =
+          data.todayCollection !== undefined ? data.todayCollection : 0;
+        const txCount =
+          data.todayTransactionCount !== undefined
+            ? data.todayTransactionCount
+            : 0;
 
         setStats([
           {
@@ -312,8 +320,6 @@ const AdminDashboard = () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [user?.role]);
-
-
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -458,7 +464,8 @@ const AdminDashboard = () => {
               Today's Live Attendance Analytics
             </h3>
             <p className="text-gray-400 text-xs font-semibold mt-1">
-              Real-time calculations of attendance metrics across students and teachers.
+              Real-time calculations of attendance metrics across students and
+              teachers.
             </p>
           </div>
           <Button
@@ -467,7 +474,10 @@ const AdminDashboard = () => {
             className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-indigo-650 hover:bg-indigo-50 border border-indigo-100 hover:border-indigo-200 rounded-xl px-4 py-2 cursor-pointer self-start sm:self-auto"
             loading={attendanceLoading}
           >
-            <RefreshCw size={14} className={cn(attendanceLoading && "animate-spin")} />
+            <RefreshCw
+              size={14}
+              className={cn(attendanceLoading && "animate-spin")}
+            />
             Sync Now
           </Button>
         </div>
@@ -475,7 +485,10 @@ const AdminDashboard = () => {
         {attendanceLoading && !attendanceAnalytics ? (
           <AnalyticsSkeleton />
         ) : attendanceErrorState ? (
-          <AnalyticsError message={attendanceErrorState} onRetry={fetchAttendanceAnalytics} />
+          <AnalyticsError
+            message={attendanceErrorState}
+            onRetry={fetchAttendanceAnalytics}
+          />
         ) : (
           <div className="space-y-6 animate-in fade-in duration-500">
             {/* KPI Cards Grid */}
@@ -510,16 +523,28 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <CircularProgress
-                    percentage={attendanceAnalytics?.studentAttendancePercentage || 0}
-                    colorClass={getCircularColor(attendanceAnalytics?.studentAttendancePercentage || 0)}
+                    percentage={
+                      attendanceAnalytics?.studentAttendancePercentage || 0
+                    }
+                    colorClass={getCircularColor(
+                      attendanceAnalytics?.studentAttendancePercentage || 0,
+                    )}
                   />
                 </div>
                 <div className="flex items-center justify-between border-t border-emerald-100/40 pt-4 mt-4">
-                  <span className={cn(
-                    "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
-                    getAttendanceBgClass(attendanceAnalytics?.studentAttendancePercentage || 0)
-                  )}>
-                    {attendanceAnalytics?.studentAttendancePercentage >= 95 ? "Excellent" : attendanceAnalytics?.studentAttendancePercentage >= 90 ? "Warning" : "Critical"}
+                  <span
+                    className={cn(
+                      "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
+                      getAttendanceBgClass(
+                        attendanceAnalytics?.studentAttendancePercentage || 0,
+                      ),
+                    )}
+                  >
+                    {attendanceAnalytics?.studentAttendancePercentage >= 95
+                      ? "Excellent"
+                      : attendanceAnalytics?.studentAttendancePercentage >= 90
+                        ? "Warning"
+                        : "Critical"}
                   </span>
                   <span className="text-[9px] font-black text-gray-300 group-hover:text-emerald-500 transition-colors uppercase tracking-widest">
                     View Report →
@@ -557,16 +582,28 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <CircularProgress
-                    percentage={attendanceAnalytics?.teacherAttendancePercentage || 0}
-                    colorClass={getCircularColor(attendanceAnalytics?.teacherAttendancePercentage || 0)}
+                    percentage={
+                      attendanceAnalytics?.teacherAttendancePercentage || 0
+                    }
+                    colorClass={getCircularColor(
+                      attendanceAnalytics?.teacherAttendancePercentage || 0,
+                    )}
                   />
                 </div>
                 <div className="flex items-center justify-between border-t border-indigo-100/40 pt-4 mt-4">
-                  <span className={cn(
-                    "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
-                    getAttendanceBgClass(attendanceAnalytics?.teacherAttendancePercentage || 0)
-                  )}>
-                    {attendanceAnalytics?.teacherAttendancePercentage >= 95 ? "Excellent" : attendanceAnalytics?.teacherAttendancePercentage >= 90 ? "Warning" : "Critical"}
+                  <span
+                    className={cn(
+                      "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
+                      getAttendanceBgClass(
+                        attendanceAnalytics?.teacherAttendancePercentage || 0,
+                      ),
+                    )}
+                  >
+                    {attendanceAnalytics?.teacherAttendancePercentage >= 95
+                      ? "Excellent"
+                      : attendanceAnalytics?.teacherAttendancePercentage >= 90
+                        ? "Warning"
+                        : "Critical"}
                   </span>
                   <span className="text-[9px] font-black text-gray-305 group-hover:text-indigo-500 transition-colors uppercase tracking-widest">
                     View Report →
@@ -585,7 +622,8 @@ const AdminDashboard = () => {
                       Classes Completed
                     </span>
                     <h4 className="text-2xl font-black text-gray-900 tracking-tight">
-                      {attendanceAnalytics?.attendanceCompleted} / {attendanceAnalytics?.totalClasses}
+                      {attendanceAnalytics?.attendanceCompleted} /{" "}
+                      {attendanceAnalytics?.totalClasses}
                     </h4>
                     <p className="text-gray-450 text-[10px] font-bold uppercase tracking-wider">
                       Pending: {attendanceAnalytics?.attendancePending} classes
@@ -597,11 +635,17 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div className="flex items-center justify-between border-t border-amber-100/40 pt-4 mt-4">
-                  <span className={cn(
-                    "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
-                    attendanceAnalytics?.attendancePending === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700 border border-amber-100"
-                  )}>
-                    {attendanceAnalytics?.attendancePending === 0 ? "All Submitted" : "Pending Actions"}
+                  <span
+                    className={cn(
+                      "text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider",
+                      attendanceAnalytics?.attendancePending === 0
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-amber-50 text-amber-700 border border-amber-100",
+                    )}
+                  >
+                    {attendanceAnalytics?.attendancePending === 0
+                      ? "All Submitted"
+                      : "Pending Actions"}
                   </span>
                   <span className="text-[9px] font-black text-gray-305 group-hover:text-amber-500 transition-colors uppercase tracking-widest">
                     View Pending List →
@@ -610,434 +654,12 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Quick Insights panel */}
-            <div className="bg-gradient-to-br from-white to-gray-50/50 rounded-[2.5rem] border border-gray-200/60 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-indigo-650 rounded-full animate-ping" />
-                  <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">
-                    Today's Quick Insights
-                  </h4>
-                </div>
-                {attendanceAnalytics?.lastUpdated && (
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Clock size={12} />
-                    Last Updated: {attendanceAnalytics.lastUpdated}
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {attendanceAnalytics?.insights && attendanceAnalytics.insights.length > 0 ? (
-                  attendanceAnalytics.insights.map((insight, idx) => {
-                    let dotColor = "bg-indigo-500";
-                    if (insight.toLowerCase().includes("pending") || insight.toLowerCase().includes("below")) {
-                      dotColor = "bg-amber-500";
-                    }
-                    if (insight.toLowerCase().includes("no active") || insight.toLowerCase().includes("critical") || insight.toLowerCase().includes("weekend") || insight.toLowerCase().includes("no student")) {
-                      dotColor = "bg-rose-500";
-                    }
-                    if (insight.toLowerCase().includes("excellent") || insight.toLowerCase().includes("completed")) {
-                      dotColor = "bg-emerald-500";
-                    }
-                    return (
-                      <div key={idx} className="flex items-center gap-3 bg-white p-3.5 rounded-2xl border border-gray-150/70 shadow-sm">
-                        <span className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />
-                        <p className="text-xs text-gray-700 font-bold tracking-tight">
-                          {insight}
-                        </p>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="col-span-2 text-center py-6 text-xs text-gray-405 font-bold uppercase tracking-widest">
-                    No insights compiled for today.
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
       </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Financial Overview Chart Area */}
-        <div className="lg:col-span-2 bg-gradient-to-br from-white via-gray-50/20 to-gray-100/40 rounded-[2.5rem] border border-gray-200/60 shadow-sm p-8 group overflow-hidden relative min-h-[420px] flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none block mb-1">
-                Accounts & Collections
-              </span>
-              <h4 className="text-xl font-bold text-gray-900 tracking-tight">
-                Financial Overview
-              </h4>
-            </div>
-            <div className="flex gap-1.5 bg-gray-100/80 p-1 rounded-full border border-gray-150">
-              <button
-                onClick={() => setChartView("monthly")}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-black rounded-full transition-all uppercase tracking-wider cursor-pointer",
-                  chartView === "monthly"
-                    ? "bg-white text-indigo-700 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900",
-                )}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setChartView("yearly")}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-black rounded-full transition-all uppercase tracking-wider cursor-pointer",
-                  chartView === "yearly"
-                    ? "bg-white text-indigo-700 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900",
-                )}
-              >
-                Yearly
-              </button>
-            </div>
-          </div>
-
-          {financialLoading ? (
-            <div className="flex-1 flex flex-col justify-center items-center py-12">
-              <div className="animate-pulse space-y-4 w-full">
-                <div className="flex justify-between items-end h-48 w-full gap-4 px-4">
-                  {[...Array(12)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="bg-gray-100 rounded-t-lg w-full"
-                      style={{
-                        height: `${Math.max(10, Math.sin(i) * 80 + 90)}px`,
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="h-4 bg-gray-100 rounded-full w-full" />
-              </div>
-            </div>
-          ) : chartView === "monthly" ? (
-            /* Monthly SVG Chart View */
-            <div className="relative flex-1 flex flex-col justify-between mt-4">
-              {/* Tooltip Overlay */}
-              {hoveredMonthIdx !== null && financialData[hoveredMonthIdx] && (
-                <div
-                  className="absolute z-20 bg-gray-900/95 text-white p-4 rounded-2xl shadow-xl border border-gray-800 text-xs space-y-2 pointer-events-none transition-all duration-150 backdrop-blur-md"
-                  style={{
-                    left: `${Math.min(
-                      Math.max(10, 50 + hoveredMonthIdx * 43 - 75),
-                      350,
-                    )}px`,
-                    top: `-10px`,
-                  }}
-                >
-                  <p className="font-black border-b border-gray-800 pb-1.5 uppercase text-[10px] tracking-wider text-indigo-400">
-                    {financialData[hoveredMonthIdx].month} 2026
-                  </p>
-                  <div className="space-y-1 font-bold">
-                    <p className="flex justify-between gap-6">
-                      <span className="text-gray-400">Collected:</span>
-                      <span className="text-emerald-400">
-                        {formatToINR(financialData[hoveredMonthIdx].collected)}
-                      </span>
-                    </p>
-                    <p className="flex justify-between gap-6">
-                      <span className="text-gray-400">Expected:</span>
-                      <span>
-                        {formatToINR(financialData[hoveredMonthIdx].expected)}
-                      </span>
-                    </p>
-                    <p className="flex justify-between gap-6 border-t border-gray-800 pt-1.5">
-                      <span className="text-gray-400">Collection Rate:</span>
-                      <span className="text-indigo-400">
-                        {(
-                          (financialData[hoveredMonthIdx].collected /
-                            financialData[hoveredMonthIdx].expected) *
-                            100 || 0
-                        ).toFixed(1)}
-                        %
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Chart Grid Lines and Columns */}
-              <div className="relative w-full overflow-x-auto custom-scrollbar">
-                <svg
-                  viewBox="0 0 600 240"
-                  className="w-full min-w-[550px] h-[240px] select-none"
-                >
-                  {/* Grid Lines */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
-                    const y = 20 + (1 - ratio) * 170;
-                    const maxVal = Math.max(
-                      ...financialData.map((d) =>
-                        Math.max(d.expected, d.collected),
-                      ),
-                      100000,
-                    );
-                    return (
-                      <g key={idx} className="opacity-40">
-                        <line
-                          x1="50"
-                          y1={y}
-                          x2="580"
-                          y2={y}
-                          stroke="#e5e7eb"
-                          strokeWidth="1"
-                          strokeDasharray="4 4"
-                        />
-                        <text
-                          x="40"
-                          y={y + 4}
-                          textAnchor="end"
-                          className="text-[9px] font-black fill-gray-400"
-                        >
-                          {ratio === 0
-                            ? "₹0"
-                            : `₹${Math.round((maxVal * ratio) / 1000)}k`}
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {/* Collected Bar Charts */}
-                  {financialData.map((d, i) => {
-                    const maxVal = Math.max(
-                      ...financialData.map((x) =>
-                        Math.max(x.expected, x.collected),
-                      ),
-                      100000,
-                    );
-                    const x = 60 + i * 43;
-                    const height = (d.collected / maxVal) * 170;
-                    const y = 190 - height;
-                    return (
-                      <rect
-                        key={i}
-                        x={x - 10}
-                        y={y}
-                        width="20"
-                        height={Math.max(3, height)}
-                        rx="5"
-                        fill="url(#collectedGradient)"
-                        className={cn(
-                          "transition-all duration-300 cursor-pointer origin-bottom hover:brightness-110",
-                          hoveredMonthIdx === i ? "opacity-100" : "opacity-85",
-                        )}
-                        onMouseEnter={() => setHoveredMonthIdx(i)}
-                        onMouseLeave={() => setHoveredMonthIdx(null)}
-                      />
-                    );
-                  })}
-
-                  {/* Expected Area Path (Line Chart) */}
-                  <path
-                    d={(() => {
-                      const maxVal = Math.max(
-                        ...financialData.map((x) =>
-                          Math.max(x.expected, x.collected),
-                        ),
-                        100000,
-                      );
-                      return financialData
-                        .map((d, i) => {
-                          const x = 60 + i * 43;
-                          const y = 190 - (d.expected / maxVal) * 170;
-                          return `${i === 0 ? "M" : "L"} ${x} ${y}`;
-                        })
-                        .join(" ");
-                    })()}
-                    fill="none"
-                    stroke="#a5b4fc"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="opacity-75"
-                  />
-
-                  {/* Expected Area Dots */}
-                  {financialData.map((d, i) => {
-                    const maxVal = Math.max(
-                      ...financialData.map((x) =>
-                        Math.max(x.expected, x.collected),
-                      ),
-                      100000,
-                    );
-                    const x = 60 + i * 43;
-                    const y = 190 - (d.expected / maxVal) * 170;
-                    return (
-                      <circle
-                        key={i}
-                        cx={x}
-                        cy={y}
-                        r={hoveredMonthIdx === i ? "6" : "4.5"}
-                        fill="#ffffff"
-                        stroke="#6366f1"
-                        strokeWidth="3.5"
-                        className="transition-all duration-200 cursor-pointer"
-                        onMouseEnter={() => setHoveredMonthIdx(i)}
-                        onMouseLeave={() => setHoveredMonthIdx(null)}
-                      />
-                    );
-                  })}
-
-                  {/* X Axis Labels */}
-                  {financialData.map((d, i) => {
-                    const x = 60 + i * 43;
-                    return (
-                      <text
-                        key={i}
-                        x={x}
-                        y="215"
-                        textAnchor="middle"
-                        className={cn(
-                          "text-[9px] font-black uppercase tracking-tight transition-colors duration-200 cursor-pointer",
-                          hoveredMonthIdx === i
-                            ? "fill-indigo-600 font-extrabold"
-                            : "fill-gray-400",
-                        )}
-                        onMouseEnter={() => setHoveredMonthIdx(i)}
-                        onMouseLeave={() => setHoveredMonthIdx(null)}
-                      >
-                        {d.month.substring(0, 3)}
-                      </text>
-                    );
-                  })}
-
-                  {/* SVG Gradient definitions */}
-                  <defs>
-                    <linearGradient
-                      id="collectedGradient"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop offset="0%" stopColor="#4f46e5" />
-                      <stop
-                        offset="100%"
-                        stopColor="#818cf8"
-                        stopOpacity="0.4"
-                      />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
-
-              {/* Legends & Details Row */}
-              <div className="flex gap-6 items-center border-t border-gray-100 pt-4 mt-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded bg-indigo-600 shadow-sm shrink-0" />
-                  <span className="text-gray-500 font-bold uppercase tracking-wide">
-                    Collected Revenue
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-1 rounded bg-indigo-400 shrink-0" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-white border-2 border-indigo-650 shrink-0" />
-                  <span className="text-gray-500 font-bold uppercase tracking-wide">
-                    Target Expectancy
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* Yearly Summary Dashboard View */
-            <div className="flex-1 flex flex-col justify-between py-2 animate-in fade-in duration-300">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 my-auto">
-                <div className="p-6 bg-indigo-50/40 border border-indigo-100/50 rounded-3xl text-left">
-                  <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">
-                    Annual Expectation
-                  </span>
-                  <h4 className="text-2xl font-black text-gray-900 mt-2">
-                    {formatToINR(
-                      financialData.reduce((acc, c) => acc + c.expected, 0),
-                    )}
-                  </h4>
-                  <p className="text-[10px] text-gray-400 font-semibold mt-1">
-                    Based on active student base
-                  </p>
-                </div>
-
-                <div className="p-6 bg-emerald-50/30 border border-emerald-100/50 rounded-3xl text-left">
-                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
-                    Annual Collected
-                  </span>
-                  <h4 className="text-2xl font-black text-emerald-600 mt-2">
-                    {formatToINR(
-                      financialData.reduce((acc, c) => acc + c.collected, 0),
-                    )}
-                  </h4>
-                  <p className="text-[10px] text-gray-400 font-semibold mt-1">
-                    Settled payments in 2026-27
-                  </p>
-                </div>
-
-                <div className="p-6 bg-amber-50/30 border border-amber-100/50 rounded-3xl text-left">
-                  <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest">
-                    Total Outstanding
-                  </span>
-                  <h4 className="text-2xl font-black text-amber-600 mt-2">
-                    {formatToINR(
-                      Math.max(
-                        0,
-                        financialData.reduce(
-                          (acc, c) => acc + c.expected - c.collected,
-                          0,
-                        ),
-                      ),
-                    )}
-                  </h4>
-                  <p className="text-[10px] text-gray-400 font-semibold mt-1">
-                    To be collected
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress Summary Dial */}
-              <div className="border-t border-gray-100 pt-6 mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h5 className="text-sm font-black text-gray-800 uppercase tracking-tight">
-                    Net Collection Progress
-                  </h5>
-                  <p className="text-xs text-gray-400 font-medium">
-                    The percentage of total expected academic revenue
-                    successfully processed.
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-3xl font-black text-indigo-600">
-                    {(
-                      (financialData.reduce((acc, c) => acc + c.collected, 0) /
-                        financialData.reduce((acc, c) => acc + c.expected, 0)) *
-                        100 || 0
-                    ).toFixed(1)}
-                    %
-                  </span>
-                  <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden p-0.5 border border-gray-150">
-                    <div
-                      className="h-full bg-indigo-600 rounded-full"
-                      style={{
-                        width: `${
-                          (financialData.reduce(
-                            (acc, c) => acc + c.collected,
-                            0,
-                          ) /
-                            financialData.reduce(
-                              (acc, c) => acc + c.expected,
-                              0,
-                            )) *
-                            100 || 0
-                        }%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Action Sidebar */}
         <div className="space-y-6">
@@ -1274,7 +896,8 @@ const AdminDashboard = () => {
       >
         <div className="space-y-6">
           <p className="text-sm text-gray-500 font-medium leading-relaxed">
-            The following classes have not submitted attendance for today yet. You can follow up with the respective Class Teachers.
+            The following classes have not submitted attendance for today yet.
+            You can follow up with the respective Class Teachers.
           </p>
 
           <div className="overflow-hidden rounded-2xl border border-gray-150 shadow-sm max-h-[50vh] overflow-y-auto scrollbar-thin">
@@ -1293,7 +916,8 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {attendanceAnalytics?.pendingClassesList && attendanceAnalytics.pendingClassesList.length > 0 ? (
+                {attendanceAnalytics?.pendingClassesList &&
+                attendanceAnalytics.pendingClassesList.length > 0 ? (
                   attendanceAnalytics.pendingClassesList.map((item) => (
                     <tr
                       key={item.classId}
@@ -1310,12 +934,14 @@ const AdminDashboard = () => {
                         </p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
-                          item.status === "Draft (Not Submitted)"
-                            ? "bg-amber-50 text-amber-700 border border-amber-100"
-                            : "bg-rose-50 text-rose-700 border border-rose-100"
-                        )}>
+                        <span
+                          className={cn(
+                            "px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+                            item.status === "Draft (Not Submitted)"
+                              ? "bg-amber-50 text-amber-700 border border-amber-100"
+                              : "bg-rose-50 text-rose-700 border border-rose-100",
+                          )}
+                        >
                           {item.status}
                         </span>
                       </td>
@@ -1323,7 +949,10 @@ const AdminDashboard = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest">
+                    <td
+                      colSpan={3}
+                      className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest"
+                    >
                       No pending classes. All classes submitted!
                     </td>
                   </tr>
@@ -1354,7 +983,8 @@ const AdminDashboard = () => {
       >
         <div className="space-y-6">
           <p className="text-sm text-gray-500 font-medium leading-relaxed">
-            The following students are marked absent for today. You can contact their guardians or review their attendance remarks.
+            The following students are marked absent for today. You can contact
+            their guardians or review their attendance remarks.
           </p>
 
           <div className="overflow-hidden rounded-2xl border border-gray-150 shadow-sm max-h-[50vh] overflow-y-auto scrollbar-thin">
@@ -1376,7 +1006,8 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {attendanceAnalytics?.absentStudentsList && attendanceAnalytics.absentStudentsList.length > 0 ? (
+                {attendanceAnalytics?.absentStudentsList &&
+                attendanceAnalytics.absentStudentsList.length > 0 ? (
                   attendanceAnalytics.absentStudentsList.map((student) => (
                     <tr
                       key={student.studentId}
@@ -1401,12 +1032,14 @@ const AdminDashboard = () => {
                         {student.phone}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
-                          student.remarks !== 'No remarks'
-                            ? "bg-amber-50 text-amber-700 border border-amber-100"
-                            : "bg-gray-50 text-gray-500 border border-gray-200"
-                        )}>
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+                            student.remarks !== "No remarks"
+                              ? "bg-amber-50 text-amber-700 border border-amber-100"
+                              : "bg-gray-50 text-gray-500 border border-gray-200",
+                          )}
+                        >
                           {student.remarks}
                         </span>
                       </td>
@@ -1414,7 +1047,10 @@ const AdminDashboard = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest">
+                    <td
+                      colSpan={4}
+                      className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest"
+                    >
                       No absent students today. 100% Student attendance!
                     </td>
                   </tr>
@@ -1467,7 +1103,8 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {attendanceAnalytics?.absentTeachersList && attendanceAnalytics.absentTeachersList.length > 0 ? (
+                {attendanceAnalytics?.absentTeachersList &&
+                attendanceAnalytics.absentTeachersList.length > 0 ? (
                   attendanceAnalytics.absentTeachersList.map((teacher) => (
                     <tr
                       key={teacher.teacherId}
@@ -1487,12 +1124,14 @@ const AdminDashboard = () => {
                         {teacher.phone}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
-                          teacher.remarks !== 'No remarks'
-                            ? "bg-amber-50 text-amber-700 border border-amber-100"
-                            : "bg-gray-50 text-gray-500 border border-gray-200"
-                        )}>
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+                            teacher.remarks !== "No remarks"
+                              ? "bg-amber-50 text-amber-700 border border-amber-100"
+                              : "bg-gray-50 text-gray-500 border border-gray-200",
+                          )}
+                        >
                           {teacher.remarks}
                         </span>
                       </td>
@@ -1500,7 +1139,10 @@ const AdminDashboard = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest">
+                    <td
+                      colSpan={4}
+                      className="px-6 py-8 text-center text-xs text-gray-450 font-bold uppercase tracking-widest"
+                    >
                       No absent teachers today. 100% Teacher attendance!
                     </td>
                   </tr>
@@ -1623,22 +1265,67 @@ const TeacherDashboard = () => {
       {/* Mobile Top Summary Grid */}
       <div className="md:hidden grid grid-cols-2 gap-3">
         {[
-          { label: "Classes", value: assignedClasses.length, color: "indigo", icon: BookOpen },
-          { label: "Students", value: stats.find(s => s.label === "My Students" || s.label === "Students")?.value || "0", color: "emerald", icon: Users },
-          { label: "Pending", value: classTeacherOf.length > 0 ? (attendance.total > 0 ? 0 : classTeacherOf.length) : 0, color: "amber", icon: Clock },
-          { label: "Completed", value: classTeacherOf.length > 0 ? (attendance.total > 0 ? classTeacherOf.length : 0) : 0, color: "emerald", icon: CheckCircle2 }
+          {
+            label: "Classes",
+            value: assignedClasses.length,
+            color: "indigo",
+            icon: BookOpen,
+          },
+          {
+            label: "Students",
+            value:
+              stats.find(
+                (s) => s.label === "My Students" || s.label === "Students",
+              )?.value || "0",
+            color: "emerald",
+            icon: Users,
+          },
+          {
+            label: "Pending",
+            value:
+              classTeacherOf.length > 0
+                ? attendance.total > 0
+                  ? 0
+                  : classTeacherOf.length
+                : 0,
+            color: "amber",
+            icon: Clock,
+          },
+          {
+            label: "Completed",
+            value:
+              classTeacherOf.length > 0
+                ? attendance.total > 0
+                  ? classTeacherOf.length
+                  : 0
+                : 0,
+            color: "emerald",
+            icon: CheckCircle2,
+          },
         ].map((item, idx) => (
-          <div key={idx} className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between gap-3">
+          <div
+            key={idx}
+            className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between gap-3"
+          >
             <div>
-              <span className="text-[10px] font-bold text-gray-450 uppercase tracking-wider block mb-0.5">{item.label}</span>
-              <p className="text-xl font-black text-gray-900 leading-tight">{item.value}</p>
+              <span className="text-[10px] font-bold text-gray-450 uppercase tracking-wider block mb-0.5">
+                {item.label}
+              </span>
+              <p className="text-xl font-black text-gray-900 leading-tight">
+                {item.value}
+              </p>
             </div>
-            <div className={cn(
-              "p-2 rounded-xl shrink-0 shadow-inner",
-              item.color === "indigo" && "bg-indigo-50 text-indigo-600 shadow-indigo-100/30",
-              item.color === "emerald" && "bg-emerald-50 text-emerald-600 shadow-emerald-100/30",
-              item.color === "amber" && "bg-amber-50 text-amber-600 shadow-amber-100/30",
-            )}>
+            <div
+              className={cn(
+                "p-2 rounded-xl shrink-0 shadow-inner",
+                item.color === "indigo" &&
+                  "bg-indigo-50 text-indigo-600 shadow-indigo-100/30",
+                item.color === "emerald" &&
+                  "bg-emerald-50 text-emerald-600 shadow-emerald-100/30",
+                item.color === "amber" &&
+                  "bg-amber-50 text-amber-600 shadow-amber-100/30",
+              )}
+            >
               <item.icon size={16} />
             </div>
           </div>
@@ -1761,7 +1448,11 @@ const TeacherDashboard = () => {
                       </div>
                       {attendance.total > 0 && (
                         <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                          {((attendance.present / attendance.total) * 100).toFixed(0)}%
+                          {(
+                            (attendance.present / attendance.total) *
+                            100
+                          ).toFixed(0)}
+                          %
                         </span>
                       )}
                     </div>
@@ -1803,28 +1494,47 @@ const TeacherDashboard = () => {
               </h4>
             </div>
             {classTeacherOf.map((cls) => (
-              <div key={cls.id} className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-sm space-y-3">
+              <div
+                key={cls.id}
+                className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-sm space-y-3"
+              >
                 <div className="flex justify-between items-center">
                   <div>
-                    <h4 className="text-lg font-black text-gray-900 uppercase">Class {cls.name}</h4>
-                    <p className="text-gray-400 text-xs font-bold mt-0.5">{cls.studentCount} Students</p>
+                    <h4 className="text-lg font-black text-gray-900 uppercase">
+                      Class {cls.name}
+                    </h4>
+                    <p className="text-gray-400 text-xs font-bold mt-0.5">
+                      {cls.studentCount} Students
+                    </p>
                   </div>
-                  <span className={cn(
-                    "text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-lg border",
-                    attendance.total > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100"
-                  )}>
-                    {attendance.total > 0 ? "Attendance Completed" : "Attendance Pending"}
+                  <span
+                    className={cn(
+                      "text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-lg border",
+                      attendance.total > 0
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                        : "bg-amber-50 text-amber-700 border-amber-100",
+                    )}
+                  >
+                    {attendance.total > 0
+                      ? "Attendance Completed"
+                      : "Attendance Pending"}
                   </span>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-gray-50">
                   <Button
-                    onClick={() => navigate("/attendance", { state: { classId: cls.id } })}
+                    onClick={() =>
+                      navigate("/attendance", { state: { classId: cls.id } })
+                    }
                     className="flex-1 h-11 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm cursor-pointer"
                   >
                     Mark Attendance
                   </Button>
                   <Button
-                    onClick={() => navigate("/teacher/timetable", { state: { classId: cls.id } })}
+                    onClick={() =>
+                      navigate("/teacher/timetable", {
+                        state: { classId: cls.id },
+                      })
+                    }
                     className="flex-1 h-11 text-[11px] font-black bg-white hover:bg-gray-50 text-gray-705 border border-gray-200 rounded-xl shadow-sm cursor-pointer"
                   >
                     Schedule
@@ -1883,7 +1593,9 @@ const TeacherDashboard = () => {
 
         {/* Mobile Attendance Summary Card */}
         <div className="lg:hidden bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
-          <h4 className="text-sm font-black text-gray-900 tracking-tight">Today's Attendance</h4>
+          <h4 className="text-sm font-black text-gray-900 tracking-tight">
+            Today's Attendance
+          </h4>
           <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1 text-xs whitespace-nowrap">
             <div className="flex-1 bg-emerald-50/60 border border-emerald-100 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-emerald-800">
               <span className="font-bold">Present</span>
@@ -1934,7 +1646,9 @@ const TeacherDashboard = () => {
 
         <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl lg:rounded-[2.5rem] p-4 lg:p-8 text-white shadow-xl flex flex-col justify-between min-h-[160px] lg:min-h-[280px] animate-in fade-in duration-300">
           <div>
-            <h4 className="text-base lg:text-xl font-bold mb-2 lg:mb-4">Class Overview</h4>
+            <h4 className="text-base lg:text-xl font-bold mb-2 lg:mb-4">
+              Class Overview
+            </h4>
             <p className="text-gray-305 text-xs lg:text-sm leading-relaxed mb-4 lg:mb-6">
               You are currently handling students across multiple sessions.
               Ensure attendance is marked daily.
@@ -1963,19 +1677,23 @@ const TeacherDashboard = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {assignedClasses.map((cls) => {
-            const isClassTeacherOfThis = classTeacherOf.some(ct => ct.id.toString() === cls.id.toString());
+            const isClassTeacherOfThis = classTeacherOf.some(
+              (ct) => ct.id.toString() === cls.id.toString(),
+            );
             return (
               <div
                 key={cls.id}
                 className="bg-gradient-to-br from-white via-indigo-50/5 to-indigo-50/15 p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-gray-200/60 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 relative group flex flex-col justify-between min-h-[150px] md:min-h-[200px]"
               >
                 <div>
-                  <span className={cn(
-                    "text-[9px] md:text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full",
-                    isClassTeacherOfThis
-                      ? "text-indigo-700 bg-indigo-100/70"
-                      : "text-gray-500 bg-gray-100/70"
-                  )}>
+                  <span
+                    className={cn(
+                      "text-[9px] md:text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full",
+                      isClassTeacherOfThis
+                        ? "text-indigo-700 bg-indigo-100/70"
+                        : "text-gray-500 bg-gray-100/70",
+                    )}
+                  >
                     {isClassTeacherOfThis ? "Class Teacher" : "Subject Teacher"}
                   </span>
                   <h4 className="text-xl md:text-3xl font-black text-gray-900 tracking-tight mt-2 md:mt-4 uppercase">
@@ -2008,7 +1726,7 @@ const TeacherDashboard = () => {
                     }
                     className={cn(
                       "rounded-xl py-2 h-10 text-[10px] md:text-[11px] font-black bg-white hover:bg-gray-50 text-gray-705 border border-gray-205 shadow-sm active:scale-95 transition-all cursor-pointer",
-                      isClassTeacherOfThis ? "flex-1" : "w-full"
+                      isClassTeacherOfThis ? "flex-1" : "w-full",
                     )}
                   >
                     View Schedule
@@ -2035,13 +1753,21 @@ const Dashboard = () => {
 // Helper Components for Live Attendance Analytics
 // ──────────────────────────────────────────────────────────────────────
 
-const CircularProgress = ({ percentage, colorClass, size = 52, strokeWidth = 5 }) => {
+const CircularProgress = ({
+  percentage,
+  colorClass,
+  size = 52,
+  strokeWidth = 5,
+}) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+    <div
+      className="relative flex items-center justify-center shrink-0"
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} className="transform -rotate-90">
         <circle
           className="text-gray-100"
@@ -2079,7 +1805,8 @@ const getCircularColor = (pct) => {
 };
 
 const getAttendanceBgClass = (pct) => {
-  if (pct >= 95) return "bg-emerald-50 text-emerald-700 border border-emerald-100";
+  if (pct >= 95)
+    return "bg-emerald-50 text-emerald-700 border border-emerald-100";
   if (pct >= 90) return "bg-amber-50 text-amber-700 border border-amber-100";
   return "bg-rose-50 text-rose-700 border border-rose-100";
 };
@@ -2087,7 +1814,10 @@ const getAttendanceBgClass = (pct) => {
 const AnalyticsSkeleton = () => (
   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
     {[...Array(3)].map((_, i) => (
-      <div key={i} className="bg-white border border-gray-150 p-6 rounded-[2rem] h-[160px] flex flex-col justify-between">
+      <div
+        key={i}
+        className="bg-white border border-gray-150 p-6 rounded-[2rem] h-[160px] flex flex-col justify-between"
+      >
         <div className="flex justify-between items-start">
           <div className="space-y-2 w-2/3">
             <div className="h-4 bg-gray-250 rounded-full w-1/2" />
