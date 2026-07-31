@@ -250,20 +250,20 @@ const FeeReports = () => {
               : "CLASS & MONTH DETAILED FEE TRANSACTIONS REPORT";
 
       const drawHeaderAndFooter = (pageNum, totalPages) => {
-        doc.setFillColor(15, 23, 42);
+        doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, pageW, 22, "F");
 
-        doc.setFillColor(234, 88, 12);
+        doc.setFillColor(0, 0, 0);
         doc.rect(0, 22, pageW, 1.2, "F");
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(13);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor(0, 0, 0);
         doc.text(SCHOOL_NAME, margin, 10);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7.5);
-        doc.setTextColor(148, 163, 184);
+        doc.setTextColor(0, 0, 0);
         doc.text(`${SCHOOL_ADDRESS}  •  ${SCHOOL_TAGLINE}`, margin, 16);
 
         doc.setFont("helvetica", "bold");
