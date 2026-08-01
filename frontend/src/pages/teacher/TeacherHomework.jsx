@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
+import Select from '../../components/ui/Select';
 import HomeworkFormModal from '../../components/homework/HomeworkFormModal';
 import ApprovalHistoryModal from '../../components/homework/ApprovalHistoryModal';
 import ConsolidatedHomeworkCard from '../../components/homework/ConsolidatedHomeworkCard';
@@ -462,24 +463,16 @@ const TeacherHomework = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-              <div className="w-full sm:w-auto">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Select Assigned Class
-                </label>
-                <select
+              <div className="w-full sm:w-64">
+                <Select
+                  label="Select Assigned Class"
                   value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                  className="w-full sm:w-auto h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold text-gray-800 bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 bg-white"
-                >
-                  {assignedClasses.map((c) => {
-                    const cid = c._id || c.id;
-                    return (
-                      <option key={cid} value={cid}>
-                        {c.name} {c.section ? `(${c.section})` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(val) => setSelectedClassId(val)}
+                  options={assignedClasses.map((c) => ({
+                    value: c._id || c.id,
+                    label: `${c.name} ${c.section ? `(${c.section})` : ''}`,
+                  }))}
+                />
               </div>
 
               <div className="w-full sm:w-auto">
