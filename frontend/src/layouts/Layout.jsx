@@ -30,98 +30,103 @@ const routeHeaderConfig = {
   "/dashboard": {
     category: "ERP Admin Hub",
     title: "Admin Dashboard",
-    description: "Welcome back! Here's a summary of the school's performance."
+    description: "Welcome back! Here's a summary of the school's performance.",
   },
   "/": {
     category: "ERP Admin Hub",
     title: "Admin Dashboard",
-    description: "Welcome back! Here's a summary of the school's performance."
+    description: "Welcome back! Here's a summary of the school's performance.",
   },
   "/fees": {
     category: "ERP Finance Hub",
     title: "Finances & Fee Center",
-    description: "Monitor class performance, expected collection ratio, and record student receipts."
+    description:
+      "Monitor class performance, expected collection ratio, and record student receipts.",
   },
   "/classes": {
     category: "Academic Setup",
     title: "Class Management",
-    description: "Define class groups, sections, and monthly fee structures."
+    description: "Define class groups, sections, and monthly fee structures.",
   },
   "/students": {
     category: "Student Directory",
     title: "Student Registry",
-    description: "View, search, and manage student enrollments, sections, and records."
+    description:
+      "View, search, and manage student enrollments, sections, and records.",
   },
   "/students/new": {
     category: "Student Directory",
     title: "Enroll Student",
-    description: "Register and admit a new student into the school system."
+    description: "Register and admit a new student into the school system.",
   },
   "/students/bulk-idcards": {
     category: "Student Directory",
     title: "Bulk ID Cards Console",
-    description: "Generate and download student ID cards in bulk."
+    description: "Generate and download student ID cards in bulk.",
   },
   "/teachers": {
     category: "Staff Management",
     title: "Teacher Registry",
-    description: "Manage school teachers, roles, and profiles."
+    description: "Manage school teachers, roles, and profiles.",
   },
   "/attendance": {
     category: "Daily Attendance",
     title: "Daily Attendance Tracker",
-    description: "Track, mark, and monitor daily student and staff attendance."
+    description: "Track, mark, and monitor daily student and staff attendance.",
   },
   "/reports/attendance": {
     category: "Reports & Analytics",
     title: "Attendance Analytics",
-    description: "Monitor attendance metrics, absent summaries, and monthly reports."
+    description:
+      "Monitor attendance metrics, absent summaries, and monthly reports.",
   },
   "/academic/subjects": {
     category: "Academic Setup",
     title: "Subject Master",
-    description: "Configure subjects, subject codes, and academic curriculum."
+    description: "Configure subjects, subject codes, and academic curriculum.",
   },
   "/academic/mappings": {
     category: "Academic Setup",
     title: "Class Mappings",
-    description: "Map subjects to classes and assign class teachers."
+    description: "Map subjects to classes and assign class teachers.",
   },
   "/academic/timetable": {
     category: "Academic Setup",
     title: "Timetable Management",
-    description: "Create, manage, and view class and teacher schedules."
+    description: "Create, manage, and view class and teacher schedules.",
   },
   "/admin/credentials": {
     category: "System Administration",
     title: "Credentials Manager",
-    description: "Manage staff accounts, credentials, and access roles."
+    description: "Manage staff accounts, credentials, and access roles.",
   },
   "/admissions/requests": {
     category: "Enrollment Center",
     title: "Admission Requests",
-    description: "Review and process student admission applications."
+    description: "Review and process student admission applications.",
   },
   "/admin/holidays": {
     category: "System Administration",
     title: "Holiday Calendar",
-    description: "Manage academic holidays, vacations, and emergency closures."
+    description: "Manage academic holidays, vacations, and emergency closures.",
   },
   "/reports/fees": {
     category: "Finance & Fee Management",
     title: "Fee Reports & Statements",
-    description: "Generate class-wise and month-wise fee collection reports."
+    description: "Generate class-wise and month-wise fee collection reports.",
   },
   "/teacher/homework": {
     category: "Academic Workspace",
     title: "Homework Management",
-    description: "Submit daily subject homework and review assigned class submissions."
+    description:
+      "Submit daily subject homework and review assigned class submissions.",
   },
   "/admin/homework": {
     category: "ERP Executive Console",
     title: "Homework Management Center",
-    description: "Review, approve, and export class consolidated homework summaries."
-  }
+    description:
+      "Review, approve, and export class consolidated homework summaries.",
+  },
 };
 
 const getRouteHeader = (path, getPageTitle) => {
@@ -129,7 +134,7 @@ const getRouteHeader = (path, getPageTitle) => {
     return {
       category: "Student Directory",
       title: "Edit Student Profile",
-      description: "Modify the profile details of an enrolled student."
+      description: "Modify the profile details of an enrolled student.",
     };
   }
   if (path.startsWith("/students/")) {
@@ -137,56 +142,63 @@ const getRouteHeader = (path, getPageTitle) => {
       return {
         category: "Student Directory",
         title: "ID Card Console",
-        description: "Generate and customize a student ID card."
+        description: "Generate and customize a student ID card.",
       };
     }
     return {
       category: "Student Directory",
       title: "Student Profile Details",
-      description: "View student academic records, ledger, and profile details."
+      description:
+        "View student academic records, ledger, and profile details.",
     };
   }
-  if (path.startsWith("/admissions/requests/new") || path.startsWith("/admissions/requests/edit/")) {
+  if (
+    path.startsWith("/admissions/requests/new") ||
+    path.startsWith("/admissions/requests/edit/")
+  ) {
     return {
       category: "Enrollment Center",
       title: "Admission Form",
-      description: "Fill out admission request details."
+      description: "Fill out admission request details.",
     };
   }
   if (path.startsWith("/admissions/requests/details/")) {
     return {
       category: "Enrollment Center",
       title: "Admission Request Details",
-      description: "Review detailed admission request information."
+      description: "Review detailed admission request information.",
     };
   }
   if (path.startsWith("/reports/attendance/student/")) {
     return {
       category: "Reports & Analytics",
       title: "Student Attendance Record",
-      description: "Detailed daily attendance breakdown for this student."
+      description: "Detailed daily attendance breakdown for this student.",
     };
   }
   if (path.startsWith("/reports/attendance/analysis/student/")) {
     return {
       category: "Reports & Analytics",
       title: "Student Attendance Analysis",
-      description: "Long-term attendance stats and analytics for this student."
+      description: "Long-term attendance stats and analytics for this student.",
     };
   }
   if (path.startsWith("/reports/attendance/analysis/staff/")) {
     return {
       category: "Reports & Analytics",
       title: "Staff Attendance Analysis",
-      description: "Long-term attendance stats and analytics for this staff member."
+      description:
+        "Long-term attendance stats and analytics for this staff member.",
     };
   }
-  
-  return routeHeaderConfig[path] || {
-    category: "Little Flower Educational Enterprise",
-    title: getPageTitle(),
-    description: "School ERP Management Hub"
-  };
+
+  return (
+    routeHeaderConfig[path] || {
+      category: "Little Flower Educational Enterprise",
+      title: getPageTitle(),
+      description: "School ERP Management Hub",
+    }
+  );
 };
 
 const Layout = ({ children }) => {
@@ -340,7 +352,7 @@ const Layout = ({ children }) => {
 
   const getPageTitle = () => {
     const path = location.pathname;
-    
+
     // Specific custom titles
     if (path.startsWith("/students/edit/")) return "Edit Student Profile";
     if (path.includes("/idcard")) return "ID Card Console";
@@ -351,12 +363,12 @@ const Layout = ({ children }) => {
     if (path === "/academic/timetable") return "Timetable Management";
     if (path === "/academic/subjects") return "Subject Master";
     if (path === "/academic/mappings") return "Class Mappings";
-    
+
     const segments = path.split("/").filter(Boolean);
     if (segments.length === 0) return "Dashboard";
-    
+
     const lastSegment = segments[segments.length - 1];
-    
+
     // Check if the last segment is a 24-character MongoDB ObjectId
     const isMongoId = /^[0-9a-fA-F]{24}$/.test(lastSegment);
     if (isMongoId) {
@@ -368,12 +380,12 @@ const Layout = ({ children }) => {
       }
       return "Detail View";
     }
-    
+
     // Check if the last segment is a formatted Student ID (STU-XXXX-XXXX)
     if (lastSegment.startsWith("STU-")) {
       return "Student Profile";
     }
-    
+
     return lastSegment.replace("-", " ");
   };
 
@@ -394,7 +406,9 @@ const Layout = ({ children }) => {
         className={cn(
           "fixed md:sticky top-0 h-screen bg-white border-r border-zinc-200/80 transition-all duration-300 ease-in-out flex flex-col z-[70] md:translate-x-0 shadow-xl md:shadow-none",
           isSidebarOpen ? "w-[245px]" : "w-[68px]",
-          isMobileMenuOpen ? "translate-x-0 w-[240px]" : "-translate-x-full md:translate-x-0",
+          isMobileMenuOpen
+            ? "translate-x-0 w-[240px]"
+            : "-translate-x-full md:translate-x-0",
         )}
       >
         {/* Sidebar Header */}
@@ -405,7 +419,10 @@ const Layout = ({ children }) => {
               !isSidebarOpen && "md:justify-center w-full",
             )}
           >
-            <SchoolLogo className="w-7 h-7 flex-shrink-0" showText={isSidebarOpen || isMobileMenuOpen} />
+            <SchoolLogo
+              className="w-7 h-7 flex-shrink-0"
+              showText={isSidebarOpen || isMobileMenuOpen}
+            />
           </div>
           {isMobileMenuOpen && (
             <button
@@ -482,10 +499,14 @@ const Layout = ({ children }) => {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex flex-col animate-in fade-in duration-300">
-              <span className={cn(
-                "text-[9px] font-black uppercase tracking-wider leading-none",
-                location.pathname === "/fees" ? "text-orange-500" : "text-indigo-500"
-              )}>
+              <span
+                className={cn(
+                  "text-[9px] font-black uppercase tracking-wider leading-none",
+                  location.pathname === "/fees"
+                    ? "text-orange-500"
+                    : "text-indigo-500",
+                )}
+              >
                 {headerInfo.category}
               </span>
               <h1 className="text-sm md:text-lg font-bold text-zinc-800 tracking-tight mt-0.5 leading-none">
@@ -501,7 +522,7 @@ const Layout = ({ children }) => {
                 Session: 2026-2027
               </div>
             )}
-            
+
             <div className="relative flex items-center">
               <NotificationDropdown />
             </div>
