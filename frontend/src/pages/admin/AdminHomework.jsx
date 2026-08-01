@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen,
   Search,
@@ -7,7 +7,7 @@ import {
   Clock,
   XCircle,
   ShieldCheck,
-  Calendar,
+  Calendar as CalendarIcon,
   CheckSquare,
   Square,
   Eye,
@@ -16,12 +16,19 @@ import {
   Check,
   RefreshCw,
   Copy,
-  FileDown
+  FileDown,
+  Sparkles,
+  Trash2,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
+import Select from '../../components/ui/Select';
+import DatePicker from '../../components/ui/DatePicker';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 import ConsolidatedHomeworkCard from '../../components/homework/ConsolidatedHomeworkCard';
 import ApprovalHistoryModal from '../../components/homework/ApprovalHistoryModal';
+import HomeworkFilterChips from '../../components/homework/HomeworkFilterChips';
+import ClassGroupedHomeworkCard from '../../components/homework/ClassGroupedHomeworkCard';
 import { useToast } from '../../context/ToastContext';
 import homeworkApi from '../../services/homeworkApi';
 import api from '../../services/api';
@@ -29,7 +36,11 @@ import api from '../../services/api';
 const AdminHomework = () => {
   const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState('consolidated'); // 'consolidated' | 'submissions'
+  const [activeTab, setActiveTab] = useState('submissions'); // 'submissions' | 'consolidated'
+
+  // Filter Chips state for Submissions
+  const [activeFilter, setActiveFilter] = useState('today'); // 'today' | 'yesterday' | 'last7days' | 'all' | 'custom'
+  const [customDate, setCustomDate] = useState('');
 
   // Master Data
   const [classes, setClasses] = useState([]);
@@ -63,9 +74,6 @@ const AdminHomework = () => {
   const [filterTeacher, setFilterTeacher] = useState('');
   const [filterSubject, setFilterSubject] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [datePreset, setDatePreset] = useState('all'); // 'today', 'yesterday', 'this_week', 'custom', 'all'
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [search, setSearch] = useState('');
 
   // Selection & Bulk Actions
@@ -79,6 +87,10 @@ const AdminHomework = () => {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectHomeworkId, setRejectHomeworkId] = useState(null);
   const [rejectRemarks, setRejectRemarks] = useState('');
+
+  // Manual Delete Confirmation Modal
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchMasterData();
@@ -98,7 +110,20 @@ const AdminHomework = () => {
     } else if (activeTab === 'submissions') {
       fetchAdminSubmissions();
     }
-  }, [activeTab, consClassId, consSection, consDate, filterClass, filterTeacher, filterSubject, filterStatus, datePreset, startDate, endDate, search, pagination.page]);
+  }, [
+    activeTab,
+    consClassId,
+    consSection,
+    consDate,
+    filterClass,
+    filterTeacher,
+    filterSubject,
+    filterStatus,
+    activeFilter,
+    customDate,
+    search,
+    pagination.page,
+  ]);
 
   const fetchMasterData = async () => {
     try {
@@ -146,27 +171,29 @@ const AdminHomework = () => {
   const fetchAdminSubmissions = async () => {
     setLoadingSubmissions(true);
 
-    let start = startDate;
-    let end = endDate;
+    let start = '';
+    let end = '';
 
-    if (datePreset === 'today') {
+    if (activeFilter === 'today') {
       start = new Date().toISOString().split('T')[0];
       end = new Date().toISOString().split('T')[0];
-    } else if (datePreset === 'yesterday') {
+    } else if (activeFilter === 'yesterday') {
       const y = new Date(Date.now() - 86400000).toISOString().split('T')[0];
       start = y;
       end = y;
-    } else if (datePreset === 'this_week') {
-      const curr = new Date();
-      const first = curr.getDate() - curr.getDay();
-      start = new Date(curr.setDate(first)).toISOString().split('T')[0];
+    } else if (activeFilter === 'last7days') {
+      const d = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+      start = d;
       end = new Date().toISOString().split('T')[0];
+    } else if (activeFilter === 'custom' && customDate) {
+      start = customDate;
+      end = customDate;
     }
 
     try {
       const res = await homeworkApi.getAllAdminHomework({
         page: pagination.page,
-        limit: 15,
+        limit: 50,
         classId: filterClass,
         teacherId: filterTeacher,
         subjectId: filterSubject,
@@ -177,8 +204,8 @@ const AdminHomework = () => {
       });
 
       if (res.success) {
-        setHomeworks(res.data.homeworks);
-        setPagination(res.data.pagination);
+        setHomeworks(res.data.homeworks || []);
+        setPagination(res.data.pagination || { page: 1, totalPages: 1 });
         setSelectedIds([]);
       }
     } catch (err) {
@@ -188,91 +215,66 @@ const AdminHomework = () => {
     }
   };
 
-  const handleAdminApprove = async (id) => {
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    setIsDeleting(true);
     try {
-      await homeworkApi.adminReview(id, { action: 'approve', remarks: 'Final Approved by Admin' });
-      addToast('Homework Final Approved by Admin!', 'success');
+      await homeworkApi.deleteHomework(deleteConfirmId);
+      addToast('Homework record deleted permanently', 'success');
+      setDeleteConfirmId(null);
       fetchAdminSubmissions();
       fetchDashboardSummary();
     } catch (err) {
-      addToast(err.response?.data?.message || 'Failed to approve homework', 'error');
-    }
-  };
-
-  const handleConfirmReject = async () => {
-    if (!rejectHomeworkId) return;
-    try {
-      await homeworkApi.adminReview(rejectHomeworkId, { action: 'reject', remarks: rejectRemarks });
-      addToast('Homework rejected by Admin', 'info');
-      setRejectModalOpen(false);
-      fetchAdminSubmissions();
-      fetchDashboardSummary();
-    } catch (err) {
-      addToast(err.response?.data?.message || 'Failed to reject homework', 'error');
-    }
-  };
-
-  const handleBulkAction = async (action) => {
-    if (selectedIds.length === 0) {
-      addToast('Please select at least one homework item.', 'error');
-      return;
-    }
-
-    setBulkActioning(true);
-    try {
-      await homeworkApi.adminBulkReview({
-        homeworkIds: selectedIds,
-        action,
-        remarks: `Bulk ${action} by Admin`,
-      });
-      addToast(`Selected ${selectedIds.length} homework items ${action === 'approve' ? 'Final Approved' : 'Rejected'}!`, 'success');
-      setSelectedIds([]);
-      fetchAdminSubmissions();
-      fetchDashboardSummary();
-    } catch (err) {
-      addToast(err.response?.data?.message || `Failed to bulk ${action}`, 'error');
+      addToast(err.response?.data?.message || 'Failed to delete homework', 'error');
     } finally {
-      setBulkActioning(false);
+      setIsDeleting(false);
     }
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.length === homeworks.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(homeworks.map(h => h._id));
-    }
-  };
+  const todayCount = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return homeworks.filter((hw) => {
+      if (!hw || !hw.homeworkDate) return false;
+      const dStr = new Date(hw.homeworkDate).toISOString().split('T')[0];
+      return dStr === todayStr;
+    }).length;
+  }, [homeworks]);
 
-  const toggleSelectId = (id) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter(i => i !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
-    }
-  };
+  // Group Submissions By Class & Date (One Card Per Class!)
+  const classGroupedHomeworks = useMemo(() => {
+    if (!homeworks || homeworks.length === 0) return [];
+    const map = new Map();
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Approved':
-        return <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Final Approved</span>;
-      case 'Pending Admin':
-        return <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Pending Admin</span>;
-      case 'Pending Incharge':
-        return <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Pending Incharge</span>;
-      case 'Rejected':
-        return <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Rejected</span>;
-      default:
-        return <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-50 text-gray-700 border border-gray-200">{status}</span>;
-    }
-  };
+    homeworks.forEach((hw) => {
+      const dateStr = hw.homeworkDate
+        ? new Date(hw.homeworkDate).toISOString().split('T')[0]
+        : '';
+      const key = `${hw.className || 'Class'}_${hw.section || ''}_${dateStr}`;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          className: hw.className,
+          section: hw.section,
+          homeworkDate: hw.homeworkDate,
+          submissionDate: hw.submissionDate,
+          homeworks: [],
+        });
+      }
+      map.get(key).homeworks.push(hw);
+    });
+
+    return Array.from(map.values());
+  }, [homeworks]);
 
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Admin Homework Management Console</h1>
+          <h1 className="text-xl font-black text-gray-900 tracking-tight">
+            Homework Management Console
+          </h1>
           <p className="text-xs text-gray-500 mt-0.5">
             Review submissions, grant final approvals, and export class-wise consolidated WhatsApp messages & PDFs.
           </p>
@@ -323,20 +325,10 @@ const AdminHomework = () => {
       </div>
 
       {/* Main Mode Tabs */}
-      <div className="flex border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab('consolidated')}
-          className={`pb-3 px-5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-            activeTab === 'consolidated'
-              ? 'border-b-2 border-orange-500 text-orange-600'
-              : 'text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          Class Consolidated View & Export
-        </button>
+      <div className="flex border-b border-gray-200 gap-2">
         <button
           onClick={() => setActiveTab('submissions')}
-          className={`pb-3 px-5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+          className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'submissions'
               ? 'border-b-2 border-indigo-600 text-indigo-600'
               : 'text-gray-500 hover:text-gray-800'
@@ -349,44 +341,165 @@ const AdminHomework = () => {
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => setActiveTab('consolidated')}
+          className={`pb-3 px-4 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            activeTab === 'consolidated'
+              ? 'border-b-2 border-orange-500 text-orange-600'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          Class Consolidated View & Export
+        </button>
       </div>
 
-      {/* MODE 1: CONSOLIDATED EXPORTER VIEW */}
+      {/* MODE 1: SUBMISSIONS WORKSPACE (GROUPED BY CLASS) */}
+      {activeTab === 'submissions' && (
+        <div className="space-y-5">
+          {/* Filter Chips Bar (Today, Yesterday, Last 7 Days, All, Select Date, Search) */}
+          <HomeworkFilterChips
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+            selectedDate={customDate}
+            onDateChange={setCustomDate}
+            searchQuery={search}
+            onSearchChange={setSearch}
+            todayCount={todayCount}
+          />
+
+          {/* Secondary Select Dropdown Filters (Class, Subject, Teacher, Status) */}
+          <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <Select
+              placeholder="All Classes"
+              options={[
+                { value: '', label: 'All Classes' },
+                ...classes.map((c) => ({
+                  value: c._id,
+                  label: `${c.name}${c.section ? ` (${c.section})` : ''}`,
+                })),
+              ]}
+              value={filterClass}
+              onChange={(val) => setFilterClass(val)}
+              size="sm"
+            />
+
+            <Select
+              placeholder="All Subjects"
+              options={[
+                { value: '', label: 'All Subjects' },
+                ...subjects.map((s) => ({ value: s._id, label: s.name })),
+              ]}
+              value={filterSubject}
+              onChange={(val) => setFilterSubject(val)}
+              size="sm"
+            />
+
+            <Select
+              placeholder="All Teachers"
+              options={[
+                { value: '', label: 'All Teachers' },
+                ...teachers.map((t) => ({
+                  value: t._id,
+                  label: `${t.firstName} ${t.lastName}`,
+                })),
+              ]}
+              value={filterTeacher}
+              onChange={(val) => setFilterTeacher(val)}
+              size="sm"
+            />
+
+            <Select
+              placeholder="All Statuses"
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'Approved', label: 'Approved' },
+                { value: 'Pending Admin', label: 'Pending Admin' },
+                { value: 'Pending Incharge', label: 'Pending Incharge' },
+                { value: 'Rejected', label: 'Rejected' },
+              ]}
+              value={filterStatus}
+              onChange={(val) => setFilterStatus(val)}
+              size="sm"
+            />
+          </div>
+
+          {/* Today's Homework Title Header */}
+          {activeFilter === 'today' && (
+            <div className="flex items-center justify-between bg-emerald-50/70 border border-emerald-200/80 p-3.5 rounded-2xl">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
+                <h2 className="text-sm sm:text-base font-black text-emerald-900 flex items-center gap-1.5">
+                  📘 Today's Homework Submissions
+                </h2>
+              </div>
+              <span className="text-xs font-extrabold text-emerald-700 bg-white px-2.5 py-1 rounded-xl border border-emerald-200">
+                {classGroupedHomeworks.length} Classes Assigned
+              </span>
+            </div>
+          )}
+
+          {/* Grouped Homework Cards (1 Card Per Class) */}
+          {loadingSubmissions ? (
+            <div className="bg-white rounded-2xl p-12 text-center border border-gray-200 shadow-2xs">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+              <p className="text-xs font-bold text-gray-400 mt-3 uppercase tracking-wider">
+                Loading submissions...
+              </p>
+            </div>
+          ) : classGroupedHomeworks.length === 0 ? (
+            <EmptyState
+              title={
+                activeFilter === 'today'
+                  ? 'No homework assigned today.'
+                  : 'No Homework Records Found'
+              }
+              description="No homework records match your current date filter or search parameters."
+            />
+          ) : (
+            <div className="space-y-4">
+              {classGroupedHomeworks.map((group) => (
+                <ClassGroupedHomeworkCard
+                  key={group.key}
+                  group={group}
+                  onViewHistory={(h) => setSelectedHistoryHomework(h)}
+                  onDelete={(id) => setDeleteConfirmId(id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODE 2: CONSOLIDATED EXPORTER VIEW */}
       {activeTab === 'consolidated' && (
         <div className="space-y-6">
           {/* Class & Date Filter Bar */}
           <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Select Class
-                </label>
-                <select
+              <div className="w-full sm:w-48">
+                <Select
+                  label="Select Class"
+                  options={classes.map((c) => ({
+                    value: c._id,
+                    label: `${c.name}${c.section ? ` (${c.section})` : ''}`,
+                  }))}
                   value={consClassId}
-                  onChange={(e) => {
-                    setConsClassId(e.target.value);
-                    const selected = classes.find(c => c._id === e.target.value);
+                  onChange={(val) => {
+                    setConsClassId(val);
+                    const selected = classes.find((c) => c._id === val);
                     if (selected) setConsSection(selected.section || '');
                   }}
-                  className="h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold text-gray-800 bg-gray-50/50 focus:ring-2 focus:ring-orange-500"
-                >
-                  {classes.map(c => (
-                    <option key={c._id} value={c._id}>
-                      {c.name} {c.section ? `(${c.section})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  size="sm"
+                />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Select Homework Date
-                </label>
-                <input
-                  type="date"
+              <div className="w-full sm:w-44">
+                <DatePicker
+                  label="Select Homework Date"
                   value={consDate}
-                  onChange={(e) => setConsDate(e.target.value)}
-                  className="h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold text-gray-800 bg-gray-50/50 focus:ring-2 focus:ring-orange-500"
+                  onChange={(val) => val && setConsDate(val)}
+                  size="sm"
                 />
               </div>
             </div>
@@ -395,7 +508,7 @@ const AdminHomework = () => {
               variant="secondary"
               size="sm"
               onClick={fetchConsolidatedHomework}
-              className="w-full md:w-auto justify-center"
+              className="w-full md:w-auto justify-center font-bold"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Refresh Summary
             </Button>
@@ -409,220 +522,26 @@ const AdminHomework = () => {
         </div>
       )}
 
-      {/* MODE 2: SUBMISSIONS WORKSPACE & BULK ACTIONS */}
-      {activeTab === 'submissions' && (
-        <div className="space-y-4">
-          {/* Multi-Column Filter Bar */}
-          <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  placeholder="Search title, teacher, subject..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 h-9 rounded-xl border border-gray-300 text-xs bg-gray-50/50 focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              {/* Class Filter */}
-              <select
-                value={filterClass}
-                onChange={(e) => setFilterClass(e.target.value)}
-                className="h-9 px-2.5 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Classes</option>
-                {classes.map(c => (
-                  <option key={c._id} value={c._id}>{c.name} {c.section ? `(${c.section})` : ''}</option>
-                ))}
-              </select>
-
-              {/* Subject Filter */}
-              <select
-                value={filterSubject}
-                onChange={(e) => setFilterSubject(e.target.value)}
-                className="h-9 px-2.5 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Subjects</option>
-                {subjects.map(s => (
-                  <option key={s._id} value={s._id}>{s.name}</option>
-                ))}
-              </select>
-
-              {/* Status Filter */}
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="h-9 px-2.5 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-indigo-500 font-semibold"
-              >
-                <option value="">All Statuses</option>
-                <option value="Pending Incharge">Pending Incharge</option>
-                <option value="Pending Admin">Pending Admin</option>
-                <option value="Approved">Final Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-
-              {/* Date Preset */}
-              <select
-                value={datePreset}
-                onChange={(e) => setDatePreset(e.target.value)}
-                className="h-9 px-2.5 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="all">All Dates</option>
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="this_week">This Week</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Bulk Action Toolbar */}
-          {selectedIds.length > 0 && (
-            <div className="bg-indigo-600 text-white rounded-2xl p-3 px-5 flex items-center justify-between shadow-md animate-in fade-in duration-150">
-              <div className="text-xs font-bold flex items-center gap-2">
-                <CheckSquare className="w-4 h-4" />
-                <span>{selectedIds.length} Homework Submissions Selected</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => handleBulkAction('reject')}
-                  disabled={bulkActioning}
-                  className="bg-white/10 text-white hover:bg-rose-600 border-transparent"
-                >
-                  <XCircle className="w-3.5 h-3.5" /> Bulk Reject
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => handleBulkAction('approve')}
-                  disabled={bulkActioning}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
-                >
-                  <Check className="w-3.5 h-3.5" /> Bulk Final Approve
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Submissions Table */}
-          {loadingSubmissions ? (
-            <div className="bg-white rounded-2xl p-8 text-center border border-gray-200">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-            </div>
-          ) : homeworks.length === 0 ? (
-            <EmptyState
-              title="No Homework Submissions Found"
-              description="No submissions match your filter criteria."
-            />
-          ) : (
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-gray-700">
-                  <thead className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                    <tr>
-                      <th className="p-3.5 w-10 text-center">
-                        <button onClick={toggleSelectAll} className="cursor-pointer">
-                          {selectedIds.length === homeworks.length ? (
-                            <CheckSquare className="w-4 h-4 text-indigo-600" />
-                          ) : (
-                            <Square className="w-4 h-4 text-gray-400" />
-                          )}
-                        </button>
-                      </th>
-                      <th className="p-3.5">Class / Subject</th>
-                      <th className="p-3.5">Teacher</th>
-                      <th className="p-3.5">Homework Title & Details</th>
-                      <th className="p-3.5">Assigned Date</th>
-                      <th className="p-3.5">Status</th>
-                      <th className="p-3.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {homeworks.map((hw) => (
-                      <tr key={hw._id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="p-3.5 text-center">
-                          <button onClick={() => toggleSelectId(hw._id)} className="cursor-pointer">
-                            {selectedIds.includes(hw._id) ? (
-                              <CheckSquare className="w-4 h-4 text-indigo-600" />
-                            ) : (
-                              <Square className="w-4 h-4 text-gray-300" />
-                            )}
-                          </button>
-                        </td>
-
-                        <td className="p-3.5">
-                          <div className="font-bold text-gray-900">{hw.className} {hw.section ? `(${hw.section})` : ''}</div>
-                          <div className="text-[11px] font-semibold text-indigo-600">{hw.subjectName}</div>
-                        </td>
-
-                        <td className="p-3.5 font-semibold text-gray-800 whitespace-nowrap">
-                          {hw.teacherName}
-                        </td>
-
-                        <td className="p-3.5 max-w-xs">
-                          <div className="font-bold text-gray-900">{hw.title}</div>
-                          <div className="text-[11px] text-gray-500 line-clamp-1">{hw.description}</div>
-                          {hw.attachment && (
-                            <a
-                              href={hw.attachment.filePath}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-[10px] text-orange-600 hover:underline mt-0.5 font-semibold"
-                            >
-                              <Paperclip className="w-3 h-3" /> Attachment ({hw.attachment.fileName})
-                            </a>
-                          )}
-                        </td>
-
-                        <td className="p-3.5 font-medium whitespace-nowrap">
-                          {new Date(hw.homeworkDate).toLocaleDateString('en-GB')}
-                        </td>
-
-                        <td className="p-3.5 whitespace-nowrap">
-                          {getStatusBadge(hw.status)}
-                        </td>
-
-                        <td className="p-3.5 text-right whitespace-nowrap space-x-1">
-                          <button
-                            title="View Audit History"
-                            onClick={() => setSelectedHistoryHomework(hw)}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          {hw.status !== 'Approved' && (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => handleAdminApprove(hw._id)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                            >
-                              <Check className="w-3.5 h-3.5" /> Approve
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Audit History Modal */}
+      {selectedHistoryHomework && (
+        <ApprovalHistoryModal
+          isOpen={!!selectedHistoryHomework}
+          onClose={() => setSelectedHistoryHomework(null)}
+          homework={selectedHistoryHomework}
+        />
       )}
 
-      {/* History Audit Modal */}
-      <ApprovalHistoryModal
-        isOpen={!!selectedHistoryHomework}
-        onClose={() => setSelectedHistoryHomework(null)}
-        homework={selectedHistoryHomework}
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Homework?"
+        message="Are you sure you want to delete this homework record? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={isDeleting}
       />
     </div>
   );

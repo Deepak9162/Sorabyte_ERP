@@ -170,4 +170,7 @@ homeworkSchema.index({ class: 1, section: 1, homeworkDate: 1, status: 1 });
 homeworkSchema.index({ teacher: 1, homeworkDate: 1 });
 homeworkSchema.index({ class: 1, section: 1, subject: 1, homeworkDate: 1 });
 
+// Feature 5: Auto Delete Policy — expire homework documents 7 days after creation (604800 seconds)
+homeworkSchema.index({ createdAt: 1 }, { expireAfterSeconds: 604800 });
+
 module.exports = mongoose.model('Homework', homeworkSchema);
