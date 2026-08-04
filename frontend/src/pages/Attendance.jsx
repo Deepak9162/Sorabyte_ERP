@@ -45,41 +45,39 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
   const isEditingDisabled = isInactive || isHoliday || isMarked || (sessionStatus === 'locked' && !isAdmin) || (!isAdmin && sessionStatus === 'submitted');
   
   return (
-    <div className={cn("bg-white rounded-2xl border shadow-sm p-4 flex flex-col gap-3.5 transition-all hover:shadow-md", isInactive ? "border-red-100 opacity-60" : "border-gray-100")}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className={cn("w-10 h-10 flex items-center justify-center font-black rounded-xl text-sm shadow-inner", isInactive ? "bg-red-50 text-red-400" : "bg-indigo-50 text-indigo-600")}>
+    <div className={cn("bg-white rounded-2xl border p-3 flex flex-col gap-2.5 transition-all shadow-2xs", isInactive ? "border-red-100 opacity-60" : "border-slate-200/80")}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className={cn("w-8 h-8 flex items-center justify-center font-extrabold rounded-xl text-xs shrink-0 shadow-2xs", isInactive ? "bg-red-50 text-red-400" : "bg-indigo-50 text-indigo-700 border border-indigo-100")}>
             {student.rollNumber}
           </span>
-          <div>
-            <h4 className={cn("font-black uppercase tracking-tight text-sm leading-snug", isInactive ? "text-gray-400" : "text-gray-900")}>
+          <div className="min-w-0">
+            <h4 className={cn("font-extrabold uppercase tracking-tight text-xs sm:text-sm truncate leading-tight", isInactive ? "text-slate-400" : "text-slate-900")}>
               {student.fullName || "N/A"}
             </h4>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
               ID: {student.studentId}
             </p>
           </div>
         </div>
         
-        <div>
+        <div className="shrink-0">
           {isInactive ? (
-            <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border bg-red-50 text-red-500 border-red-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border bg-red-50 text-red-500 border-red-100">
               Inactive
             </span>
           ) : isHoliday ? (
-             <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border bg-slate-50 text-slate-600 border-slate-100">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+             <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border bg-slate-50 text-slate-600 border-slate-200">
                 Holiday
              </span>
           ) : status ? (
             <span
               className={cn(
-                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border",
-                status === "present" && "bg-emerald-50 text-emerald-600 border-emerald-100",
-                status === "absent" && "bg-rose-50 text-rose-600 border-rose-100",
-                status === "leave" && "bg-amber-50 text-amber-600 border-amber-100",
-                status === "late" && "bg-indigo-50 text-indigo-600 border-indigo-100",
+                "px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 border",
+                status === "present" && "bg-emerald-50 text-emerald-700 border-emerald-200",
+                status === "absent" && "bg-rose-50 text-rose-700 border-rose-200",
+                status === "leave" && "bg-amber-50 text-amber-700 border-amber-200",
+                status === "late" && "bg-indigo-50 text-indigo-700 border-indigo-200",
               )}
             >
               <span
@@ -94,48 +92,24 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
               {status}
             </span>
           ) : (
-            <span className="text-[9px] text-gray-300 font-black uppercase tracking-widest italic">
-              Pending...
+            <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider italic">
+              Pending
             </span>
           )}
         </div>
       </div>
 
       {isInactive ? (
-        <div className="pt-2 border-t border-red-50 text-center">
-          <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Attendance Disabled — Student Inactive</p>
+        <div className="pt-1.5 border-t border-red-50 text-center">
+          <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Inactive Student</p>
         </div>
       ) : (
-      <div className="grid grid-cols-4 gap-2 pt-2 border-t border-gray-50/50">
+      <div className="grid grid-cols-4 gap-1.5 pt-1.5 border-t border-slate-100">
         {[
-          {
-            id: "present",
-            label: "P",
-            tooltip: "Present",
-            color: "emerald",
-            icon: CheckCircle2,
-          },
-          {
-            id: "absent",
-            label: "A",
-            tooltip: "Absent",
-            color: "rose",
-            icon: XCircle,
-          },
-          {
-            id: "leave",
-            label: "L",
-            tooltip: "Leave",
-            color: "amber",
-            icon: Calendar,
-          },
-          {
-            id: "late",
-            label: "T",
-            tooltip: "Late",
-            color: "indigo",
-            icon: Clock,
-          },
+          { id: "present", label: "P", tooltip: "Present", color: "emerald", icon: CheckCircle2 },
+          { id: "absent", label: "A", tooltip: "Absent", color: "rose", icon: XCircle },
+          { id: "leave", label: "L", tooltip: "Leave", color: "amber", icon: Calendar },
+          { id: "late", label: "T", tooltip: "Late", color: "indigo", icon: Clock },
         ].map((option) => {
           const isSelected = status === option.id;
           return (
@@ -146,23 +120,23 @@ const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionSt
               title={option.tooltip}
               onClick={() => toggleStudentStatus(student._id, option.id)}
               className={cn(
-                "h-11 rounded-xl border transition-all text-xs font-black uppercase tracking-tight flex items-center justify-center gap-1.5 active:scale-95 touch-manipulation cursor-pointer",
+                "h-9 rounded-xl border transition-all text-xs font-black uppercase flex items-center justify-center gap-1 active:scale-95 touch-manipulation cursor-pointer shrink-0",
                 isSelected
-                  ? option.color === "emerald" && "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-100"
-                  : "bg-white text-gray-400 border-gray-100 hover:bg-gray-50",
+                  ? option.color === "emerald" && "bg-emerald-600 border-emerald-600 text-white shadow-xs"
+                  : "bg-slate-50 text-slate-500 border-slate-200/70 hover:bg-slate-100",
                 isSelected
-                  ? option.color === "rose" && "bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-100"
+                  ? option.color === "rose" && "bg-rose-600 border-rose-600 text-white shadow-xs"
                   : "",
                 isSelected
-                  ? option.color === "amber" && "bg-amber-505 border-amber-500 text-white shadow-md shadow-amber-100"
+                  ? option.color === "amber" && "bg-amber-500 border-amber-500 text-white shadow-xs"
                   : "",
                 isSelected
-                  ? option.color === "indigo" && "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100"
+                  ? option.color === "indigo" && "bg-indigo-600 border-indigo-600 text-white shadow-xs"
                   : "",
                 (isEditingDisabled || sessionStatus === 'locked') && "opacity-60 cursor-not-allowed"
               )}
             >
-              <option.icon size={14} />
+              <option.icon size={13} />
               <span>{option.label}</span>
             </button>
           );
@@ -1932,66 +1906,6 @@ const Attendance = () => {
       )}
 
       {/* Mobile Attendance Information Card */}
-      {(activeTab === "mark-students" || activeTab === "mark-staff") && (
-        <div className="md:hidden bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
-            <div>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5">Class</span>
-              {activeTab === "mark-students" ? (
-                (user?.role === "admin" || classes.length > 1) ? (
-                  <div className="relative inline-block w-full">
-                    <select
-                      value={selectedClass}
-                      onChange={(e) => setSelectedClass(e.target.value)}
-                      className="w-full py-1 pl-2 pr-6 border border-gray-200 rounded-lg text-xs font-black text-gray-700 focus:ring-2 focus:ring-indigo-100 outline-none appearance-none bg-white cursor-pointer"
-                    >
-                      {classes.map((cls) => (
-                        <option key={cls._id} value={cls._id}>
-                          Class {cls.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-450 pointer-events-none" size={12} />
-                  </div>
-                ) : (
-                  <span className="text-gray-800 font-black">Class {classes.find(c => c._id === selectedClass)?.name || "N/A"}</span>
-                )
-              ) : (
-                <span className="text-gray-800 font-black">All Faculty</span>
-              )}
-            </div>
-            <div>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5">Date</span>
-              <span className="text-gray-800 font-black">
-                {new Date(selectedDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5">Status</span>
-              <span className={cn(
-                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border",
-                activeTab === "mark-students" 
-                  ? (sessionStatus === 'locked' ? "bg-rose-50 text-rose-700 border-rose-200"
-                    : sessionStatus === 'submitted' ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : !isMarked ? "bg-amber-50 text-amber-700 border-amber-200"
-                    : "bg-blue-50 text-blue-700 border-blue-200")
-                  : (isStaffMarked ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200")
-              )}>
-                {activeTab === "mark-students" ? (
-                  sessionStatus === 'locked' ? "Locked" : sessionStatus === 'submitted' ? "Submitted" : !isMarked ? "Pending" : "Draft Saved"
-                ) : (
-                  isStaffMarked ? "Submitted" : "Pending"
-                )}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-0.5">Teacher</span>
-              <span className="text-gray-800 font-black truncate block">{user?.name || "N/A"}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Summary Row (Only for daily marking sheets) */}
       {(activeTab === "mark-students" || activeTab === "mark-staff") && (
         <>
@@ -2057,39 +1971,20 @@ const Attendance = () => {
             ))}
           </div>
 
-          {/* Mobile Summary Grid */}
-          <div className="md:hidden grid grid-cols-2 gap-2">
+          {/* Mobile Sleek Summary Chips Bar */}
+          <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar select-none">
             {[
-              { label: activeTab === "mark-students" ? "Students" : "Staff", value: stats.total, color: "indigo", icon: Users },
-              { label: "Present", value: stats.present, color: "emerald", icon: CheckCircle2 },
-              { label: "Absent", value: stats.absent, color: "rose", icon: XCircle },
-              { label: "Leave", value: stats.leave, color: "amber", icon: Calendar },
+              { label: "Total", value: stats.total, color: "text-slate-700 bg-slate-100 border-slate-200" },
+              { label: "Present", value: stats.present, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+              { label: "Absent", value: stats.absent, color: "text-rose-700 bg-rose-50 border-rose-200" },
+              { label: "Leave", value: stats.leave, color: "text-amber-700 bg-amber-50 border-amber-200" },
+              { label: "Late", value: stats.late, color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
             ].map((item, idx) => (
-              <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">{item.label}</span>
-                  <p className="text-lg font-black text-gray-900 leading-tight">{item.value}</p>
-                </div>
-                <div className={cn(
-                  "p-1.5 rounded-lg shadow-inner",
-                  item.color === "indigo" && "bg-indigo-50 text-indigo-600 shadow-indigo-100/30",
-                  item.color === "emerald" && "bg-emerald-50 text-emerald-600 shadow-emerald-100/30",
-                  item.color === "rose" && "bg-rose-50 text-rose-600 shadow-rose-100/30",
-                  item.color === "amber" && "bg-amber-50 text-amber-600 shadow-amber-100/30",
-                )}>
-                  <item.icon size={14} />
-                </div>
+              <div key={idx} className={cn("px-3 py-1.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 shrink-0 shadow-2xs", item.color)}>
+                <span className="opacity-70 text-[10px] uppercase font-bold">{item.label}:</span>
+                <span className="text-sm font-black">{item.value}</span>
               </div>
             ))}
-            <div className="col-span-2 bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-2">
-              <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Late</span>
-                <p className="text-lg font-black text-gray-900 leading-tight">{stats.late}</p>
-              </div>
-              <div className="p-1.5 rounded-lg bg-violet-50 text-violet-600 shadow-inner shadow-violet-100/30">
-                <Clock size={14} />
-              </div>
-            </div>
           </div>
         </>
       )}

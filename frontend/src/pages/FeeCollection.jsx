@@ -876,24 +876,24 @@ const FeeCollection = () => {
                 <div className="space-y-2">
                   {recentStudents.map((rs) => (
                     <div
-                      key={rs.id}
+                      key={rs.studentId || rs._id}
                       onClick={() => handleRecentStudentClick(rs)}
-                      className="flex items-center justify-between p-2.5 bg-zinc-50 border border-zinc-100 hover:border-orange-200 hover:bg-orange-50/20 rounded-xl cursor-pointer transition-all duration-200 group"
+                      className="flex items-center justify-between p-2.5 bg-zinc-50 border border-zinc-100 hover:border-orange-200 hover:bg-orange-50/20 rounded-xl cursor-pointer transition-all duration-200 group overflow-hidden w-full gap-2"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center text-[10px] font-bold">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="w-7 h-7 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0">
                           {getStudentInitials(rs.name)}
                         </div>
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-zinc-700 truncate max-w-[120px] group-hover:text-orange-600 transition-colors">
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <p className="text-xs font-bold text-zinc-700 truncate group-hover:text-orange-600 transition-colors">
                             {rs.name}
                           </p>
-                          <p className="text-[9px] text-zinc-400 font-semibold uppercase">
+                          <p className="text-[9px] text-zinc-400 font-semibold uppercase truncate">
                             Class {rs.className}
                           </p>
                         </div>
                       </div>
-                      <span className="text-[9px] font-bold text-zinc-400 group-hover:text-orange-500 transition-colors bg-white px-2 py-0.5 border border-zinc-150 rounded-md">
+                      <span className="text-[9px] font-bold text-zinc-400 group-hover:text-orange-500 transition-colors bg-white px-2 py-0.5 border border-zinc-150 rounded-md shrink-0 whitespace-nowrap">
                         R.{rs.roll}
                       </span>
                     </div>

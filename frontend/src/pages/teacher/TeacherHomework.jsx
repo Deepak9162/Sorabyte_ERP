@@ -27,6 +27,8 @@ import HomeworkFormModal from '../../components/homework/HomeworkFormModal';
 import ApprovalHistoryModal from '../../components/homework/ApprovalHistoryModal';
 import ConsolidatedHomeworkCard from '../../components/homework/ConsolidatedHomeworkCard';
 import HomeworkFilterChips from '../../components/homework/HomeworkFilterChips';
+import HomeworkFilterBottomSheet from '../../components/homework/HomeworkFilterBottomSheet';
+import HomeworkFAB from '../../components/homework/HomeworkFAB';
 import ClassGroupedHomeworkCard from '../../components/homework/ClassGroupedHomeworkCard';
 import { useToast } from '../../context/ToastContext';
 import homeworkApi from '../../services/homeworkApi';
@@ -39,6 +41,7 @@ const TeacherHomework = () => {
   // Filter Chips state
   const [activeFilter, setActiveFilter] = useState('today'); // 'today' | 'yesterday' | 'last7days' | 'all' | 'custom'
   const [customDate, setCustomDate] = useState('');
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   // Summary counts
   const [summary, setSummary] = useState({
@@ -182,7 +185,7 @@ const TeacherHomework = () => {
     const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
 
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.setDate() - 7);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
     return myHomeworks.filter((hw) => {
@@ -246,102 +249,54 @@ const TeacherHomework = () => {
   }, [filteredMyHomeworks]);
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-12">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">Homework Center</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Submit daily subject homework and copy consolidated WhatsApp messages.
-          </p>
+    <div className="space-y-4 pb-24">
+      {/* Top Controls Row: Segmented Tabs & Create Homework Button */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="bg-slate-200/70 p-1 rounded-2xl flex items-center justify-between max-w-md w-full sm:w-auto shadow-inner">
+          <button
+            type="button"
+            onClick={() => setActiveTab('my-homework')}
+            className={`flex-1 sm:flex-initial py-2 px-4 rounded-xl text-xs font-extrabold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+              activeTab === 'my-homework'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>My Submissions</span>
+          </button>
+
+          {assignedClasses.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('class-consolidated')}
+              className={`flex-1 sm:flex-initial py-2 px-4 rounded-xl text-xs font-extrabold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+                activeTab === 'class-consolidated'
+                  ? 'bg-orange-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Class Broadcaster</span>
+            </button>
+          )}
         </div>
-        <Button
+
+        <button
+          type="button"
           onClick={() => {
             setEditHomeworkData(null);
             setIsFormOpen(true);
           }}
-          variant="primary"
-          className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white shadow-sm justify-center font-bold text-xs sm:text-sm py-2.5"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
         >
-          <Plus className="w-4 h-4" />
-          Create Homework
-        </Button>
-      </div>
-
-      {/* Mobile-Friendly Compact Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
-        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-200/90 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider">My Submissions</p>
-            <h3 className="text-lg sm:text-2xl font-black text-gray-900 mt-0.5">{summary.pending + summary.approved}</h3>
-          </div>
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold shrink-0">
-            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-200/90 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider">Today Assigned</p>
-            <h3 className="text-lg sm:text-2xl font-black text-emerald-600 mt-0.5">{todayCount}</h3>
-          </div>
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
-            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-        </div>
-
-        {assignedClasses.length > 0 && (
-          <div className="col-span-2 sm:col-span-1 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-3 sm:p-4 border border-indigo-200/80 shadow-2xs flex items-center justify-between">
-            <div className="space-y-0.5 pr-2">
-              <p className="text-[10px] sm:text-xs font-bold text-indigo-700 uppercase tracking-wider">Class Incharge</p>
-              <h3 className="text-sm sm:text-xl font-black text-indigo-900">{assignedClasses.length} Classes Assigned</h3>
-              <div className="hidden sm:flex flex-wrap gap-1 mt-1">
-                {assignedClasses.slice(0, 4).map(c => (
-                  <span key={c._id || c.id} className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-white text-indigo-700 border border-indigo-200">
-                    {c.name}{c.section ? `-${c.section}` : ''}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0">
-              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Workspace Tabs */}
-      <div className="flex border-b border-gray-200 overflow-x-auto whitespace-nowrap scrollbar-none gap-1 sm:gap-2">
-        <button
-          onClick={() => setActiveTab('my-homework')}
-          className={`pb-2.5 px-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-            activeTab === 'my-homework'
-              ? 'border-b-2 border-orange-500 text-orange-600'
-              : 'text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          My Homework Submissions
+          <Plus className="w-4 h-4 stroke-[3]" />
+          <span>Create Homework</span>
         </button>
-
-        {assignedClasses.length > 0 && (
-          <button
-            onClick={() => setActiveTab('class-consolidated')}
-            className={`pb-2.5 px-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'class-consolidated'
-                ? 'border-b-2 border-indigo-600 text-indigo-600'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Class Broadcaster</span>
-          </button>
-        )}
       </div>
 
-      {/* TAB 1: MY HOMEWORK SUBMISSIONS (GROUPED BY CLASS) */}
+      {/* TAB 1: MY HOMEWORK SUBMISSIONS */}
       {activeTab === 'my-homework' && (
-        <div className="space-y-3 sm:space-y-5">
-          {/* Filter Chips Bar (Today, Yesterday, Last 7 Days, All, Select Date, Search) */}
+        <div className="space-y-4">
           <HomeworkFilterChips
             activeFilter={activeFilter}
             onFilterChange={setActiveFilter}
@@ -350,28 +305,30 @@ const TeacherHomework = () => {
             searchQuery={mySearch}
             onSearchChange={setMySearch}
             todayCount={todayCount}
+            onOpenBottomSheetFilter={() => setIsFilterSheetOpen(true)}
+            activeFilterCount={myStatusFilter ? 1 : 0}
           />
 
-          {/* Today's Homework Section Title */}
+          {/* Today's Submissions Header */}
           {activeFilter === 'today' && (
-            <div className="flex items-center justify-between bg-emerald-50/70 border border-emerald-200/80 p-3 rounded-xl">
+            <div className="flex items-center justify-between bg-emerald-50/70 border border-emerald-200/80 p-3.5 rounded-[20px]">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                <h2 className="text-xs sm:text-base font-black text-emerald-900 flex items-center gap-1.5">
-                  📘 Today's Homework
+                <h2 className="text-xs sm:text-sm font-black text-emerald-900 flex items-center gap-1.5">
+                  📘 Today's Assigned Homework
                 </h2>
               </div>
-              <span className="text-[11px] sm:text-xs font-extrabold text-emerald-700 bg-white px-2 py-0.5 rounded-lg border border-emerald-200">
-                {classGroupedHomeworks.length} Classes Assigned
+              <span className="text-[11px] font-extrabold text-emerald-700 bg-white px-2.5 py-1 rounded-xl border border-emerald-200 shadow-2xs">
+                {classGroupedHomeworks.length} Classes
               </span>
             </div>
           )}
 
           {/* Submissions List Grouped By Class */}
           {loadingMy ? (
-            <div className="bg-white rounded-2xl p-8 text-center border border-gray-200 shadow-2xs">
-              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-orange-500 mx-auto"></div>
-              <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wider">
+            <div className="bg-white rounded-[20px] p-12 text-center border border-slate-200 shadow-2xs">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto" />
+              <p className="text-xs font-bold text-slate-400 mt-3 uppercase tracking-wider">
                 Loading homework records...
               </p>
             </div>
@@ -389,7 +346,7 @@ const TeacherHomework = () => {
               }
             />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {classGroupedHomeworks.map((group) => (
                 <ClassGroupedHomeworkCard
                   key={group.key}
@@ -407,16 +364,15 @@ const TeacherHomework = () => {
         </div>
       )}
 
-      {/* TAB 2: CLASS TEACHER CONSOLIDATED HOMEWORK (WHATSAPP COPY) */}
+      {/* TAB 2: CLASS TEACHER CONSOLIDATED HOMEWORK */}
       {activeTab === 'class-consolidated' && assignedClasses.length > 0 && (
-        <div className="space-y-4 sm:space-y-6">
-          {/* Top Summary Card & Filters */}
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-4">
+          <div className="bg-white rounded-[20px] p-4 sm:p-5 border border-slate-200/90 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="text-sm sm:text-base font-black text-gray-900">
+              <h2 className="text-sm sm:text-base font-black text-slate-900">
                 Class Homework WhatsApp Broadcaster
               </h2>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Copy all approved daily homework for your class in 1-click and send to Parents WhatsApp group.
               </p>
             </div>
@@ -436,26 +392,39 @@ const TeacherHomework = () => {
               </div>
 
               <div className="w-full sm:w-44">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Homework Date
                 </label>
                 <input
                   type="date"
                   value={classHomeworkDate}
                   onChange={(e) => setClassHomeworkDate(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-gray-300 text-xs font-bold bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3 rounded-2xl border border-slate-200 text-xs font-bold bg-white focus:ring-2 focus:ring-orange-500"
                 />
               </div>
             </div>
           </div>
 
-          {/* Consolidated Card */}
           <ConsolidatedHomeworkCard
             consolidatedData={classConsolidatedData}
             loading={loadingClassConsolidated}
           />
         </div>
       )}
+
+      {/* Mobile Bottom Sheet Filter Drawer */}
+      <HomeworkFilterBottomSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        filterStatus={myStatusFilter}
+        setFilterStatus={setMyStatusFilter}
+        onResetFilters={() => {
+          setMyStatusFilter('');
+        }}
+        onApplyFilters={() => {
+          fetchMyHomeworks();
+        }}
+      />
 
       {/* Create / Edit Homework Form Modal */}
       {isFormOpen && (

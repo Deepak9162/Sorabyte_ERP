@@ -14,14 +14,19 @@ const {
   updateStudent,
   deleteStudent,
   getLatestAdmissionStats,
+  bulkMigrateStudents,
 } = require('../controllers/studentController');
 
 const { studentPhotoUpload } = require('../middleware/upload');
+const { protect, isAdmin } = require('../middleware/auth');
 
 // GET    /api/students        → List all students
 // POST   /api/students        → Create a new student
 router.route('/').get(getAllStudents).post(studentPhotoUpload, createStudent);
 router.post('/create', studentPhotoUpload, createStudent);
+
+// PUT    /api/students/bulk-migrate → Bulk Student Class/Section Migration
+router.put('/bulk-migrate', protect, isAdmin, bulkMigrateStudents);
 
 // GET    /api/students/stats/latest-admission
 router.get('/stats/latest-admission', getLatestAdmissionStats);

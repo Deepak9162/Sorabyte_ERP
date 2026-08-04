@@ -247,290 +247,183 @@ const AdmissionRequestList = () => {
   };
 
   return (
-    <div className="space-y-8 p-1 sm:p-2">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[2rem] border border-gray-200 shadow-sm">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-            Admission Registry
-          </h2>
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">
-            {user.role === "admin"
-              ? "Manage and Enrol Students"
-              : "Submit New Admission Requests"}
-          </p>
-        </div>
+    <div className="space-y-4 pb-20">
+      {/* Top Header Action Bar */}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+          Admission Registry
+        </h2>
         {user.role === "teacher" && (
-          <Button
+          <button
+            type="button"
             onClick={() => navigate("/admissions/requests/new")}
-            className="rounded-2xl px-5 py-3 shadow-lg shadow-indigo-100 flex items-center gap-2 hover:scale-[1.02]"
+            className="px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
           >
-            <Plus size={18} />
-            New Request
-          </Button>
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>New Request</span>
+          </button>
         )}
         {user.role === "admin" && (
-          <Button
+          <button
+            type="button"
             onClick={() => navigate("/admissions/requests/direct")}
-            className="rounded-2xl px-5 py-3 shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 hover:scale-[1.02]"
+            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
           >
-            <Plus size={18} />
-            New Student Admission
-          </Button>
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>New Admission</span>
+          </button>
         )}
       </div>
 
-      {/* Admin Stat Cards */}
+      {/* Compact Admin Stat Cards */}
       {user.role === "admin" && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              Pending
-            </span>
-            <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-blue-600">
-                {stats.pending}
-              </span>
-              <div className="p-2.5 bg-blue-50 text-blue-500 rounded-2xl">
-                <Clock size={20} />
-              </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Pending</span>
+              <span className="text-lg font-black text-blue-600 leading-tight">{stats.pending}</span>
+            </div>
+            <div className="p-2 bg-blue-50 text-blue-500 rounded-xl shrink-0">
+              <Clock size={16} />
             </div>
           </div>
-          <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              Under Review
-            </span>
-            <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-amber-600">
-                {stats.underReview}
-              </span>
-              <div className="p-2.5 bg-amber-50 text-amber-500 rounded-2xl">
-                <AlertCircle size={20} />
-              </div>
+          <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Under Review</span>
+              <span className="text-lg font-black text-amber-600 leading-tight">{stats.underReview}</span>
+            </div>
+            <div className="p-2 bg-amber-50 text-amber-500 rounded-xl shrink-0">
+              <AlertCircle size={16} />
             </div>
           </div>
-          <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              Approved
-            </span>
-            <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-emerald-600">
-                {stats.approved}
-              </span>
-              <div className="p-2.5 bg-emerald-50 text-emerald-500 rounded-2xl">
-                <CheckCircle2 size={20} />
-              </div>
+          <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Approved</span>
+              <span className="text-lg font-black text-emerald-600 leading-tight">{stats.approved}</span>
+            </div>
+            <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl shrink-0">
+              <CheckCircle2 size={16} />
             </div>
           </div>
-          <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              Rejected
-            </span>
-            <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-rose-600">
-                {stats.rejected}
-              </span>
-              <div className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl">
-                <XCircle size={20} />
-              </div>
+          <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Rejected</span>
+              <span className="text-lg font-black text-rose-600 leading-tight">{stats.rejected}</span>
             </div>
-          </div>
-          <div className="bg-white p-6 rounded-[2.2rem] border border-gray-150 shadow-sm flex flex-col justify-between col-span-2 lg:col-span-1">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              Today's Total
-            </span>
-            <div className="flex items-end justify-between mt-4">
-              <span className="text-2xl sm:text-3xl font-black text-indigo-600">
-                {stats.today}
-              </span>
-              <div className="p-2.5 bg-indigo-50 text-indigo-500 rounded-2xl">
-                <Calendar size={20} />
-              </div>
+            <div className="p-2 bg-rose-50 text-rose-500 rounded-xl shrink-0">
+              <XCircle size={16} />
             </div>
           </div>
         </div>
       )}
 
-      {/* Desktop Filters Bar */}
-      <div className="hidden md:block bg-white p-6 rounded-[2rem] border border-gray-200 shadow-sm space-y-4">
-        <form
-          onSubmit={handleSearchSubmit}
-          className="flex flex-col md:flex-row gap-4"
-        >
-          {/* Search */}
-          <div className="flex-1 relative">
+      {/* Lightweight Search & Filter Bar */}
+      <div className="space-y-2.5">
+        <form onSubmit={handleSearchSubmit} className="flex gap-2">
+          <div className="relative flex-1">
             <input
               type="text"
-              placeholder="Search by Student Name, Father Name, or Phone..."
+              placeholder="Search student, father, phone..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-2xl pl-12 pr-4 py-3 outline-none focus:bg-white focus:border-indigo-600 transition-all font-semibold"
+              className="w-full bg-white border border-slate-200/90 text-slate-900 text-xs sm:text-sm rounded-xl pl-9 pr-8 py-2 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 font-medium shadow-2xs transition-all h-10"
             />
             <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={15}
             />
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            {/* Status Filter */}
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
                   setPage(1);
                 }}
-                className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-black uppercase tracking-wider rounded-2xl pl-4 pr-10 py-3 appearance-none outline-none cursor-pointer focus:bg-white focus:border-indigo-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
               >
-                <option value="all">Status: All</option>
-                <option value="Draft">Draft</option>
-                <option value="Submitted">Submitted</option>
-                <option value="Under Review">Under Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-              <Filter
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                size={14}
-              />
-            </div>
-
-            {/* Class Filter */}
-            <div className="relative">
-              <select
-                value={classFilter}
-                onChange={(e) => {
-                  setClassFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-black uppercase tracking-wider rounded-2xl pl-4 pr-10 py-3 appearance-none outline-none cursor-pointer focus:bg-white focus:border-indigo-600"
-              >
-                <option value="all">Class: All</option>
-                {classesList.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-              <Filter
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                size={14}
-              />
-            </div>
-
-            {/* Sort */}
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-black uppercase tracking-wider rounded-2xl pl-4 pr-10 py-3 appearance-none outline-none cursor-pointer focus:bg-white focus:border-indigo-600"
-              >
-                <option value="latest">Sort: Newest</option>
-                <option value="oldest">Sort: Oldest</option>
-                <option value="alphabetical">Sort: A-Z</option>
-                <option value="status">Sort: Status</option>
-              </select>
-              <Filter
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                size={14}
-              />
-            </div>
-
-            <Button
-              type="submit"
-              variant="secondary"
-              className="rounded-2xl px-5 py-3 font-black text-xs uppercase tracking-widest border border-gray-200"
-            >
-              Apply
-            </Button>
+                <XCircle size={14} />
+              </button>
+            )}
           </div>
+          <button
+            type="submit"
+            className="px-4 h-10 rounded-xl bg-slate-900 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer hover:bg-slate-800 shrink-0 active:scale-95"
+          >
+            <span>Search</span>
+          </button>
         </form>
-      </div>
 
-      {/* Mobile Filters Bar */}
-      <div className="md:hidden bg-white p-3 rounded-2xl border border-gray-150 shadow-sm space-y-3">
-        <form onSubmit={handleSearchSubmit} className="space-y-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-150 text-gray-905 text-xs rounded-xl pl-9 pr-4 py-2.5 outline-none focus:bg-white focus:border-indigo-600 transition-all font-semibold"
-            />
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={14}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* Status Chip */}
-            <div className="relative inline-block">
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="bg-indigo-50/70 border border-indigo-100/80 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-full px-3 py-1.5 appearance-none outline-none cursor-pointer"
-              >
-                <option value="all">All Status</option>
-                <option value="Draft">Draft</option>
-                <option value="Submitted">Submitted</option>
-                <option value="Under Review">Under Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
-
-            {/* Class Filter Chip */}
-            <div className="relative inline-block">
-              <select
-                value={classFilter}
-                onChange={(e) => {
-                  setClassFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="bg-indigo-50/70 border border-indigo-100/80 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-full px-3 py-1.5 appearance-none outline-none cursor-pointer"
-              >
-                <option value="all">All Classes</option>
-                {classesList.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Sort Chip */}
-            <div className="relative inline-block">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-indigo-50/70 border border-indigo-100/80 text-indigo-700 text-[10px] font-black uppercase tracking-wider rounded-full px-3 py-1.5 appearance-none outline-none cursor-pointer"
-              >
-                <option value="latest">Newest</option>
-                <option value="oldest">Oldest</option>
-                <option value="alphabetical">A-Z</option>
-                <option value="status">Status</option>
-              </select>
-            </div>
-
-            <Button
-              type="submit"
-              variant="secondary"
-              className="rounded-full px-4 py-1.5 h-[28px] flex items-center justify-center font-black text-[10px] uppercase tracking-wider border border-gray-250 bg-white hover:bg-gray-50 text-gray-700"
+        {/* Scrollable Filter Chips */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar select-none">
+          {/* Status Select Chip */}
+          <div className="relative shrink-0">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className={cn(
+                "text-xs font-extrabold rounded-xl px-3 py-2 border appearance-none outline-none cursor-pointer shadow-2xs pr-7 transition-all min-h-[36px]",
+                statusFilter !== "all"
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
+              )}
             >
-              Apply
-            </Button>
+              <option value="all" className="bg-white text-slate-800">Status: All</option>
+              <option value="Draft" className="bg-white text-slate-800">Draft</option>
+              <option value="Submitted" className="bg-white text-slate-800">Submitted</option>
+              <option value="Under Review" className="bg-white text-slate-800">Under Review</option>
+              <option value="Approved" className="bg-white text-slate-800">Approved</option>
+              <option value="Rejected" className="bg-white text-slate-800">Rejected</option>
+            </select>
+            <Filter className={cn("w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none", statusFilter !== "all" ? "text-white" : "text-slate-400")} />
           </div>
-        </form>
+
+          {/* Class Filter Chip */}
+          <div className="relative shrink-0">
+            <select
+              value={classFilter}
+              onChange={(e) => {
+                setClassFilter(e.target.value);
+                setPage(1);
+              }}
+              className={cn(
+                "text-xs font-extrabold rounded-xl px-3 py-2 border appearance-none outline-none cursor-pointer shadow-2xs pr-7 transition-all min-h-[36px]",
+                classFilter !== "all"
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
+              )}
+            >
+              <option value="all" className="bg-white text-slate-800">Class: All</option>
+              {classesList.map((c) => (
+                <option key={c} value={c} className="bg-white text-slate-800">
+                  {c}
+                </option>
+              ))}
+            </select>
+            <Filter className={cn("w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none", classFilter !== "all" ? "text-white" : "text-slate-400")} />
+          </div>
+
+          {/* Sort Chip */}
+          <div className="relative shrink-0">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-white text-slate-700 border border-slate-200 hover:border-indigo-300 text-xs font-extrabold rounded-xl px-3 py-2 appearance-none outline-none cursor-pointer shadow-2xs pr-7 transition-all min-h-[36px]"
+            >
+              <option value="latest" className="bg-white text-slate-800">Newest</option>
+              <option value="oldest" className="bg-white text-slate-800">Oldest</option>
+              <option value="alphabetical" className="bg-white text-slate-800">A-Z</option>
+              <option value="status" className="bg-white text-slate-800">By Status</option>
+            </select>
+            <Filter className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+        </div>
       </div>
 
       {/* Grid / List Results */}
-      <div className="bg-white rounded-[2rem] border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
         {loading ? (
           <TableSkeleton rows={5} cols={6} />
         ) : requests.length === 0 ? (

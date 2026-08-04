@@ -497,18 +497,31 @@ const TimetableManagement = () => {
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  {dayData.slots.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSlot(dayIndex, dayData.slots.length - 1)}
+                      title="Remove the last period for this day"
+                      className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-rose-200/80 cursor-pointer"
+                    >
+                      <Trash2 size={15} />
+                      <span className="hidden sm:inline">Remove Last</span>
+                    </button>
+                  )}
                   <button
+                    type="button"
                     onClick={() => {
                       setSourceDayForCopy(dayData.day);
                       setIsCopyModalOpen(true);
                     }}
-                    className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 bg-gray-100 text-gray-700 rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 border border-gray-200"
+                    className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 bg-gray-100 text-gray-700 rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-all hover:scale-105 active:scale-95 border border-gray-200 cursor-pointer"
                   >
                     <Copy size={16} /> Copy
                   </button>
                   <button
+                    type="button"
                     onClick={() => addSlot(dayIndex)}
-                    className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100/50 hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95"
+                    className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100/50 hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95 cursor-pointer"
                   >
                     <Plus size={16} /> Add Period
                   </button>
@@ -540,46 +553,49 @@ const TimetableManagement = () => {
                         {/* Hover Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover/slot:opacity-100 transition-opacity pointer-events-none" />
 
-                        {/* Remove Button */}
-                        <button
-                          onClick={() => removeSlot(dayIndex, slotIndex)}
-                          className="absolute top-4 right-4 w-10 h-10 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-all shadow-lg shadow-rose-100/50 border border-rose-100 hover:bg-rose-600 hover:text-white hover:rotate-90 active:scale-90"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        <div className="space-y-4 relative">
+                          {/* Time Range & Delete Button Row */}
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 flex items-center gap-1.5 p-2 bg-slate-100/80 rounded-xl border border-slate-200/60 group-hover/slot:bg-white transition-colors">
+                              <input
+                                type="text"
+                                value={slot.startTime}
+                                onChange={(e) =>
+                                  updateSlot(
+                                    dayIndex,
+                                    slotIndex,
+                                    "startTime",
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-full text-[10px] font-black text-slate-700 bg-transparent border-none focus:ring-0 p-0 text-center uppercase tracking-wider"
+                                placeholder="00:00 AM"
+                              />
+                              <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                              <input
+                                type="text"
+                                value={slot.endTime}
+                                onChange={(e) =>
+                                  updateSlot(
+                                    dayIndex,
+                                    slotIndex,
+                                    "endTime",
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-full text-[10px] font-black text-slate-700 bg-transparent border-none focus:ring-0 p-0 text-center uppercase tracking-wider"
+                                placeholder="00:00 AM"
+                              />
+                            </div>
 
-                        <div className="space-y-5 relative">
-                          {/* Time Range */}
-                          <div className="flex items-center gap-2 mb-2 p-1.5 bg-gray-50/80 rounded-xl border border-gray-100/50 group-hover/slot:bg-white transition-colors">
-                            <input
-                              type="text"
-                              value={slot.startTime}
-                              onChange={(e) =>
-                                updateSlot(
-                                  dayIndex,
-                                  slotIndex,
-                                  "startTime",
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full text-[10px] font-black text-gray-600 bg-transparent border-none focus:ring-0 p-0 text-center uppercase tracking-widest"
-                              placeholder="00:00 AM"
-                            />
-                            <div className="w-1.5 h-1.5 rounded-full bg-gray-200" />
-                            <input
-                              type="text"
-                              value={slot.endTime}
-                              onChange={(e) =>
-                                updateSlot(
-                                  dayIndex,
-                                  slotIndex,
-                                  "endTime",
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full text-[10px] font-black text-gray-600 bg-transparent border-none focus:ring-0 p-0 text-center uppercase tracking-widest"
-                              placeholder="00:00 AM"
-                            />
+                            <button
+                              type="button"
+                              onClick={() => removeSlot(dayIndex, slotIndex)}
+                              title="Delete this period"
+                              className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-200/80 flex items-center justify-center transition-all shrink-0 cursor-pointer active:scale-90 shadow-2xs"
+                            >
+                              <X className="w-4 h-4 stroke-[2.5]" />
+                            </button>
                           </div>
 
                           {/* Slot Type */}

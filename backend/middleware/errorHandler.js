@@ -27,8 +27,11 @@ const errorHandler = (err, req, res, next) => {
     message = `Invalid value for ${err.path}: ${err.value}`;
   } else if (err.code === 11000) {
     statusCode = 409;
-    const field = Object.keys(err.keyValue)[0];
-    message = `Duplicate value for field: ${field}`;
+    const fieldMap = err.keyValue || err.keyPattern || {};
+    const field = Object.keys(fieldMap)[0] || 'field';
+    message = field === 'rollNumber' || field === 'className'
+      ? `Roll number collision detected in destination class. Please select 'Auto Generate Roll Numbers' to assign 1, 2, 3... automatically.`
+      : `Duplicate value for field: ${field}`;
   } else if (err.name === 'JsonWebTokenError') {
     statusCode = 401;
     message = 'Invalid token. Please log in again.';

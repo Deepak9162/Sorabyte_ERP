@@ -10,10 +10,10 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xs flex items-center justify-center min-h-[300px]">
+      <div className="bg-white rounded-[20px] p-8 border border-slate-200 shadow-xs flex items-center justify-center min-h-[300px]">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-          <p className="text-xs font-semibold text-gray-500">Loading consolidated homework summary...</p>
+          <p className="text-xs font-semibold text-slate-500">Loading consolidated homework summary...</p>
         </div>
       </div>
     );
@@ -21,10 +21,12 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
 
   if (!consolidatedData || !consolidatedData.homeworks || consolidatedData.homeworks.length === 0) {
     return (
-      <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-xs text-center space-y-3 min-h-[250px] flex flex-col items-center justify-center">
-        <BookOpen className="w-10 h-10 text-gray-300" />
-        <h3 className="text-sm font-bold text-gray-800">No Homework Found for Selected Date</h3>
-        <p className="text-xs text-gray-500 max-w-sm">
+      <div className="bg-white rounded-[20px] p-8 border border-slate-200 shadow-xs text-center space-y-3 min-h-[250px] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center font-bold border border-orange-100">
+          <BookOpen className="w-6 h-6" />
+        </div>
+        <h3 className="text-sm font-extrabold text-slate-800">No Homework Found for Selected Date</h3>
+        <p className="text-xs text-slate-500 max-w-sm">
           No homework submissions have been recorded for this class and date yet.
         </p>
       </div>
@@ -95,25 +97,22 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
 
       // Homework Subjects Breakdown
       homeworks.forEach((hw, idx) => {
-        // Check for page overflow
         if (yPos > 260) {
           doc.addPage();
           yPos = 20;
         }
 
-        // Subject Header Strip
-        doc.setFillColor(238, 242, 255); // Indigo light
+        doc.setFillColor(238, 242, 255);
         doc.setDrawColor(199, 210, 254);
         doc.roundedRect(margin, yPos, contentWidth, 8, 2, 2, 'FD');
 
-        doc.setTextColor(67, 56, 202); // Indigo text
+        doc.setTextColor(67, 56, 202);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         doc.text(`${idx + 1}. ${hw.subjectName.toUpperCase()}`, margin + 4, yPos + 5.5);
 
         yPos += 12;
 
-        // Homework Description Lines
         doc.setTextColor(51, 65, 85);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9.5);
@@ -160,17 +159,17 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden space-y-0">
+    <div className="bg-white rounded-[20px] border border-slate-200/90 shadow-2xs overflow-hidden space-y-0">
       {/* Header & Lock Status */}
-      <div className="p-5 border-b border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-50/50">
+      <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-50/50">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase text-orange-600 tracking-wider">Consolidated Homework</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100">
               {stats.totalSubjectsSubmitted} Subjects Submitted
             </span>
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mt-0.5">
+          <h2 className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
             Class {classInfo.name} {classInfo.section ? `(${classInfo.section})` : ''} • {dateFormatted}
           </h2>
         </div>
@@ -183,45 +182,57 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
             size="sm"
             onClick={handleCopyWhatsApp}
             disabled={!isUnlocked}
-            className="w-full md:w-auto justify-center bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+            className="w-full md:w-auto justify-center bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs rounded-2xl font-extrabold"
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             {copied ? 'Copied!' : 'Copy to WhatsApp'}
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleDownloadPDF}
+            disabled={!isUnlocked}
+            className="w-full md:w-auto justify-center rounded-2xl font-extrabold"
+          >
+            <FileDown className="w-4 h-4 text-orange-500" />
+            <span>Download PDF</span>
           </Button>
         </div>
       </div>
 
       {/* Subject Status Chips */}
-      <div className="p-4 bg-gray-50/70 border-b border-gray-100 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-bold text-gray-600 uppercase tracking-wider mr-2">Submitted Subjects:</span>
+      <div className="p-4 bg-slate-50/40 border-b border-slate-100 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">Submitted Subjects:</span>
         {homeworks.map((hw) => (
           <span
             key={hw._id}
-            className="px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border-emerald-200"
+            className="px-2.5 py-1 rounded-xl text-xs font-extrabold border flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border-emerald-200/80"
           >
-            <span className="font-bold">{hw.subjectName}</span>
-            <span className="text-[10px] uppercase font-bold text-emerald-600">✓ Added</span>
+            <span>{hw.subjectName}</span>
+            <span className="text-[10px] uppercase font-black text-emerald-600">✓ Added</span>
           </span>
         ))}
       </div>
 
       {/* Visual Subject Homework Cards Section */}
-      <div className="p-5 border-b border-gray-100 space-y-3 bg-gray-50/30">
-        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center justify-between">
+      <div className="p-4 sm:p-5 border-b border-slate-100 space-y-3 bg-slate-50/20">
+        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
           <span>Subject-Wise Homework Summary ({homeworks.length} Subjects)</span>
         </h4>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {homeworks.map((hw) => (
-            <div key={hw._id} className="bg-white rounded-xl p-4 border border-gray-200 shadow-2xs space-y-2 relative group hover:border-orange-300 transition-all">
+            <div key={hw._id} className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-2 relative group hover:border-orange-300 transition-all">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                <span className="text-xs font-black uppercase text-orange-600 bg-orange-50 px-2.5 py-1 rounded-lg border border-orange-100">
                   {hw.subjectName}
                 </span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
                   hw.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                  hw.status === 'Pending Admin' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                  hw.status === 'Pending Incharge' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                  hw.status === 'Pending Admin' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                  hw.status === 'Pending Incharge' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                   'bg-rose-50 text-rose-700 border-rose-200'
                 }`}>
                   {hw.status}
@@ -230,21 +241,21 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
 
               {hw.title && hw.title.trim() && (
                 <div>
-                  <span className="text-[10px] font-bold uppercase text-gray-400">Topic / Book Reading:</span>
-                  <p className="text-xs font-bold text-gray-900 leading-snug">{hw.title}</p>
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Topic / Book Reading:</span>
+                  <p className="text-xs font-extrabold text-slate-900 leading-snug">{hw.title}</p>
                 </div>
               )}
 
               <div>
-                <span className="text-[10px] font-bold uppercase text-gray-400">Task Details:</span>
-                <p className="text-xs font-medium text-gray-800 leading-relaxed bg-gray-50 p-2.5 rounded-lg border border-gray-100 mt-0.5">
+                <span className="text-[10px] font-bold uppercase text-slate-400">Task Details:</span>
+                <p className="text-xs font-medium text-slate-800 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-0.5 whitespace-pre-line">
                   {hw.description}
                 </p>
               </div>
 
-              <div className="flex items-center justify-between pt-1 text-[11px] text-gray-500 border-t border-gray-100">
-                <span>Teacher: <span className="font-semibold text-gray-700">{hw.teacherName}</span></span>
-                <span>Type: <span className="font-semibold text-gray-700">{hw.homeworkType || 'Assignment'}</span></span>
+              <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500 border-t border-slate-100">
+                <span>Teacher: <span className="font-semibold text-slate-700">{hw.teacherName}</span></span>
+                <span>Type: <span className="font-semibold text-slate-700">{hw.homeworkType || 'Assignment'}</span></span>
               </div>
             </div>
           ))}
@@ -252,17 +263,17 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
       </div>
 
       {/* WhatsApp Formatted Text Preview */}
-      <div className="p-5">
-        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2 flex items-center justify-between">
+      <div className="p-4 sm:p-5">
+        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center justify-between">
           <span>WhatsApp Formatted Message Preview</span>
           {isUnlocked && <span className="text-emerald-600 font-semibold flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Ready to Copy</span>}
         </label>
         <div className="relative">
           <textarea
             readOnly
-            rows={12}
+            rows={10}
             value={formattedText}
-            className="w-full p-4 rounded-xl border border-gray-200 font-mono text-xs text-gray-800 bg-gray-50/80 focus:outline-none resize-none leading-relaxed"
+            className="w-full p-4 rounded-2xl border border-slate-200 font-mono text-xs text-slate-800 bg-slate-50/80 focus:outline-none resize-none leading-relaxed"
           />
         </div>
       </div>

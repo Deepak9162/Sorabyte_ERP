@@ -13,6 +13,7 @@ import {
   Contact2,
   FileText,
   FileSpreadsheet,
+  Layers,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import Button from "../../components/ui/Button";
@@ -20,6 +21,7 @@ import Skeleton, { TableSkeleton } from "../../components/ui/Skeleton";
 import EmptyState from "../../components/ui/EmptyState";
 import { resolveStudentPhotoUrl } from "../../utils/imageUtils";
 import ConfirmModal from "../../components/ui/ConfirmModal";
+import BulkMigrationModal from "../../components/BulkMigrationModal";
 import AppCombobox from "../../components/ui/AppCombobox";
 import { useToast } from "../../context/ToastContext";
 import { cn } from "../../utils/cn";
@@ -35,6 +37,7 @@ const StudentList = () => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isBulkMigrateOpen, setIsBulkMigrateOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   
   // Search & Filter State
@@ -1134,8 +1137,15 @@ const StudentList = () => {
           <div className="h-6 w-px bg-slate-800" />
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate(`/students/bulk-idcards?ids=${selectedIds.join(",")}`)}
+              onClick={() => setIsBulkMigrateOpen(true)}
               className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-xs font-bold text-white rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border border-transparent"
+            >
+              <Layers size={14} />
+              <span>Bulk Migrate ({selectedIds.length})</span>
+            </button>
+            <button
+              onClick={() => navigate(`/students/bulk-idcards?ids=${selectedIds.join(",")}`)}
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-bold text-white rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer border border-transparent"
             >
               <Contact2 size={14} />
               <span>
@@ -1153,6 +1163,18 @@ const StudentList = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Migration Modal */}
+      <BulkMigrationModal
+        isOpen={isBulkMigrateOpen}
+        onClose={() => setIsBulkMigrateOpen(false)}
+        selectedStudents={students.filter((s) => selectedIds.includes(s._id))}
+        classes={classes}
+        onSuccess={() => {
+          setSelectedIds([]);
+          fetchStudents();
+        }}
+      />
 
       {/* Unenroll Confirm Modal */}
       <ConfirmModal

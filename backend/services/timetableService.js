@@ -205,6 +205,9 @@ exports.getTimetableByClass = async (classId) => {
 /**
  * Generates a professional PDF for the timetable
  */
+/**
+ * Generates a professional PDF for the timetable
+ */
 exports.generateTimetablePDF = async (classId, outStream, filterTeacherUserId = null) => {
   const timetable = await this.getTimetableByClass(classId);
   if (!timetable) throw new Error('Timetable not found');
@@ -229,71 +232,152 @@ exports.generateTimetablePDF = async (classId, outStream, filterTeacherUserId = 
   const doc = new PDFDocument({ margin: 40, size: 'A4' });
   doc.pipe(outStream);
 
-  // 1. Institute Header
-  doc.fillColor('#1a365d').fontSize(24).text('LITTLE FLOWER ENGLISH SCHOOL', { align: 'center', weight: 'bold' });
-  doc.fontSize(10).fillColor('#4a5568').text('Quality Education for a Brighter Future', { align: 'center' });
-  doc.text('Contact: +91 9876543210 | Email: contact@littleflowerschool.edu.in', { align: 'center' });
-  doc.moveDown(1);
-  
-  // 2. Timetable Title
-  doc.rect(40, 110, 515, 30).fill('#edf2f7');
-  doc.fillColor('#2d3748').fontSize(14).text(`OFFICIAL TIMETABLE - CLASS ${timetable.class.name}`, 40, 118, { align: 'center', weight: 'bold' });
-  doc.moveDown(2);
+  // Helper to draw Header Banner
+  const drawHeader = () => {
+    // Top primary color accent strip
+    doc.rect(40, 25, 515, 4).fill('#ea580c'); // Primary Orange
 
-  // 3. Info Section
-  doc.fillColor('#000000').fontSize(10);
-  doc.text(`Academic Year: ${timetable.academicYear}`, 40, 150);
-  doc.text(`Academic Term: ${timetable.semester}`, 40, 165);
-  doc.text(`Generated On: ${new Date().toLocaleDateString()}`, 420, 150);
-  doc.moveDown(2);
+    // School Name
+    doc.fillColor('#0f172a')
+       .fontSize(20)
+       .font('Helvetica-Bold')
+       .text('LITTLE FLOWER ENGLISH SCHOOL', 40, 36, { align: 'center' });
 
-  let currentY = 190;
+    // Subtitle & Contact Info
+    doc.fillColor('#64748b')
+       .fontSize(9)
+       .font('Helvetica-Oblique')
+       .text('Quality Education for a Brighter Future', 40, 60, { align: 'center' });
 
-  // 4. Day-wise Table Design
+    doc.fillColor('#1e293b')
+       .fontSize(8.5)
+       .font('Helvetica-Bold')
+       .text('Contact: +91 82946 80282 (Dir: Chandramohan Tiwari)  |  Email: lfes@gmail.com', 40, 73, { align: 'center' });
+
+    // Divider Line
+    doc.moveTo(40, 88).lineTo(555, 88).strokeColor('#e2e8f0').lineWidth(1).stroke();
+  };
+
+  drawHeader();
+
+  // Official Timetable Title Card
+  doc.roundedRect(40, 96, 515, 26, 6).fill('#1e293b');
+  const classNameStr = timetable.class ? (timetable.class.name || timetable.class) : '';
+  doc.fillColor('#ffffff')
+     .fontSize(11)
+     .font('Helvetica-Bold')
+     .text(`OFFICIAL ACADEMIC TIMETABLE — CLASS ${classNameStr.toUpperCase()}`, 40, 104, { align: 'center' });
+
+  // Metadata Card
+  doc.roundedRect(40, 128, 515, 22, 6).fill('#f8fafc');
+  doc.rect(40, 128, 515, 22).strokeColor('#cbd5e1').lineWidth(0.7).stroke();
+
+  doc.fillColor('#334155').fontSize(8.5).font('Helvetica-Bold');
+  doc.text(`Academic Term: ${timetable.semester || 'Annual Term'}`, 52, 135);
+  doc.text(`Academic Year: ${timetable.academicYear || new Date().getFullYear()}`, 240, 135);
+  const genDateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  doc.text(`Generated: ${genDateStr}`, 430, 135);
+
+  let currentY = 160;
+
+  const checkPageOverflow = (neededHeight) => {
+    if (currentY + neededHeight > 770) {
+      doc.addPage();
+      drawHeader();
+      currentY = 100;
+    }
+  };
+
+  // Render Day-wise Timetable Tables
   weeklySchedule.forEach((dayData) => {
-    // Day Header
-    doc.rect(40, currentY, 515, 20).fill('#2c5282');
-    doc.fillColor('#ffffff').fontSize(11).text(dayData.day.toUpperCase(), 45, currentY + 5, { weight: 'bold' });
-    currentY += 25;
+    const slots = dayData.slots || [];
+    if (slots.length === 0) return; // Skip empty days
 
-    // Slots
-    dayData.slots.forEach((slot, index) => {
-      // Background for alternate slots for better readability
-      if (index % 2 !== 0) {
-        doc.rect(40, currentY, 515, 18).fill('#f7fafc');
-        doc.fillColor('#000000');
+    const dayHeaderHeight = 22;
+    const rowHeight = 20;
+    const tableHeaderHeight = 18;
+    const totalBlockHeight = dayHeaderHeight + tableHeaderHeight + (slots.length * rowHeight) + 12;
+
+    // Check if whole day block fits or needs a new page
+    checkPageOverflow(totalBlockHeight > 180 ? dayHeaderHeight + tableHeaderHeight + (2 * rowHeight) : totalBlockHeight);
+
+    // Day Header Banner
+    doc.roundedRect(40, currentY, 515, dayHeaderHeight, 4).fill('#ea580c');
+    doc.fillColor('#ffffff')
+       .fontSize(10)
+       .font('Helvetica-Bold')
+       .text(dayData.day.toUpperCase(), 50, currentY + 6);
+    currentY += dayHeaderHeight + 2;
+
+    // Table Column Headers
+    doc.rect(40, currentY, 515, tableHeaderHeight).fill('#f1f5f9');
+    doc.fillColor('#475569').fontSize(8).font('Helvetica-Bold');
+    doc.text('TIME SLOT', 50, currentY + 5, { width: 110 });
+    doc.text('TYPE', 165, currentY + 5, { width: 60 });
+    doc.text('SUBJECT', 235, currentY + 5, { width: 155 });
+    doc.text('FACULTY / INSTRUCTOR', 395, currentY + 5, { width: 150 });
+    
+    currentY += tableHeaderHeight;
+
+    // Slots Rows
+    slots.forEach((slot, idx) => {
+      checkPageOverflow(rowHeight + 5);
+
+      // Alternate row background
+      if (idx % 2 === 0) {
+        doc.rect(40, currentY, 515, rowHeight).fill('#ffffff');
       } else {
-        doc.fillColor('#000000');
+        doc.rect(40, currentY, 515, rowHeight).fill('#f8fafc');
       }
+      doc.rect(40, currentY, 515, rowHeight).strokeColor('#f1f5f9').lineWidth(0.5).stroke();
 
-      const subjectName = slot.subject ? slot.subject.name : (slot.label || slot.type);
-      const subjectCode = slot.subject && slot.subject.code ? `(${slot.subject.code})` : '';
-      const teacherName = slot.teacher ? `| Faculty: ${slot.teacher.firstName} ${slot.teacher.lastName}` : '';
+      // Time Range
+      doc.fillColor('#1e293b').fontSize(8).font('Helvetica-Bold');
+      doc.text(`${slot.startTime || ''} - ${slot.endTime || ''}`, 50, currentY + 5, { width: 110 });
 
-      
-      doc.fontSize(9).text(
-        `${slot.startTime} - ${slot.endTime}`, 50, currentY + 4, { width: 100 }
-      );
-      doc.text(
-        `${subjectName} ${subjectCode} ${teacherName}`, 160, currentY + 4
-      );
-
-      currentY += 20;
-
-      // Check for page overflow
-      if (currentY > 750) {
-        doc.addPage();
-        currentY = 40;
+      // Type Badge
+      const typeStr = (slot.type || 'Theory').toUpperCase();
+      let badgeBg = '#e0f2fe'; // Light Blue
+      let badgeText = '#0369a1';
+      if (typeStr === 'THEORY') {
+        badgeBg = '#fff7ed';
+        badgeText = '#c2410c';
+      } else if (typeStr === 'LAB') {
+        badgeBg = '#f3e8ff';
+        badgeText = '#7e22ce';
+      } else if (typeStr === 'BREAK') {
+        badgeBg = '#fef3c7';
+        badgeText = '#b45309';
       }
+      doc.roundedRect(165, currentY + 3, 56, 14, 3).fill(badgeBg);
+      doc.fillColor(badgeText).fontSize(7).font('Helvetica-Bold').text(typeStr, 165, currentY + 6, { width: 56, align: 'center' });
+
+      // Subject
+      const subjectName = slot.subject ? (slot.subject.name || slot.subject) : (slot.label || slot.type || 'N/A');
+      const subjectCode = slot.subject && slot.subject.code ? ` (${slot.subject.code})` : '';
+      doc.fillColor('#0f172a').fontSize(8.5).font('Helvetica-Bold');
+      doc.text(`${subjectName}${subjectCode}`, 235, currentY + 5, { width: 155, ellipsis: true });
+
+      // Faculty / Teacher
+      let teacherName = 'N/A';
+      if (slot.teacher) {
+        teacherName = slot.teacher.firstName ? `${slot.teacher.firstName} ${slot.teacher.lastName || ''}`.trim() : (slot.teacher.name || 'N/A');
+      } else if (slot.type === 'Break') {
+        teacherName = '-';
+      }
+      doc.fillColor('#475569').fontSize(8).font('Helvetica');
+      doc.text(teacherName, 395, currentY + 5, { width: 150, ellipsis: true });
+
+      currentY += rowHeight;
     });
 
-    currentY += 10;
+    currentY += 10; // Gap between days
   });
 
-  // Footer
-  doc.fontSize(8).fillColor('#718096').text(
-    'This is a computer-generated document. For any discrepancies, contact the Administrative Office.',
-    40, 800, { align: 'center' }
+  // Footer at bottom of document
+  doc.fillColor('#94a3b8').fontSize(7.5).font('Helvetica-Oblique').text(
+    'This is an official computer-generated academic document. | Little Flower English School',
+    40, 800, { align: 'center', width: 515 }
   );
 
   doc.end();

@@ -401,10 +401,10 @@ const Layout = ({ children }) => {
         />
       )}
 
-      {/* Sidebar (Desktop & Mobile Drawer) */}
+      {/* Sidebar (Desktop & Mobile Drawer - Glassmorphism Design) */}
       <aside
         className={cn(
-          "fixed md:sticky top-0 h-screen bg-white border-r border-zinc-200/80 transition-all duration-300 ease-in-out flex flex-col z-[70] md:translate-x-0 shadow-xl md:shadow-none",
+          "fixed md:sticky top-0 h-screen bg-slate-50/70 backdrop-blur-2xl border-r border-slate-200/70 transition-all duration-300 ease-in-out flex flex-col z-[70] md:translate-x-0 shadow-xl md:shadow-none",
           isSidebarOpen ? "w-[245px]" : "w-[68px]",
           isMobileMenuOpen
             ? "translate-x-0 w-[240px]"
@@ -412,7 +412,7 @@ const Layout = ({ children }) => {
         )}
       >
         {/* Sidebar Header */}
-        <div className="h-14 flex items-center justify-between px-4 border-b border-zinc-100">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/50 bg-white/40 backdrop-blur-md">
           <div
             className={cn(
               "flex items-center gap-2 overflow-hidden",
@@ -427,15 +427,15 @@ const Layout = ({ children }) => {
           {isMobileMenuOpen && (
             <button
               onClick={toggleMobileMenu}
-              className="md:hidden text-zinc-400 hover:text-zinc-900 cursor-pointer p-1 rounded-lg hover:bg-zinc-50"
+              className="md:hidden text-slate-400 hover:text-slate-900 cursor-pointer p-1.5 rounded-xl hover:bg-white/60 transition-all"
             >
               <X size={18} />
             </button>
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-2.5 space-y-1 custom-scrollbar">
+        {/* Navigation Menu */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 custom-scrollbar">
           {filteredMenu.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -444,26 +444,29 @@ const Layout = ({ children }) => {
                 to={item.path}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all group relative font-semibold text-xs min-h-[38px] cursor-pointer",
+                  "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-2xl transition-all duration-200 group relative font-bold text-xs min-h-[42px] cursor-pointer",
                   isActive
-                    ? "bg-orange-50 text-orange-600 shadow-sm border-l-2 border-orange-500 rounded-lg"
-                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 rounded-lg",
+                    ? "bg-white/95 text-slate-900 shadow-md shadow-slate-200/60 border border-slate-200/80"
+                    : "text-slate-600 hover:bg-white/60 hover:text-slate-900 hover:shadow-xs border border-transparent",
                 )}
               >
+                {isActive && (
+                  <span className="w-1 h-5 bg-gradient-to-b from-orange-500 to-amber-500 rounded-full shrink-0 shadow-xs" />
+                )}
                 <item.icon
-                  size={16}
+                  size={18}
                   className={cn(
                     "flex-shrink-0 transition-colors",
                     isActive
                       ? "text-orange-500 font-bold"
-                      : "text-zinc-400 group-hover:text-zinc-600",
+                      : "text-slate-400 group-hover:text-slate-700",
                   )}
                 />
                 {(isSidebarOpen || isMobileMenuOpen) && (
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate tracking-tight">{item.label}</span>
                 )}
                 {!isSidebarOpen && !isMobileMenuOpen && (
-                  <div className="absolute left-14 bg-zinc-950 text-white text-[9px] font-bold px-2 py-1 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-lg">
+                  <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl border border-slate-700">
                     {item.label}
                   </div>
                 )}
@@ -473,15 +476,15 @@ const Layout = ({ children }) => {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-3 border-t border-zinc-100 hidden md:block">
+        <div className="p-3 border-t border-slate-200/50 hidden md:block bg-white/40 backdrop-blur-md">
           <button
             onClick={toggleSidebar}
-            className="w-full h-8 flex items-center justify-center text-zinc-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
+            className="w-full h-9 flex items-center justify-center text-slate-400 hover:text-orange-500 hover:bg-white/80 rounded-xl transition-all cursor-pointer border border-transparent hover:border-slate-200/60 shadow-xs"
           >
             {isSidebarOpen ? (
-              <ChevronLeft size={16} />
+              <ChevronLeft size={18} />
             ) : (
-              <ChevronRight size={16} />
+              <ChevronRight size={18} />
             )}
           </button>
         </div>
@@ -529,27 +532,27 @@ const Layout = ({ children }) => {
 
             <div className="h-6 w-px bg-zinc-200 hidden sm:block"></div>
 
-            <div className="flex items-center gap-2 group cursor-pointer bg-zinc-50 hover:bg-zinc-100/50 p-1 md:pr-3 rounded-full border border-zinc-100 hover:border-zinc-200 transition-all">
-              <div className="w-7 h-7 md:w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold border border-orange-100 shadow-sm group-hover:scale-102 transition-transform text-xs uppercase">
+            <div className="flex items-center gap-2 group cursor-pointer bg-slate-50 hover:bg-slate-100/80 p-1 md:pr-3 rounded-full border border-slate-200/80 transition-all shadow-2xs">
+              <div className="w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-extrabold shadow-2xs shrink-0 text-xs uppercase border border-orange-200">
                 {user.name.charAt(0)}
               </div>
               <div className="text-right hidden sm:block space-y-0.5">
-                <p className="text-xs font-bold text-zinc-800 leading-none group-hover:text-orange-500 transition-colors">
+                <p className="text-xs font-bold text-slate-800 leading-none group-hover:text-orange-600 transition-colors">
                   {user.name}
                 </p>
                 <div className="flex items-center justify-end gap-1">
-                  <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
-                  <span className="text-[8px] text-zinc-400 font-extrabold uppercase tracking-widest leading-none">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                  <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider leading-none">
                     {user.role} SECURED
                   </span>
                 </div>
               </div>
               <button
                 onClick={logout}
-                className="ml-1 p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50/50 rounded-lg transition-all cursor-pointer"
+                className="ml-1 p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all cursor-pointer"
                 title="Secure Logout"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>

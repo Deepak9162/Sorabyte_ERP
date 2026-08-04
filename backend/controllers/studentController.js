@@ -9,6 +9,7 @@ const Student = require('../models/Student');
 const Class = require('../models/Class');
 const Teacher = require('../models/Teacher');
 const FeeLedger = require('../models/FeeLedger');
+const StudentMigrationAuditLog = require('../models/StudentMigrationAuditLog');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
 
 // Helper function to resolve or create a Class automatically
@@ -423,6 +424,177 @@ const getLatestAdmissionStats = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Bulk Migrate / Transfer Students to Target Class & Section
+ * @route   PUT /api/students/bulk-migrate
+ * @access  Private (Admin / Super Admin)
+ */
+const bulkMigrateStudents = async (req, res, next) => {
+  try {
+    const { studentIds, targetClassId, targetClassName, targetSection, rollMode = 'keep' } = req.body;
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return errorResponse(res, 'Please select at least one student to migrate', 400);
+    }
+
+    if (!targetClassName && !targetClassId) {
+      return errorResponse(res, 'Target class name or target class ID is required', 400);
+    }
+
+    // Resolve or create target class
+    let targetClass = null;
+    if (targetClassId) {
+      targetClass = await Class.findById(targetClassId);
+    }
+
+    if (!targetClass && targetClassName) {
+      targetClass = await getOrCreateClass(targetClassName, targetSection);
+    }
+
+    if (!targetClass) {
+      return errorResponse(res, 'Failed to resolve or create target class', 400);
+    }
+
+    const newClassName = targetClass.name;
+    const newSec = targetSection !== undefined ? targetSection : (targetClass.section || '');
+
+    // Fetch migrating students to capture current state
+    const existingStudents = await Student.find({ _id: { $in: studentIds } })
+      .select('_id class className section rollNumber fullName')
+      .lean();
+
+    if (existingStudents.length === 0) {
+      return errorResponse(res, 'No valid students found for migration', 404);
+    }
+
+    // Capture old class details for audit log
+    const oldClassNames = [...new Set(existingStudents.map(s => s.className || 'Unknown'))];
+    const oldSections = [...new Set(existingStudents.map(s => s.section || ''))];
+    const oldClassIds = [...new Set(existingStudents.map(s => s.class ? s.class.toString() : null).filter(Boolean))];
+
+    const oldClassDisplay = oldClassNames.join(', ');
+    const oldSectionDisplay = oldSections.join(', ');
+
+    const bulkOps = [];
+
+    if (rollMode === 'regenerate') {
+      // Fetch all students that will end up in the destination class (existing + migrating)
+      const allDestStudents = await Student.find({
+        $or: [
+          { class: targetClass._id },
+          { _id: { $in: studentIds } }
+        ]
+      })
+      .select('_id firstName lastName fullName rollNumber')
+      .lean();
+
+      allDestStudents.sort((a, b) => {
+        const nameA = a.fullName || `${a.firstName || ''} ${a.lastName || ''}`.trim();
+        const nameB = b.fullName || `${b.firstName || ''} ${b.lastName || ''}`.trim();
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+      });
+
+      const now = Date.now();
+
+      // Pass 1: Assign unique temporary roll numbers & target class to ALL destination students to eliminate unique index collisions
+      const tempOps = allDestStudents.map((student, idx) => ({
+        updateOne: {
+          filter: { _id: student._id },
+          update: {
+            $set: {
+              class: targetClass._id,
+              className: newClassName,
+              section: newSec,
+              rollNumber: `TEMP_${student._id}_${now}_${idx}`
+            }
+          }
+        }
+      }));
+
+      if (tempOps.length > 0) {
+        await Student.bulkWrite(tempOps, { ordered: true });
+      }
+
+      // Pass 2: Assign final sequential roll numbers 1, 2, 3... sorted alphabetically
+      allDestStudents.forEach((student, index) => {
+        const newRoll = (index + 1).toString();
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: student._id },
+            update: { $set: { rollNumber: newRoll } }
+          }
+        });
+      });
+    } else {
+      // Keep existing roll numbers
+      studentIds.forEach(id => {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: id },
+            update: {
+              $set: {
+                class: targetClass._id,
+                className: newClassName,
+                section: newSec
+              }
+            }
+          }
+        });
+      });
+    }
+
+    // Execute atomic bulkWrite operation for high performance (< 2 sec for 1000+ students)
+    if (bulkOps.length > 0) {
+      await Student.bulkWrite(bulkOps, { ordered: true });
+    }
+
+    // Update Class Collections (remove from old class docs, add to target class doc)
+    if (oldClassIds.length > 0) {
+      await Promise.all(
+        oldClassIds.map(oldId =>
+          Class.findByIdAndUpdate(oldId, {
+            $pull: { students: { $in: studentIds } }
+          })
+        )
+      );
+    }
+
+    await Class.findByIdAndUpdate(targetClass._id, {
+      $addToSet: { students: { $each: studentIds } }
+    });
+
+    // Create Audit Log
+    const adminUser = req.user || {};
+    const adminName = adminUser.fullName || `${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim() || 'Admin';
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '';
+
+    await StudentMigrationAuditLog.create({
+      performedBy: adminUser._id || targetClass._id,
+      adminName: adminName,
+      ip: clientIp,
+      oldClassName: oldClassDisplay,
+      oldSection: oldSectionDisplay,
+      newClassName: newClassName,
+      newSection: newSec,
+      studentCount: existingStudents.length,
+      rollMode: rollMode
+    }).catch(err => console.error('Failed to log student migration audit:', err));
+
+    return successResponse(res, {
+      migratedCount: existingStudents.length,
+      oldClassName: oldClassDisplay,
+      oldSection: oldSectionDisplay,
+      newClassName: newClassName,
+      newSection: newSec,
+      targetClassId: targetClass._id,
+      rollMode: rollMode
+    }, `Successfully migrated ${existingStudents.length} students from ${oldClassDisplay} to ${newClassName}`, 200);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllStudents,
   getStudentById,
@@ -431,4 +603,5 @@ module.exports = {
   updateStudent,
   deleteStudent,
   getLatestAdmissionStats,
+  bulkMigrateStudents,
 };

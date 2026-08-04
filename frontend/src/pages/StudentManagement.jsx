@@ -15,6 +15,7 @@ import {
   UserCheck,
   X,
   ChevronDown,
+  Layers,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -22,6 +23,7 @@ import Modal from "../components/ui/Modal";
 import Skeleton, { TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import ConfirmModal from "../components/ui/ConfirmModal";
+import BulkMigrationModal from "../components/BulkMigrationModal";
 import { useToast } from "../context/ToastContext";
 import { cn } from "../utils/cn";
 import AppCombobox from "../components/ui/AppCombobox";
@@ -42,6 +44,8 @@ const StudentManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterClass, setFilterClass] = useState("all");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [isBulkMigrateOpen, setIsBulkMigrateOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -198,6 +202,20 @@ const StudentManagement = () => {
     const classMatch = filterClass === "all" || s.class === filterClass;
     return (nameMatch || rollMatch) && classMatch;
   });
+
+  const handleSelectAll = () => {
+    if (selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(filteredStudents.map((s) => s._id));
+    }
+  };
+
+  const handleSelectStudent = (id) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   const getClassName = (id) => {
     const classId = typeof id === "object" ? id._id : id;
@@ -366,7 +384,19 @@ const StudentManagement = () => {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      <th className="pl-8 pr-4 py-6 w-12 text-center">
+                        <input
+                          type="checkbox"
+                          checked={
+                            filteredStudents.length > 0 &&
+                            selectedStudentIds.length === filteredStudents.length
+                          }
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                          title="Select All Filtered Students"
+                        />
+                      </th>
+                      <th className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                         Student Information
                       </th>
                       <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -387,9 +417,22 @@ const StudentManagement = () => {
                     {filteredStudents.map((student) => (
                       <tr
                         key={student._id}
-                        className="group hover:bg-gray-50/80 transition-all duration-300"
+                        className={cn(
+                          "group transition-all duration-300",
+                          selectedStudentIds.includes(student._id)
+                            ? "bg-indigo-50/40 hover:bg-indigo-50/60"
+                            : "hover:bg-gray-50/80"
+                        )}
                       >
-                        <td className="px-10 py-6">
+                        <td className="pl-8 pr-4 py-6 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedStudentIds.includes(student._id)}
+                            onChange={() => handleSelectStudent(student._id)}
+                            className="w-4 h-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-6 py-6">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-indigo-50 text-indigo-700 rounded-2xl flex items-center justify-center font-black shadow-inner shadow-indigo-100/50">
                               {student.firstName.charAt(0)}
@@ -675,6 +718,46 @@ const StudentManagement = () => {
         title="Unenroll Student"
         message={`Are you sure you want to permanently delete the records for ${selectedStudent?.firstName}? This action is irreversible.`}
       />
+
+      {/* Bulk Migration Modal */}
+      <BulkMigrationModal
+        isOpen={isBulkMigrateOpen}
+        onClose={() => setIsBulkMigrateOpen(false)}
+        selectedStudents={students.filter((s) => selectedStudentIds.includes(s._id))}
+        classes={classes}
+        onSuccess={() => {
+          setSelectedStudentIds([]);
+          fetchStudents();
+        }}
+      />
+
+      {/* Floating Bottom Bulk Action Toolbar */}
+      {selectedStudentIds.length > 0 && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 backdrop-blur-md text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-6 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 bg-indigo-400 rounded-full animate-pulse" />
+            <span className="text-xs sm:text-sm font-black tracking-wide">
+              {selectedStudentIds.length} Student{selectedStudentIds.length > 1 ? "s" : ""} Selected
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setIsBulkMigrateOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Layers size={16} />
+              <span>Bulk Migrate</span>
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setSelectedStudentIds([])}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 py-2 text-xs rounded-xl transition-all cursor-pointer"
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
