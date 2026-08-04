@@ -174,7 +174,7 @@ const Login = () => {
                   />
                   <input
                     type="email"
-                    placeholder="name@littleflowerschool.edu.in"
+                    placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -235,17 +235,8 @@ const Login = () => {
 
             {/* Footer Links inside Login Box */}
             <div className="mt-6 pt-5 border-t border-slate-100 space-y-2.5">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 <span>© 2026 Little Flower School</span>
-                <div className="flex items-center gap-3">
-                  <a href="#" className="hover:text-[#FF6B35] transition-colors">
-                    Privacy Policy
-                  </a>
-                  <span>•</span>
-                  <a href="#" className="hover:text-[#FF6B35] transition-colors">
-                    Help Desk
-                  </a>
-                </div>
               </div>
 
               {/* Sorabyte Branding */}
