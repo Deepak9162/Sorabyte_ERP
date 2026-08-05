@@ -72,9 +72,7 @@ const HomeworkCard = ({
   // WhatsApp Copy Action
   const handleCopyWhatsApp = (e) => {
     e?.stopPropagation();
-    const classStr = `${homework.className || ""}${
-      homework.section ? ` (${homework.section})` : ""
-    }`;
+    const classStr = homework.className || "";
     const subjectStr = homework.subjectName || "Subject";
     const dateStr = homework.homeworkDate
       ? new Date(homework.homeworkDate).toLocaleDateString("en-GB")
@@ -174,7 +172,7 @@ const HomeworkCard = ({
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-semibold">
               <span className="text-indigo-600 font-extrabold bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
-                {homework.className} {homework.section ? `(${homework.section})` : ""}
+                {homework.className}
               </span>
               <span>•</span>
               <span className="text-orange-600 font-extrabold bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100">

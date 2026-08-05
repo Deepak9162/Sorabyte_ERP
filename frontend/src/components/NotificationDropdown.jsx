@@ -85,16 +85,17 @@ const NotificationDropdown = () => {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "text-gray-400 hover:text-indigo-600 relative p-3 hover:bg-gray-50 rounded-2xl transition-all group",
-          isOpen && "text-indigo-600 bg-indigo-50/50"
+          "w-10 h-10 sm:w-11 sm:h-11 rounded-full sm:rounded-[14px] bg-slate-50 hover:bg-slate-100/90 border border-slate-200/80 flex items-center justify-center text-slate-600 hover:text-orange-600 hover:scale-105 active:scale-95 transition-all shadow-2xs relative group cursor-pointer",
+          isOpen && "text-orange-600 bg-orange-50/70 border-orange-200"
         )}
+        title="Notifications"
       >
         <Bell
-          size={24}
-          className="group-hover:rotate-12 transition-transform"
+          size={20}
+          className="group-hover:rotate-12 transition-transform duration-200"
         />
         {unreadCount > 0 && (
-          <span className="absolute top-2 right-2 min-w-5 h-5 px-1 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white animate-pulse">
+          <span className="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 bg-orange-500 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-black text-white animate-pulse">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}

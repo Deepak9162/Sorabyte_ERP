@@ -43,7 +43,7 @@ const ClassGroupedHomeworkCard = ({
 
   const { className: clsName, section, homeworkDate, submissionDate, homeworks } = group;
 
-  const classLabel = `${clsName || ""}${section ? ` (${section})` : ""}`;
+  const classLabel = clsName || "";
   const formattedHwDate = homeworkDate
     ? new Date(homeworkDate).toLocaleDateString("en-GB")
     : "";

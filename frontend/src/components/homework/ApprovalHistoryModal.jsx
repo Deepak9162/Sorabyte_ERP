@@ -40,7 +40,7 @@ const ApprovalHistoryModal = ({ isOpen, onClose, homework }) => {
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-200/80 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              {homework.className} {homework.section ? `(${homework.section})` : ''} • {homework.subjectName}
+              {homework.className} • {homework.subjectName}
             </span>
             <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStatusBadge(homework.status)}`}>
               {homework.status}

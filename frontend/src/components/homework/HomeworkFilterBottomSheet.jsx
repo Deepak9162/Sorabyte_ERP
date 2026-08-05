@@ -98,7 +98,7 @@ const HomeworkFilterBottomSheet = ({
                 { value: '', label: 'All Classes' },
                 ...classes.map((c) => ({
                   value: c._id || c.id,
-                  label: `${c.name}${c.section ? ` (${c.section})` : ''}`,
+                  label: c.name,
                 })),
               ]}
               value={filterClass}

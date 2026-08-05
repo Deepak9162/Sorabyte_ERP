@@ -81,7 +81,11 @@ export const AppButton = React.forwardRef(
           Icon && <Icon size={iconSizes[size] || 18} className="shrink-0" />
         )}
 
-        {children && <span>{children}</span>}
+        {children && (
+          <span className="inline-flex items-center justify-center gap-2">
+            {children}
+          </span>
+        )}
 
         {!loading && IconRight && (
           <IconRight size={iconSizes[size] || 18} className="shrink-0 ml-0.5" />

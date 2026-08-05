@@ -346,7 +346,7 @@ const AdminHomework = () => {
                 { value: '', label: 'All Classes' },
                 ...classes.map((c) => ({
                   value: c._id,
-                  label: `${c.name}${c.section ? ` (${c.section})` : ''}`,
+                  label: c.name,
                 })),
               ]}
               value={filterClass}
@@ -452,7 +452,7 @@ const AdminHomework = () => {
                   label="Select Class"
                   options={classes.map((c) => ({
                     value: c._id,
-                    label: `${c.name}${c.section ? ` (${c.section})` : ''}`,
+                    label: c.name,
                   }))}
                   value={consClassId}
                   onChange={(val) => {
@@ -476,11 +476,12 @@ const AdminHomework = () => {
 
             <Button
               variant="secondary"
-              size="sm"
+              size="md"
               onClick={fetchConsolidatedHomework}
-              className="w-full md:w-auto justify-center font-extrabold rounded-2xl"
+              className="w-full sm:w-auto justify-center font-extrabold rounded-2xl bg-orange-50 hover:bg-orange-100/80 text-orange-600 border border-orange-200/80 hover:border-orange-300 transition-all shadow-2xs cursor-pointer py-2.5 active:scale-95 flex items-center gap-2"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-orange-500" /> Refresh Summary
+              <RefreshCw className={cn("w-4 h-4 text-orange-600", loadingCons && "animate-spin")} />
+              <span>Refresh Summary</span>
             </Button>
           </div>
 

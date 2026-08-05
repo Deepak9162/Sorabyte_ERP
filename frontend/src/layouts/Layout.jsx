@@ -18,6 +18,7 @@ import {
   Calendar,
   KeyRound,
   UserPlus,
+  Search,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -206,6 +207,22 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  React.useEffect(() => {
+    const mainEl = document.getElementById("main-scroll-container");
+    const handleScroll = () => {
+      if (mainEl) {
+        setIsScrolled(mainEl.scrollTop > 10);
+      }
+    };
+    if (mainEl) {
+      mainEl.addEventListener("scroll", handleScroll);
+    }
+    return () => {
+      if (mainEl) mainEl.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const menuItems = [
     {
@@ -404,15 +421,18 @@ const Layout = ({ children }) => {
       {/* Sidebar (Desktop & Mobile Drawer) */}
       <aside
         className={cn(
-          "fixed md:sticky top-0 h-screen bg-slate-50/95 border-r border-slate-200/80 transition-all duration-200 ease-in-out flex flex-col z-[70] md:translate-x-0 shadow-lg md:shadow-none",
-          isSidebarOpen ? "w-[245px]" : "w-[68px]",
+          "fixed inset-y-0 left-0 z-[70] md:sticky md:top-0 h-screen bg-slate-50/95 border-r border-slate-200/80 transition-all duration-200 ease-in-out flex flex-col shadow-xl md:shadow-none overflow-hidden shrink-0",
+          isSidebarOpen ? "md:w-[245px]" : "md:w-[68px]",
           isMobileMenuOpen
             ? "translate-x-0 w-[240px]"
             : "-translate-x-full md:translate-x-0",
         )}
       >
+        {/* Top Subtle 2px Pure Orange Accent Line inside Sidebar */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-500 to-orange-600 z-10" />
+
         {/* Sidebar Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/60 bg-white">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/80 bg-white">
           <div
             className={cn(
               "flex items-center gap-2 overflow-hidden",
@@ -492,56 +512,83 @@ const Layout = ({ children }) => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Top Navbar */}
-        <header className="h-14 bg-white/95 border-b border-zinc-200/80 flex items-center justify-between px-4 md:px-8 z-20 sticky top-0 shadow-2xs">
-          <div className="flex items-center gap-2 md:gap-4">
+        {/* Top Navbar (Linear / Stripe 2026 SaaS Dashboard Style) */}
+        <header
+          className={cn(
+            "h-16 bg-white/90 border-b border-slate-200/80 flex items-center justify-between px-3 sm:px-6 md:px-8 z-30 sticky top-0 transition-all duration-300 ease-out backdrop-blur-xl relative overflow-hidden",
+            isScrolled && "bg-white/95 shadow-md shadow-slate-900/5 border-slate-200/90"
+          )}
+        >
+          {/* Top Subtle 2px Pure Orange Accent Line inside Header */}
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-500 to-orange-600" />
+
+          {/* LEFT SECTION */}
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            {/* Circular/Rounded Hamburger Button */}
             <button
               onClick={toggleMobileMenu}
-              className="md:hidden p-1.5 text-zinc-500 hover:bg-zinc-50 rounded-xl transition-all active:scale-95 cursor-pointer"
+              className="md:hidden w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-[14px] bg-slate-50 hover:bg-slate-100/90 border border-slate-200/80 flex items-center justify-center text-slate-700 hover:text-orange-600 transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs group shrink-0"
+              aria-label="Toggle Navigation Menu"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" />
             </button>
-            <div className="flex flex-col">
+            <div className="flex flex-col justify-center min-w-0 max-w-[180px] xs:max-w-[240px] sm:max-w-none">
               <span
                 className={cn(
-                  "text-[9px] font-black uppercase tracking-wider leading-none",
+                  "text-[8.5px] sm:text-[9.5px] font-black uppercase tracking-wider leading-none truncate",
                   location.pathname === "/fees"
                     ? "text-orange-500"
-                    : "text-indigo-500",
+                    : "text-orange-600"
                 )}
               >
-                {headerInfo.category}
+                {headerInfo.category || "ERP ADMIN HUB"}
               </span>
-              <h1 className="text-sm md:text-lg font-bold text-zinc-800 tracking-tight mt-0.5 leading-none">
+              <h1 className="text-xs sm:text-base md:text-lg font-black text-slate-900 tracking-tight leading-tight mt-0.5 truncate">
                 {headerInfo.title}
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-6">
+          {/* CENTER SECTION (Desktop Date & Context Chips) */}
+          <div className="hidden lg:flex items-center gap-2.5">
+            <div className="px-3 py-1 bg-slate-50 border border-slate-200/80 rounded-full text-[11px] font-extrabold text-slate-600 flex items-center gap-1.5 shadow-2xs">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </div>
             {location.pathname === "/fees" && (
-              <div className="hidden sm:flex px-2.5 py-1 bg-orange-50/50 border border-orange-100 rounded-full text-[9px] font-bold text-orange-600 uppercase tracking-wider items-center gap-1 shadow-sm">
-                <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></span>
-                Session: 2026-2027
+              <div className="px-3 py-1 bg-orange-50 border border-orange-200/70 rounded-full text-[11px] font-extrabold text-orange-600 flex items-center gap-1.5 shadow-2xs">
+                <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+                Session 2026-2027
               </div>
             )}
+          </div>
 
+          {/* RIGHT SECTION */}
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Notification Dropdown */}
+
+            {/* Notification Dropdown */}
             <div className="relative flex items-center">
               <NotificationDropdown />
             </div>
 
-            <div className="h-6 w-px bg-zinc-200 hidden sm:block"></div>
+            <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 
-            <div className="flex items-center gap-2 group cursor-pointer bg-slate-50 hover:bg-slate-100/80 p-1 md:pr-3 rounded-full border border-slate-200/80 transition-all shadow-2xs">
-              <div className="w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-extrabold shadow-2xs shrink-0 text-xs uppercase border border-orange-200">
+            {/* Profile Avatar & User Menu */}
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-50/90 hover:bg-slate-100/90 p-1 sm:p-1.5 sm:pr-3.5 rounded-full border border-slate-200/80 transition-all shadow-2xs group">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-orange-600 text-white flex items-center justify-center font-extrabold shadow-md shadow-orange-600/20 text-xs uppercase border border-orange-500 shrink-0 group-hover:scale-105 transition-transform duration-200">
                 {user.name.charAt(0)}
               </div>
               <div className="text-right hidden sm:block space-y-0.5">
-                <p className="text-xs font-bold text-slate-800 leading-none group-hover:text-orange-600 transition-colors">
+                <p className="text-xs font-bold text-slate-900 leading-none group-hover:text-orange-600 transition-colors">
                   {user.name}
                 </p>
                 <div className="flex items-center justify-end gap-1">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                   <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider leading-none">
                     {user.role} SECURED
                   </span>
@@ -549,17 +596,20 @@ const Layout = ({ children }) => {
               </div>
               <button
                 onClick={logout}
-                className="ml-1 p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all cursor-pointer"
+                className="p-1.5 sm:ml-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all cursor-pointer active:scale-95"
                 title="Secure Logout"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
         </header>
 
         {/* Content Wrapper */}
-        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 custom-scrollbar">
+        <main
+          id="main-scroll-container"
+          className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 custom-scrollbar"
+        >
           <div className="max-w-7xl mx-auto pb-16">{children}</div>
         </main>
       </div>

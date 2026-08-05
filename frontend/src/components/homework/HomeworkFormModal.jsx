@@ -255,7 +255,7 @@ const HomeworkFormModal = ({ isOpen, onClose, onSuccess, initialData = null }) =
                 placeholder="-- Select Assigned Class --"
                 options={classes.map(c => ({
                   value: c._id,
-                  label: `${c.name} ${c.section ? `(${c.section})` : ''}`
+                  label: c.name
                 }))}
               />
             </div>

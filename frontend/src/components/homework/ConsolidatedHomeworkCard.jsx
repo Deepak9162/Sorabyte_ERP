@@ -89,7 +89,7 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      doc.text(`Class: ${classInfo.name}${classInfo.section ? ' - ' + classInfo.section : ''}`, margin + 5, yPos + 11);
+      doc.text(`Class: ${classInfo.name}`, margin + 5, yPos + 11);
 
       doc.text(`Date: ${dateFormatted}`, pageWidth - margin - 5, yPos + 11, { align: 'right' });
 
@@ -163,42 +163,38 @@ const ConsolidatedHomeworkCard = ({ consolidatedData, loading }) => {
       {/* Header & Lock Status */}
       <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-50/50">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-black uppercase text-orange-600 tracking-wider">Consolidated Homework</span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap shrink-0">
               {stats.totalSubjectsSubmitted} Subjects Submitted
             </span>
           </div>
           <h2 className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
-            Class {classInfo.name} {classInfo.section ? `(${classInfo.section})` : ''} • {dateFormatted}
+            Class {classInfo.name} • {dateFormatted}
           </h2>
         </div>
 
         {/* Export Buttons */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
-          <Button
+        <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+          <button
             type="button"
-            variant="primary"
-            size="sm"
             onClick={handleCopyWhatsApp}
             disabled={!isUnlocked}
-            className="w-full md:w-auto justify-center bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs rounded-2xl font-extrabold"
+            className="w-full sm:w-auto flex flex-row items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-md shadow-emerald-600/20 rounded-xl font-extrabold px-5 py-2.5 active:scale-95 transition-all text-xs sm:text-sm cursor-pointer disabled:opacity-50"
           >
-            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            {copied ? 'Copied!' : 'Copy to WhatsApp'}
-          </Button>
+            {copied ? <Check className="w-4 h-4 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
+            <span className="whitespace-nowrap">{copied ? 'Copied!' : 'Copy to WhatsApp'}</span>
+          </button>
 
-          <Button
+          <button
             type="button"
-            variant="secondary"
-            size="sm"
             onClick={handleDownloadPDF}
             disabled={!isUnlocked}
-            className="w-full md:w-auto justify-center rounded-2xl font-extrabold"
+            className="w-full sm:w-auto flex flex-row items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 shadow-2xs rounded-xl font-extrabold px-5 py-2.5 active:scale-95 transition-all text-xs sm:text-sm cursor-pointer disabled:opacity-50"
           >
-            <FileDown className="w-4 h-4 text-orange-500" />
-            <span>Download PDF</span>
-          </Button>
+            <FileDown className="w-4 h-4 text-orange-500 shrink-0" />
+            <span className="whitespace-nowrap">Download PDF</span>
+          </button>
         </div>
       </div>
 
