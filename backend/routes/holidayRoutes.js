@@ -5,12 +5,16 @@ const {
   updateHoliday,
   getHolidays,
   deleteHoliday,
-  checkHolidayStatus
+  checkHolidayStatus,
+  getUpcomingHoliday
 } = require('../controllers/holidayController');
 const { protect, authorize } = require('../middleware/auth');
 
 // Protect all routes
 router.use(protect);
+
+// Get the nearest valid upcoming holiday (open to all authenticated users)
+router.get('/upcoming', getUpcomingHoliday);
 
 // Check if a specific date is a holiday (open to all authenticated users for UI)
 router.get('/status', checkHolidayStatus);

@@ -107,10 +107,54 @@ const checkHolidayStatus = async (req, res, next) => {
     }
 };
 
+const getUpcomingHoliday = async (req, res, next) => {
+  try {
+    // Tenant / Institute isolation scoping
+    const tenantFilter = {};
+    if (req.user?.schoolId) tenantFilter.schoolId = req.user.schoolId;
+    else if (req.user?.tenantId) tenantFilter.tenantId = req.user.tenantId;
+    else if (req.user?.instituteId) tenantFilter.instituteId = req.user.instituteId;
+
+    const holiday = await holidayService.getUpcomingHoliday(tenantFilter);
+    if (!holiday) {
+      return successResponse(res, null, 'No upcoming holiday found');
+    }
+
+    const formatDate = (d) => {
+      const date = new Date(d);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
+    const startDateStr = formatDate(holiday.startDate);
+    const endDateStr = formatDate(holiday.endDate);
+    const dateStr = startDateStr === endDateStr ? startDateStr : `${startDateStr} to ${endDateStr}`;
+    const targetStr = holiday.applicableTo === 'Both' ? 'Students and Staff' : holiday.applicableTo;
+
+    // Optimized minimal payload response
+    const data = {
+      title: `Upcoming Holiday: ${holiday.name}`,
+      content: holiday.description || `School will remain closed for ${targetStr} on ${dateStr} due to ${holiday.name}.`,
+      description: holiday.description || `School will remain closed for ${targetStr} on ${dateStr} due to ${holiday.name}.`,
+      holidayName: holiday.name,
+      holidayType: holiday.type,
+      startDate: holiday.startDate,
+      endDate: holiday.endDate,
+      applicableTo: holiday.applicableTo,
+      createdBy: holiday.createdBy ? { name: holiday.createdBy.name } : { name: 'Admin' },
+      createdAt: holiday.createdAt
+    };
+
+    return successResponse(res, data, 'Upcoming holiday fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createHoliday,
   updateHoliday,
   getHolidays,
   deleteHoliday,
-  checkHolidayStatus
+  checkHolidayStatus,
+  getUpcomingHoliday
 };

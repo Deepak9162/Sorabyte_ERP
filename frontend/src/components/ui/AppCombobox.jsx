@@ -1,9 +1,12 @@
+import React from "react";
+import AppSelect from "./AppSelect";
+
 /**
- * AppCombobox — Reusable ERP Searchable Combobox & Custom Select
- * ------------------------------------------------
- * Premium custom dropdown replacement for HTML <select> across the application.
+ * AppCombobox — Combobox wrapper around AppSelect.
  */
+export const AppCombobox = (props) => {
+  return <AppSelect searchable clearable {...props} />;
+};
 
-import Select from "./Select";
-
-export default Select;
+export const AppAutocomplete = AppCombobox;
+export default AppCombobox;

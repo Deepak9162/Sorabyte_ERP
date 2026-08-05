@@ -1,4 +1,5 @@
 const Holiday = require('../models/Holiday');
+const User = require('../models/User');
 const { getStartOfDay, getEndOfDay, getDayOfWeek } = require('../utils/dateUtils');
 
 class HolidayService {
@@ -214,6 +215,31 @@ class HolidayService {
     const holiday = await Holiday.findByIdAndDelete(id);
     if (!holiday) throw new Error('Holiday not found');
     return holiday;
+  }
+
+  async getUpcomingHoliday(tenantFilter = {}) {
+    const todayStart = getStartOfDay(new Date());
+    const query = {
+      status: 'Active',
+      type: { $ne: 'Sunday' },
+      endDate: { $gte: todayStart }
+    };
+
+    if (tenantFilter.schoolId && Holiday.schema.path('schoolId')) {
+      query.schoolId = tenantFilter.schoolId;
+    }
+    if (tenantFilter.tenantId && Holiday.schema.path('tenantId')) {
+      query.tenantId = tenantFilter.tenantId;
+    }
+    if (tenantFilter.instituteId && Holiday.schema.path('instituteId')) {
+      query.instituteId = tenantFilter.instituteId;
+    }
+
+    return await Holiday.findOne(query)
+      .select('name type description startDate endDate applicableTo createdBy createdAt')
+      .sort({ startDate: 1 })
+      .populate('createdBy', 'name')
+      .lean();
   }
 }
 
