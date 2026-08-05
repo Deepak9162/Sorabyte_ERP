@@ -67,7 +67,13 @@ const getHolidays = async (req, res, next) => {
       filters.endDate = { $lte: new Date(year, 11, 31, 23, 59, 59) };
     }
     if (req.query.type) filters.type = req.query.type;
-    if (req.query.applicableTo) filters.applicableTo = req.query.applicableTo;
+    if (req.query.applicableTo) {
+      if (req.query.applicableTo === 'Both') {
+        filters.applicableTo = 'Both';
+      } else {
+        filters.applicableTo = { $in: ['Both', req.query.applicableTo] };
+      }
+    }
 
     const holidays = await holidayService.getHolidays(filters);
     return successResponse(res, holidays, 'Holidays fetched successfully');

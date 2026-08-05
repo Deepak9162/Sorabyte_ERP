@@ -994,6 +994,7 @@ const AdminDashboard = () => {
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [stats, setStats] = useState([
     { label: "My Classes", value: "0", icon: BookOpen, color: "indigo" },
     { label: "My Students", value: "0", icon: Users, color: "emerald" },
@@ -1092,7 +1093,7 @@ const TeacherDashboard = () => {
           Teacher Console
         </AppBadge>
         <h1 className="text-2xl sm:text-3xl font-black text-white">
-          Welcome to Teacher Dashboard
+          Welcome, {user?.name || "Teacher"}
         </h1>
         <p className="text-xs sm:text-sm text-indigo-200 font-medium">
           Manage your assigned classes, take student attendance, and check your schedule.
