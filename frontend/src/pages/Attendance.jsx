@@ -1830,34 +1830,18 @@ const Attendance = () => {
 
         {/* Action Buttons for Mark tabs */}
         {(activeTab === "mark-students" || activeTab === "mark-staff") && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              {/* Modify Entry (Top) */}
-              {((activeTab === "mark-students" && isMarked && (user?.role === 'admin' || sessionStatus === 'draft')) ||
-                (activeTab === "mark-staff" && isStaffMarked && user?.role === 'admin')) && (
-                <Button
-                  onClick={() => activeTab === "mark-students" ? setIsMarked(false) : setIsStaffMarked(false)}
-                  variant="secondary"
-                  className="flex-1 sm:flex-none rounded-2xl shadow-md px-4 sm:px-6 h-12 border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs sm:text-sm"
-                >
-                  Modify
-                </Button>
-              )}
-
-              {/* Submit for review (teacher: draft → submitted) */}
-              {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && user?.role !== 'admin' && (
-                <Button
-                  onClick={handleSubmitForReview}
-                  loading={loading}
-                  disabled={holidayInfo && !holidayInfo.isWorkingDay}
-                  icon={Send}
-                  variant="secondary"
-                  className="flex-1 sm:flex-none rounded-2xl shadow-md px-4 sm:px-6 h-12 border-blue-200 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm"
-                >
-                  Review
-                </Button>
-              )}
-            </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+            {/* Modify Entry (Top) */}
+            {((activeTab === "mark-students" && isMarked && (user?.role === 'admin' || sessionStatus === 'draft')) ||
+              (activeTab === "mark-staff" && isStaffMarked && user?.role === 'admin')) && (
+              <Button
+                onClick={() => activeTab === "mark-students" ? setIsMarked(false) : setIsStaffMarked(false)}
+                variant="secondary"
+                className="w-full sm:w-auto rounded-2xl shadow-md px-4 sm:px-6 h-12 border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs sm:text-sm font-bold"
+              >
+                Modify
+              </Button>
+            )}
 
             {/* Save/Submit student attendance */}
             {activeTab === "mark-students" && (sessionStatus !== 'locked' || user?.role === 'admin') && (
@@ -1866,17 +1850,31 @@ const Attendance = () => {
                 loading={loading}
                 disabled={(user?.role !== 'admin' && (sessionStatus === 'submitted' || sessionStatus === 'locked')) || (holidayInfo && !holidayInfo.isWorkingDay)}
                 icon={Save}
-                className="w-full sm:w-auto rounded-2xl shadow-lg px-8 h-12"
+                className="w-full sm:w-auto rounded-2xl shadow-lg px-8 h-12 text-xs sm:text-sm font-bold"
               >
                 {!isMarked
-                  ? "Submit Student Attendance"
+                  ? "Save as Draft"
                   : user?.role === 'admin'
                     ? "Update Student Attendance"
                     : sessionStatus === 'submitted'
                       ? "Submitted"
                       : sessionStatus === 'locked'
                         ? "Locked"
-                        : "Update Attendance"}
+                        : "Save Changes"}
+              </Button>
+            )}
+
+            {/* Submit for review (teacher: draft → submitted) */}
+            {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && user?.role !== 'admin' && (
+              <Button
+                onClick={handleSubmitForReview}
+                loading={loading}
+                disabled={holidayInfo && !holidayInfo.isWorkingDay}
+                icon={Send}
+                variant="primary"
+                className="w-full sm:w-auto rounded-2xl shadow-lg px-6 h-12 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold border-none"
+              >
+                Final Submit
               </Button>
             )}
 
@@ -3234,21 +3232,6 @@ const Attendance = () => {
               ledger.
             </p>
           </div>
-          {(user?.role === 'admin' || (activeTab === "mark-students" && sessionStatus === 'draft')) && (
-            <div className="ml-auto hidden sm:block">
-              <Button
-                variant="secondary"
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-2xl h-12"
-                onClick={() =>
-                  activeTab === "mark-students"
-                    ? setIsMarked(false)
-                    : setIsStaffMarked(false)
-                }
-              >
-                Modify Entry
-              </Button>
-            </div>
-          )}
         </div>
       )}
         </>

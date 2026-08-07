@@ -154,11 +154,11 @@ class LeaveService {
     }
     await leaveRequest.save();
 
-    // Clean up any auto-marked absent records for this teacher in the approved date range
+    // Clean up any existing attendance records for this teacher in the approved date range
+    // so that the Leave status is properly reflected.
     await StaffAttendance.deleteMany({
       teacher: leaveRequest.teacher._id,
-      date: { $gte: leaveRequest.startDate, $lte: leaveRequest.endDate },
-      remarks: { $regex: /Auto-marked absent/i }
+      date: { $gte: leaveRequest.startDate, $lte: leaveRequest.endDate }
     });
 
     // Notify teacher
