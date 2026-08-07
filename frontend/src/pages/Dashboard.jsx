@@ -63,18 +63,22 @@ const AdminDashboard = () => {
     title: "",
     content: "",
   });
-  const [isSubmittingAnnouncement, setIsSubmittingAnnouncement] = useState(false);
+  const [isSubmittingAnnouncement, setIsSubmittingAnnouncement] =
+    useState(false);
   const [announcementError, setAnnouncementError] = useState("");
 
   const [attendanceAnalytics, setAttendanceAnalytics] = useState(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceErrorState, setAttendanceErrorState] = useState(null);
   const [isPendingModalOpen, setIsPendingModalOpen] = useState(false);
-  const [isAbsentStudentsModalOpen, setIsAbsentStudentsModalOpen] = useState(false);
-  const [isAbsentTeachersModalOpen, setIsAbsentTeachersModalOpen] = useState(false);
+  const [isAbsentStudentsModalOpen, setIsAbsentStudentsModalOpen] =
+    useState(false);
+  const [isAbsentTeachersModalOpen, setIsAbsentTeachersModalOpen] =
+    useState(false);
 
   const [pendingStudents, setPendingStudents] = useState([]);
-  const [isPendingStudentsModalOpen, setIsPendingStudentsModalOpen] = useState(false);
+  const [isPendingStudentsModalOpen, setIsPendingStudentsModalOpen] =
+    useState(false);
 
   const [financialData, setFinancialData] = useState([]);
   const [financialLoading, setFinancialLoading] = useState(true);
@@ -127,8 +131,8 @@ const AdminDashboard = () => {
     currentHour < 12
       ? "Good Morning"
       : currentHour < 17
-      ? "Good Afternoon"
-      : "Good Evening";
+        ? "Good Afternoon"
+        : "Good Evening";
 
   const formattedDate = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -150,7 +154,7 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error("Error fetching attendance analytics:", error);
       setAttendanceErrorState(
-        error?.response?.data?.message || "Failed to load real-time analytics"
+        error?.response?.data?.message || "Failed to load real-time analytics",
       );
     } finally {
       setAttendanceLoading(false);
@@ -331,7 +335,8 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error("Error posting announcement:", error);
-      const msg = error?.response?.data?.message || "Failed to post announcement";
+      const msg =
+        error?.response?.data?.message || "Failed to post announcement";
       if (addToast) addToast(msg, "error");
     } finally {
       setIsSubmittingAnnouncement(false);
@@ -358,17 +363,27 @@ const AdminDashboard = () => {
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <AppBadge variant="primary" className="bg-indigo-500/20 text-indigo-200 border-indigo-500/30">
-                <Sparkles size={12} className="mr-1 text-amber-400" /> 2026 ERP Command Center
+              <AppBadge
+                variant="primary"
+                className="bg-indigo-500/20 text-indigo-200 border-indigo-500/30"
+              >
+                <Sparkles size={12} className="mr-1 text-amber-400" /> 2026 ERP
+                Command Center
               </AppBadge>
-              <span className="text-xs text-gray-400 font-semibold">• {formattedDate}</span>
+              <span className="text-xs text-gray-400 font-semibold">
+                • {formattedDate}
+              </span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
-              {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400">{user?.name || "Administrator"}</span>
+              {greeting},{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-indigo-400">
+                {user?.name || "Administrator"}
+              </span>
             </h1>
             <p className="text-xs sm:text-sm text-gray-300 font-medium max-w-2xl">
-              Welcome back to Little Flower School ERP. Here is your real-time performance summary and campus command metrics.
+              Welcome back to Little Flower School ERP. Here is your real-time
+              performance summary and campus command metrics.
             </p>
           </div>
 
@@ -480,7 +495,10 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-extrabold text-emerald-700 text-sm shadow-2xs">
-                  {Math.round(attendanceAnalytics?.studentAttendancePercentage || 0)}%
+                  {Math.round(
+                    attendanceAnalytics?.studentAttendancePercentage || 0,
+                  )}
+                  %
                 </div>
               </div>
 
@@ -497,18 +515,26 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
                 <AppStatusPill
                   status={
-                    (attendanceAnalytics?.studentAttendancePercentage || 0) >= 95
+                    (attendanceAnalytics?.studentAttendancePercentage || 0) >=
+                    95
                       ? "success"
                       : "warning"
                   }
                   label={
-                    (attendanceAnalytics?.studentAttendancePercentage || 0) >= 95
+                    (attendanceAnalytics?.studentAttendancePercentage || 0) >=
+                    95
                       ? "Excellent"
                       : "Needs Follow-up"
                   }
                   size="sm"
                 />
-                <span className="text-indigo-600 font-bold hover:underline">
+                <span 
+                  className="text-indigo-600 font-bold hover:underline cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAbsentStudentsModalOpen(true);
+                  }}
+                >
                   View Report →
                 </span>
               </div>
@@ -546,7 +572,10 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-extrabold text-indigo-700 text-sm shadow-2xs">
-                  {Math.round(attendanceAnalytics?.teacherAttendancePercentage || 0)}%
+                  {Math.round(
+                    attendanceAnalytics?.teacherAttendancePercentage || 0,
+                  )}
+                  %
                 </div>
               </div>
 
@@ -557,9 +586,19 @@ const AdminDashboard = () => {
               />
 
               <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
-                <AppStatusPill status="active" label="Staff On Duty" size="sm" />
-                <span className="text-indigo-600 font-bold hover:underline">
-                  Staff History →
+                <AppStatusPill
+                  status="active"
+                  label="Staff On Duty"
+                  size="sm"
+                />
+                <span 
+                  className="text-indigo-600 font-bold hover:underline cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAbsentTeachersModalOpen(true);
+                  }}
+                >
+                  Staff Absent →
                 </span>
               </div>
             </AppCard>
@@ -576,10 +615,14 @@ const AdminDashboard = () => {
                     Class Submissions
                   </span>
                   <h3 className="text-2xl font-black text-gray-900 mt-1">
-                    {attendanceAnalytics?.attendanceCompleted || 0} / {attendanceAnalytics?.totalClasses || 0}
+                    {attendanceAnalytics?.attendanceCompleted || 0} /{" "}
+                    {attendanceAnalytics?.totalClasses || 0}
                   </h3>
                   <p className="text-xs text-gray-500 font-semibold mt-1">
-                    Pending: <span className="text-amber-600 font-bold">{attendanceAnalytics?.attendancePending || 0} classes</span>
+                    Pending:{" "}
+                    <span className="text-amber-600 font-bold">
+                      {attendanceAnalytics?.attendancePending || 0} classes
+                    </span>
                   </p>
                 </div>
 
@@ -596,11 +639,25 @@ const AdminDashboard = () => {
 
               <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
                 <AppStatusPill
-                  status={attendanceAnalytics?.attendancePending === 0 ? "success" : "pending"}
-                  label={attendanceAnalytics?.attendancePending === 0 ? "100% Submitted" : "Pending Actions"}
+                  status={
+                    attendanceAnalytics?.attendancePending === 0
+                      ? "success"
+                      : "pending"
+                  }
+                  label={
+                    attendanceAnalytics?.attendancePending === 0
+                      ? "100% Submitted"
+                      : "Pending Actions"
+                  }
                   size="sm"
                 />
-                <span className="text-indigo-600 font-bold hover:underline">
+                <span 
+                  className="text-indigo-600 font-bold hover:underline cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPendingModalOpen(true);
+                  }}
+                >
                   View Pending →
                 </span>
               </div>
@@ -616,7 +673,10 @@ const AdminDashboard = () => {
         {/* Left 2 Cols: Quick Action Matrix & Financial Analytics Chart */}
         <div className="lg:col-span-2 space-y-6">
           {/* Quick Actions Matrix */}
-          <AppSection title="Quick Action Matrix" subtitle="Direct shortcuts for daily campus operations.">
+          <AppSection
+            title="Quick Action Matrix"
+            subtitle="Direct shortcuts for daily campus operations."
+          >
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {quickActionTiles.map((tile, i) => {
                 const Icon = tile.icon;
@@ -650,7 +710,11 @@ const AdminDashboard = () => {
             loading={financialLoading}
             empty={financialData.length === 0}
             action={
-              <AppButton size="xs" variant="secondary" onClick={() => navigate("/reports/fees")}>
+              <AppButton
+                size="xs"
+                variant="secondary"
+                onClick={() => navigate("/reports/fees")}
+              >
                 Full Report
               </AppButton>
             }
@@ -658,8 +722,14 @@ const AdminDashboard = () => {
             <div className="space-y-4">
               <div className="h-56 flex items-end justify-between gap-2 pt-6 px-2 border-b border-gray-100">
                 {financialData.map((item, idx) => {
-                  const maxAmt = Math.max(...financialData.map((d) => d.totalCollected || 1), 1);
-                  const heightPct = Math.max(10, Math.min(100, (item.totalCollected / maxAmt) * 100));
+                  const maxAmt = Math.max(
+                    ...financialData.map((d) => d.totalCollected || 1),
+                    1,
+                  );
+                  const heightPct = Math.max(
+                    10,
+                    Math.min(100, (item.totalCollected / maxAmt) * 100),
+                  );
                   const isHovered = hoveredMonthIdx === idx;
 
                   return (
@@ -683,12 +753,14 @@ const AdminDashboard = () => {
                             "w-full rounded-t-xl transition-all duration-300",
                             isHovered
                               ? "bg-indigo-600 shadow-md"
-                              : "bg-gradient-to-t from-indigo-500 to-indigo-600 opacity-85 group-hover:opacity-100"
+                              : "bg-gradient-to-t from-indigo-500 to-indigo-600 opacity-85 group-hover:opacity-100",
                           )}
                         />
                       </div>
                       <span className="text-[10px] font-bold text-gray-500 truncate max-w-full">
-                        {item.month ? item.month.substring(0, 3) : `M${idx + 1}`}
+                        {item.month
+                          ? item.month.substring(0, 3)
+                          : `M${idx + 1}`}
                       </span>
                     </div>
                   );
@@ -715,7 +787,9 @@ const AdminDashboard = () => {
                   <Megaphone size={14} /> School Announcement
                 </span>
                 <span className="text-[10px] font-semibold text-indigo-200">
-                  {announcement.createdAt ? new Date(announcement.createdAt).toLocaleDateString() : "Active"}
+                  {announcement.createdAt
+                    ? new Date(announcement.createdAt).toLocaleDateString()
+                    : "Active"}
                 </span>
               </div>
 
@@ -743,8 +817,15 @@ const AdminDashboard = () => {
                 variant="secondary"
                 onClick={() => {
                   setAnnouncementForm({
-                    title: announcement.title === "School Announcement" ? "" : announcement.title,
-                    content: announcement.content.startsWith("Welcome") || announcement.content.startsWith("Loading") ? "" : announcement.content,
+                    title:
+                      announcement.title === "School Announcement"
+                        ? ""
+                        : announcement.title,
+                    content:
+                      announcement.content.startsWith("Welcome") ||
+                      announcement.content.startsWith("Loading")
+                        ? ""
+                        : announcement.content,
                   });
                   setAnnouncementError("");
                   setIsAnnouncementModalOpen(true);
@@ -764,7 +845,9 @@ const AdminDashboard = () => {
                   <Coins size={18} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-extrabold text-gray-900">Pending Dues</h4>
+                  <h4 className="text-sm font-extrabold text-gray-900">
+                    Pending Dues
+                  </h4>
                   <p className="text-[11px] text-gray-400 font-semibold">
                     {pendingStudents.length} students with balance
                   </p>
@@ -785,12 +868,16 @@ const AdminDashboard = () => {
                 <div
                   key={std.studentId}
                   onClick={() =>
-                    navigate("/fees", { state: { searchStudentId: std.studentId } })
+                    navigate("/fees", {
+                      state: { searchStudentId: std.studentId },
+                    })
                   }
                   className="p-2.5 bg-gray-50 hover:bg-indigo-50/60 rounded-xl flex items-center justify-between text-xs cursor-pointer transition-colors"
                 >
                   <div className="truncate">
-                    <p className="font-bold text-gray-900 truncate">{std.fullName}</p>
+                    <p className="font-bold text-gray-900 truncate">
+                      {std.fullName}
+                    </p>
                     <p className="text-[10px] text-gray-400 font-semibold">
                       Class: {std.className}
                     </p>
@@ -817,7 +904,10 @@ const AdminDashboard = () => {
         subtitle="Broadcast an official notification to all campus dashboards."
         footer={
           <>
-            <AppButton variant="secondary" onClick={() => setIsAnnouncementModalOpen(false)}>
+            <AppButton
+              variant="secondary"
+              onClick={() => setIsAnnouncementModalOpen(false)}
+            >
               Cancel
             </AppButton>
             <AppButton
@@ -839,7 +929,10 @@ const AdminDashboard = () => {
               placeholder="e.g. Mid-term Exam Schedule Released"
               value={announcementForm.title}
               onChange={(e) =>
-                setAnnouncementForm({ ...announcementForm, title: e.target.value })
+                setAnnouncementForm({
+                  ...announcementForm,
+                  title: e.target.value,
+                })
               }
               className="w-full bg-white border border-gray-200/90 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-indigo-600"
             />
@@ -854,12 +947,17 @@ const AdminDashboard = () => {
               placeholder="Type announcement details..."
               value={announcementForm.content}
               onChange={(e) =>
-                setAnnouncementForm({ ...announcementForm, content: e.target.value })
+                setAnnouncementForm({
+                  ...announcementForm,
+                  content: e.target.value,
+                })
               }
               className="w-full bg-white border border-gray-200/90 rounded-xl p-3 text-sm font-medium outline-none focus:border-indigo-600"
             />
             {announcementError && (
-              <p className="text-xs text-rose-500 font-semibold">{announcementError}</p>
+              <p className="text-xs text-rose-500 font-semibold">
+                {announcementError}
+              </p>
             )}
           </div>
         </form>
@@ -882,7 +980,9 @@ const AdminDashboard = () => {
               header: "Pending Amount",
               align: "right",
               render: (val) => (
-                <span className="font-extrabold text-rose-600">{formatToINR(val)}</span>
+                <span className="font-extrabold text-rose-600">
+                  {formatToINR(val)}
+                </span>
               ),
             },
             {
@@ -894,7 +994,9 @@ const AdminDashboard = () => {
                   size="xs"
                   onClick={() => {
                     setIsPendingStudentsModalOpen(false);
-                    navigate("/fees", { state: { searchStudentId: row.studentId } });
+                    navigate("/fees", {
+                      state: { searchStudentId: row.studentId },
+                    });
                   }}
                 >
                   Collect
@@ -955,7 +1057,9 @@ const AdminDashboard = () => {
               key: "remarks",
               header: "Remarks",
               render: (val) => (
-                <AppBadge variant={val !== "No remarks" ? "warning" : "neutral"}>
+                <AppBadge
+                  variant={val !== "No remarks" ? "warning" : "neutral"}
+                >
                   {val}
                 </AppBadge>
               ),
@@ -998,9 +1102,18 @@ const TeacherDashboard = () => {
   const [stats, setStats] = useState([
     { label: "My Classes", value: "0", icon: BookOpen, color: "indigo" },
     { label: "My Students", value: "0", icon: Users, color: "emerald" },
-    { label: "Classes Assigned", value: "0", icon: ArrowUpRight, color: "amber" },
+    {
+      label: "Classes Assigned",
+      value: "0",
+      icon: ArrowUpRight,
+      color: "amber",
+    },
   ]);
-  const [attendance, setAttendance] = useState({ present: 0, absent: 0, total: 0 });
+  const [attendance, setAttendance] = useState({
+    present: 0,
+    absent: 0,
+    total: 0,
+  });
   const [assignedClasses, setAssignedClasses] = useState([]);
   const [classTeacherOf, setClassTeacherOf] = useState([]);
   const [announcement, setAnnouncement] = useState({
@@ -1046,7 +1159,11 @@ const TeacherDashboard = () => {
         const totalClasses = data.totalClasses ?? 0;
         const totalStudents = data.totalStudents ?? 0;
         const assigned = data.assignedClasses || [];
-        const att = data.attendanceSummary || { present: 0, absent: 0, totalMarked: 0 };
+        const att = data.attendanceSummary || {
+          present: 0,
+          absent: 0,
+          totalMarked: 0,
+        };
 
         setStats([
           {
@@ -1089,14 +1206,18 @@ const TeacherDashboard = () => {
     <AppPage className="animate-in fade-in duration-300 space-y-6">
       {/* Teacher Welcome Header Banner */}
       <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-700 space-y-2">
-        <AppBadge variant="primary" className="bg-indigo-500/20 text-indigo-200 border-indigo-400/30">
+        <AppBadge
+          variant="primary"
+          className="bg-indigo-500/20 text-indigo-200 border-indigo-400/30"
+        >
           Teacher Console
         </AppBadge>
         <h1 className="text-2xl sm:text-3xl font-black text-white">
           Welcome, {user?.name || "Teacher"}
         </h1>
         <p className="text-xs sm:text-sm text-indigo-200 font-medium">
-          Manage your assigned classes, take student attendance, and check your schedule.
+          Manage your assigned classes, take student attendance, and check your
+          schedule.
         </p>
       </div>
 
@@ -1118,7 +1239,10 @@ const TeacherDashboard = () => {
         <AppSection title="My Class (Class Teacher)">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {classTeacherOf.map((cls) => (
-              <AppCard key={cls.id} className="space-y-4 border-2 border-indigo-200">
+              <AppCard
+                key={cls.id}
+                className="space-y-4 border-2 border-indigo-200"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <AppBadge variant="primary">Class Teacher</AppBadge>
@@ -1143,7 +1267,9 @@ const TeacherDashboard = () => {
                   <AppButton
                     fullWidth
                     size="sm"
-                    onClick={() => navigate("/attendance", { state: { classId: cls.id } })}
+                    onClick={() =>
+                      navigate("/attendance", { state: { classId: cls.id } })
+                    }
                   >
                     Mark Attendance
                   </AppButton>
@@ -1151,7 +1277,11 @@ const TeacherDashboard = () => {
                     fullWidth
                     size="sm"
                     variant="secondary"
-                    onClick={() => navigate("/teacher/timetable", { state: { classId: cls.id } })}
+                    onClick={() =>
+                      navigate("/teacher/timetable", {
+                        state: { classId: cls.id },
+                      })
+                    }
                   >
                     Schedule
                   </AppButton>
@@ -1166,7 +1296,9 @@ const TeacherDashboard = () => {
       <AppSection title="All Assigned Classes">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {assignedClasses.map((cls) => {
-            const isCT = classTeacherOf.some((ct) => ct.id.toString() === cls.id.toString());
+            const isCT = classTeacherOf.some(
+              (ct) => ct.id.toString() === cls.id.toString(),
+            );
             return (
               <AppCard key={cls.id} className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1187,7 +1319,11 @@ const TeacherDashboard = () => {
                     size="xs"
                     variant="secondary"
                     fullWidth
-                    onClick={() => navigate("/teacher/timetable", { state: { classId: cls.id } })}
+                    onClick={() =>
+                      navigate("/teacher/timetable", {
+                        state: { classId: cls.id },
+                      })
+                    }
                   >
                     View Class Schedule
                   </AppButton>
