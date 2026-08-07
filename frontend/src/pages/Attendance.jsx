@@ -1830,7 +1830,35 @@ const Attendance = () => {
 
         {/* Action Buttons for Mark tabs */}
         {(activeTab === "mark-students" || activeTab === "mark-staff") && (
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* Modify Entry (Top) */}
+              {((activeTab === "mark-students" && isMarked && (user?.role === 'admin' || sessionStatus === 'draft')) ||
+                (activeTab === "mark-staff" && isStaffMarked && user?.role === 'admin')) && (
+                <Button
+                  onClick={() => activeTab === "mark-students" ? setIsMarked(false) : setIsStaffMarked(false)}
+                  variant="secondary"
+                  className="flex-1 sm:flex-none rounded-2xl shadow-md px-4 sm:px-6 h-12 border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs sm:text-sm"
+                >
+                  Modify
+                </Button>
+              )}
+
+              {/* Submit for review (teacher: draft → submitted) */}
+              {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && user?.role !== 'admin' && (
+                <Button
+                  onClick={handleSubmitForReview}
+                  loading={loading}
+                  disabled={holidayInfo && !holidayInfo.isWorkingDay}
+                  icon={Send}
+                  variant="secondary"
+                  className="flex-1 sm:flex-none rounded-2xl shadow-md px-4 sm:px-6 h-12 border-blue-200 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm"
+                >
+                  Review
+                </Button>
+              )}
+            </div>
+
             {/* Save/Submit student attendance */}
             {activeTab === "mark-students" && (sessionStatus !== 'locked' || user?.role === 'admin') && (
               <Button
@@ -1838,7 +1866,7 @@ const Attendance = () => {
                 loading={loading}
                 disabled={(user?.role !== 'admin' && (sessionStatus === 'submitted' || sessionStatus === 'locked')) || (holidayInfo && !holidayInfo.isWorkingDay)}
                 icon={Save}
-                className="rounded-2xl shadow-lg px-8 h-12"
+                className="w-full sm:w-auto rounded-2xl shadow-lg px-8 h-12"
               >
                 {!isMarked
                   ? "Submit Student Attendance"
@@ -1849,20 +1877,6 @@ const Attendance = () => {
                       : sessionStatus === 'locked'
                         ? "Locked"
                         : "Update Attendance"}
-              </Button>
-            )}
-
-            {/* Submit for review (teacher: draft → submitted) */}
-            {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && user?.role !== 'admin' && (
-              <Button
-                onClick={handleSubmitForReview}
-                loading={loading}
-                disabled={holidayInfo && !holidayInfo.isWorkingDay}
-                icon={Send}
-                variant="secondary"
-                className="rounded-2xl shadow-md px-6 h-12 border-blue-200 text-blue-700 hover:bg-blue-50"
-              >
-                Submit for Review
               </Button>
             )}
 
@@ -3206,17 +3220,31 @@ const Attendance = () => {
       {/* Sticky Mobile Submit Button for Marking */}
       {(activeTab === "mark-students" || activeTab === "mark-staff") && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 pb-safe-bottom flex flex-col gap-2 shadow-xl">
-          {/* Submit for Review (visible on mobile only when student draft is saved) */}
-          {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && (
-            <Button
-              className="w-full h-11 text-xs font-black uppercase tracking-wider shadow-sm rounded-xl transition-all border-blue-200 text-blue-700 bg-blue-50/70 hover:bg-blue-55 cursor-pointer"
-              onClick={handleSubmitForReview}
-              loading={loading}
-              icon={Send}
-            >
-              Submit for Review
-            </Button>
-          )}
+          <div className="flex items-center gap-2 w-full">
+            {/* Modify Entry Mobile Sticky */}
+            {((activeTab === "mark-students" && isMarked && (user?.role === 'admin' || sessionStatus === 'draft')) ||
+              (activeTab === "mark-staff" && isStaffMarked && user?.role === 'admin')) && (
+              <Button
+                variant="secondary"
+                className="flex-1 h-11 text-[11px] font-black uppercase tracking-wider shadow-sm rounded-xl transition-all border-emerald-200 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-100 cursor-pointer"
+                onClick={() => activeTab === "mark-students" ? setIsMarked(false) : setIsStaffMarked(false)}
+              >
+                Modify
+              </Button>
+            )}
+
+            {/* Submit for Review (visible on mobile only when student draft is saved) */}
+            {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && (
+              <Button
+                className="flex-1 h-11 text-[11px] font-black uppercase tracking-wider shadow-sm rounded-xl transition-all border-blue-200 text-blue-700 bg-blue-50/70 hover:bg-blue-55 cursor-pointer px-1"
+                onClick={handleSubmitForReview}
+                loading={loading}
+                icon={Send}
+              >
+                Review
+              </Button>
+            )}
+          </div>
 
           <Button
             className={cn(

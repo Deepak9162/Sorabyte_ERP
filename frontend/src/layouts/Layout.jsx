@@ -512,10 +512,9 @@ const Layout = ({ children }) => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Top Navbar (Linear / Stripe 2026 SaaS Dashboard Style) */}
         <header
           className={cn(
-            "h-16 bg-white/90 border-b border-slate-200/80 flex items-center justify-between px-3 sm:px-6 md:px-8 z-30 sticky top-0 transition-all duration-300 ease-out backdrop-blur-xl relative overflow-hidden",
+            "h-16 bg-white/90 border-b border-slate-200/80 flex items-center justify-between px-3 sm:px-6 md:px-8 z-30 sticky top-0 transition-all duration-300 ease-out backdrop-blur-xl relative",
             isScrolled && "bg-white/95 shadow-md shadow-slate-900/5 border-slate-200/90"
           )}
         >
