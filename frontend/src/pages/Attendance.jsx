@@ -3251,9 +3251,8 @@ const Attendance = () => {
         </div>
       )}
 
-      {/* Synchronized Notification Banner (Admin only) */}
-      {user?.role === 'admin' &&
-        ((activeTab === "mark-students" && isMarked) ||
+      {/* Synchronized Notification Banner */}
+      {((activeTab === "mark-students" && isMarked) ||
           (activeTab === "mark-staff" && isStaffMarked)) && (
         <div className="bg-emerald-600 p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] flex items-center gap-4 md:gap-6 border border-emerald-500 shadow-2xl shadow-emerald-100 animate-in zoom-in-95 duration-500">
           <div className="w-10 h-10 md:w-16 md:h-16 bg-white/20 backdrop-blur-md text-white rounded-xl md:rounded-[1.5rem] flex items-center justify-center shadow-inner shrink-0">
@@ -3268,19 +3267,21 @@ const Attendance = () => {
               ledger.
             </p>
           </div>
-          <div className="ml-auto hidden sm:block">
-            <Button
-              variant="secondary"
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-2xl h-12"
-              onClick={() =>
-                activeTab === "mark-students"
-                  ? setIsMarked(false)
-                  : setIsStaffMarked(false)
-              }
-            >
-              Modify Entry
-            </Button>
-          </div>
+          {(user?.role === 'admin' || (activeTab === "mark-students" && sessionStatus === 'draft')) && (
+            <div className="ml-auto hidden sm:block">
+              <Button
+                variant="secondary"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-2xl h-12"
+                onClick={() =>
+                  activeTab === "mark-students"
+                    ? setIsMarked(false)
+                    : setIsStaffMarked(false)
+                }
+              >
+                Modify Entry
+              </Button>
+            </div>
+          )}
         </div>
       )}
         </>
