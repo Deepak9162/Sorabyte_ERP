@@ -57,6 +57,7 @@ export const AppDatePicker = ({
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const dropdownHeight = 320;
+    const dropdownWidth = 288; // w-72
     const spaceBelow = window.innerHeight - rect.bottom;
 
     let top = rect.bottom + 6;
@@ -64,9 +65,14 @@ export const AppDatePicker = ({
       top = rect.top - dropdownHeight - 6;
     }
 
+    let left = rect.left;
+    if (left + dropdownWidth > window.innerWidth - 12) {
+      left = Math.max(12, window.innerWidth - dropdownWidth - 12);
+    }
+
     setPopoverPos({
       top,
-      left: rect.left,
+      left,
     });
   }, []);
 
@@ -144,21 +150,26 @@ export const AppDatePicker = ({
         disabled={disabled}
         onClick={toggleOpen}
         className={cn(
-          "w-full flex items-center justify-between h-11 px-3.5 bg-white border border-gray-200/90 rounded-xl text-sm font-medium transition-all shadow-2xs cursor-pointer select-none",
+          "w-full flex items-center justify-between h-11 px-3 bg-white border border-gray-200/90 rounded-xl text-sm font-medium transition-all shadow-2xs cursor-pointer select-none overflow-hidden",
           open && "border-indigo-600 ring-4 ring-indigo-500/10 shadow-sm",
           disabled && "opacity-50 cursor-not-allowed bg-gray-100/80 border-gray-200",
           error && "border-rose-400 focus:ring-rose-500/10",
           className
         )}
       >
-        <div className="flex items-center gap-2.5 text-gray-800">
-          <CalendarIcon size={18} className="text-gray-400 shrink-0" />
-          <span className={selectedDateStr ? "font-semibold text-gray-900" : "text-gray-400 font-normal"}>
+        <div className="flex items-center gap-2 text-gray-800 min-w-0 flex-1 overflow-hidden">
+          <CalendarIcon size={16} className="text-gray-400 shrink-0" />
+          <span
+            className={cn(
+              "truncate whitespace-nowrap text-xs sm:text-sm min-w-0",
+              selectedDateStr ? "font-semibold text-gray-900" : "text-gray-400 font-normal"
+            )}
+          >
             {selectedDateStr || placeholder}
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0 ml-1">
           {clearable && selectedDateStr && !disabled && (
             <span
               role="button"

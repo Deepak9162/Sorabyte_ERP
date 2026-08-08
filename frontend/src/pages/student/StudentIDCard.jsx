@@ -90,7 +90,7 @@ export const IDCardFront = ({
       className="id-card-container relative overflow-hidden flex flex-col bg-white"
       style={{
         width: "350px",
-        height: "540px",
+        height: "565px",
         borderRadius: "24px",
         boxSizing: "border-box",
         fontFamily: "'Poppins', 'Inter', sans-serif",
@@ -713,23 +713,27 @@ export const IDCardFront = ({
           marginTop: "auto",
           position: "relative",
           width: "350px",
-          height: "58px",
+          height: "72px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          flexShrink: 0,
         }}
       >
         <svg
           width="350"
-          height="48"
-          viewBox="0 0 350 48"
+          height="72"
+          viewBox="0 0 350 72"
           style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
         >
           {/* Gold Curved Wave Line Accent #F5B51B */}
-          <path d="M0,12 C120,-6 230,20 350,6 L350,48 L0,48 Z" fill="#F5B51B" />
+          <path
+            d="M0,8 C110,-6 240,22 350,4 L350,72 L0,72 Z"
+            fill="#F5B51B"
+          />
           {/* Deep Navy Footer Base #061A30 */}
           <path
-            d="M0,16 C130,-2 240,24 350,10 L350,48 L0,48 Z"
+            d="M0,13 C110,-1 240,26 350,8 L350,72 L0,72 Z"
             fill="#061A30"
           />
         </svg>
@@ -742,22 +746,26 @@ export const IDCardFront = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "8px",
+            gap: "5px",
             color: "#FFFFFF",
-            fontSize: "9px",
+            fontSize: "8.5px",
             fontWeight: 800,
-            letterSpacing: "0.4px",
-            paddingTop: "6px",
+            letterSpacing: "0.2px",
+            paddingTop: "4px",
+            width: "100%",
+            paddingLeft: "12px",
+            paddingRight: "12px",
+            boxSizing: "border-box",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-            <MapPin size={11} color="#F5B51B" fill="#F5B51B" />
-            <span>{SCHOOL_ADDRESS}</span>
+            <MapPin size={11} color="#F5B51B" fill="#F5B51B" style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: "nowrap" }}>{SCHOOL_ADDRESS}</span>
           </div>
-          <span style={{ color: "#F5B51B", fontWeight: 900 }}>|</span>
+          <span style={{ color: "#F5B51B", fontWeight: 900, flexShrink: 0 }}>|</span>
           <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-            <Phone size={11} color="#F5B51B" fill="#F5B51B" />
-            <span>PH: {SCHOOL_PHONE}</span>
+            <Phone size={11} color="#F5B51B" fill="#F5B51B" style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: "nowrap" }}>PH: {SCHOOL_PHONE}</span>
           </div>
         </div>
       </div>
@@ -787,7 +795,7 @@ export const IDCardBack = ({ student, logoUrl, id = "idcard-back" }) => {
       className="id-card-container relative overflow-hidden flex flex-col bg-white"
       style={{
         width: "350px",
-        height: "540px",
+        height: "565px",
         borderRadius: "24px",
         boxSizing: "border-box",
         fontFamily: "'Poppins', 'Inter', sans-serif",
@@ -1275,20 +1283,67 @@ export const IDCardBack = ({ student, logoUrl, id = "idcard-back" }) => {
         </div>
       </div>
 
-      {/* ── Footer ── */}
+      {/* ── Bottom Section (Navy Footer with Gold Icons & Address) ── */}
       <div
         style={{
-          background: "#061A30",
-          borderTop: "3px solid #F5B51B",
-          padding: "6px 12px",
-          color: "#FFFFFF",
-          fontSize: "10px",
-          fontWeight: 700,
-          textAlign: "center",
-          letterSpacing: "0.4px",
+          marginTop: "auto",
+          position: "relative",
+          width: "350px",
+          height: "72px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
         }}
       >
-        {SCHOOL_ADDRESS} • Ph: {SCHOOL_PHONE}
+        <svg
+          width="350"
+          height="72"
+          viewBox="0 0 350 72"
+          style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
+        >
+          {/* Gold Curved Wave Line Accent #F5B51B */}
+          <path
+            d="M0,8 C110,-6 240,22 350,4 L350,72 L0,72 Z"
+            fill="#F5B51B"
+          />
+          {/* Deep Navy Footer Base #061A30 */}
+          <path
+            d="M0,13 C110,-1 240,26 350,8 L350,72 L0,72 Z"
+            fill="#061A30"
+          />
+        </svg>
+
+        {/* Footer Text & Icons */}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "5px",
+            color: "#FFFFFF",
+            fontSize: "8.5px",
+            fontWeight: 800,
+            letterSpacing: "0.2px",
+            paddingTop: "4px",
+            width: "100%",
+            paddingLeft: "12px",
+            paddingRight: "12px",
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+            <MapPin size={11} color="#F5B51B" fill="#F5B51B" style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: "nowrap" }}>{SCHOOL_ADDRESS}</span>
+          </div>
+          <span style={{ color: "#F5B51B", fontWeight: 900, flexShrink: 0 }}>|</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+            <Phone size={11} color="#F5B51B" fill="#F5B51B" style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: "nowrap" }}>PH: {SCHOOL_PHONE}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

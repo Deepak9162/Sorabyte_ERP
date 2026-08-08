@@ -180,12 +180,6 @@ class HomeworkService {
       throw error;
     }
 
-    if (homework.status === 'Approved') {
-      const error = new Error('Approved homework cannot be edited. Contact Admin for changes.');
-      error.statusCode = 400;
-      throw error;
-    }
-
     if (title) homework.title = title;
     if (description) homework.description = description;
     if (submissionDate) homework.submissionDate = new Date(submissionDate);
@@ -212,35 +206,28 @@ class HomeworkService {
   }
 
   /**
-   * Delete homework record (Admin or Teacher)
+   * Delete homework record (Any logged in user can delete any homework)
    */
   async deleteTeacherHomework({ user, homeworkId }) {
     const homework = await Homework.findById(homeworkId);
     if (!homework) {
-      const error = new Error('Homework not found');
+      const error = new Error('Homework record not found');
       error.statusCode = 404;
       throw error;
     }
 
-    // Admin can delete any homework record
-    if (user && user.role === 'admin') {
-      await Homework.findByIdAndDelete(homeworkId);
-      return true;
-    }
-
-    // Teacher can delete their own homework
-    const userId = user?._id || user;
-    const teacher = await Teacher.findOne({ user: userId });
-    if (!teacher) {
-      const error = new Error('Teacher profile not found');
-      error.statusCode = 403;
-      throw error;
-    }
-
-    if (homework.teacher.toString() !== teacher._id.toString()) {
-      const error = new Error('You can only delete your own homework submissions');
-      error.statusCode = 403;
-      throw error;
+    // Clean up attachment file from disk if present
+    if (homework.attachment && homework.attachment.filePath) {
+      const fs = require('fs');
+      const path = require('path');
+      try {
+        const fullPath = path.join(__dirname, '..', homework.attachment.filePath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      } catch (err) {
+        console.error('Failed to delete homework attachment file:', err);
+      }
     }
 
     await Homework.findByIdAndDelete(homeworkId);

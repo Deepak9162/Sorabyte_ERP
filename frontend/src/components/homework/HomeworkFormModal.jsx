@@ -284,7 +284,7 @@ const HomeworkFormModal = ({ isOpen, onClose, onSuccess, initialData = null }) =
             <span>Schedule & Type</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <DatePicker
                 label="Homework Date"
@@ -304,7 +304,7 @@ const HomeworkFormModal = ({ isOpen, onClose, onSuccess, initialData = null }) =
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
               <Select
                 label="Homework Type"
