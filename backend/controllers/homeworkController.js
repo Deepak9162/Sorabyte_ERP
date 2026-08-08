@@ -88,7 +88,7 @@ const updateTeacherHomework = async (req, res, next) => {
 const deleteTeacherHomework = async (req, res, next) => {
   try {
     await homeworkService.deleteTeacherHomework({
-      userId: req.user._id,
+      user: req.user,
       homeworkId: req.params.id,
     });
 

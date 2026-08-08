@@ -197,6 +197,10 @@ const AdminDashboard = () => {
     }
   };
 
+  const [extendedAbsenceData, setExtendedAbsenceData] = useState(null);
+  const [isExtendedAbsenceModalOpen, setIsExtendedAbsenceModalOpen] =
+    useState(false);
+
   const fetchFinancialSummary = async () => {
     setFinancialLoading(true);
     try {
@@ -216,6 +220,10 @@ const AdminDashboard = () => {
     try {
       const res = await api.get(`/admin/stats?t=${Date.now()}`);
       const data = res?.data?.data || {};
+
+      if (data.extendedAbsenceAlerts) {
+        setExtendedAbsenceData(data.extendedAbsenceAlerts);
+      }
 
       const totalStudents = data.totalStudents ?? 0;
       const totalTeachers = data.totalTeachers ?? 0;
@@ -431,6 +439,70 @@ const AdminDashboard = () => {
             className="cursor-pointer hover-lift"
           />
         ))}
+      </div>
+
+      {/* ─────────────────────────────────────────────────────────────────
+          PROMINENT EXTENDED ABSENCE EARLY WARNING BANNER
+      ───────────────────────────────────────────────────────────────── */}
+      <div 
+        onClick={() => setIsExtendedAbsenceModalOpen(true)}
+        className={cn(
+          "cursor-pointer rounded-2xl p-3.5 sm:p-5 border transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4",
+          (extendedAbsenceData?.totalAlertCount || 0) > 0
+            ? "bg-amber-50 border-amber-300 hover:bg-amber-100/80"
+            : "bg-emerald-50 border-emerald-200 hover:bg-emerald-100/60"
+        )}
+      >
+        <div className="flex items-start sm:items-center gap-3">
+          <div className={cn(
+            "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center font-black shrink-0 text-base sm:text-lg shadow-2xs mt-0.5 sm:mt-0",
+            (extendedAbsenceData?.totalAlertCount || 0) > 0
+              ? "bg-amber-500 text-white"
+              : "bg-emerald-600 text-white"
+          )}>
+            {(extendedAbsenceData?.totalAlertCount || 0) > 0 ? "⚠" : "✓"}
+          </div>
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="text-xs sm:text-sm font-black uppercase tracking-tight text-gray-900 leading-tight">
+                Extended Absence Warning System (>7 Working Days)
+              </span>
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0",
+                (extendedAbsenceData?.totalAlertCount || 0) > 0
+                  ? "bg-amber-200 text-amber-900 border border-amber-300"
+                  : "bg-emerald-200 text-emerald-900 border border-emerald-300"
+              )}>
+                {(extendedAbsenceData?.totalAlertCount || 0) > 0
+                  ? `${extendedAbsenceData.totalAlertCount} Student Alert`
+                  : "All Clear"}
+              </span>
+            </div>
+            <p className="text-[11px] sm:text-xs font-semibold text-gray-700 leading-normal">
+              {(extendedAbsenceData?.totalAlertCount || 0) > 0
+                ? `${extendedAbsenceData.totalAlertCount} student(s) absent for 8+ working days. (Critical: ${extendedAbsenceData.criticalCount}, Warning: ${extendedAbsenceData.warningCount})`
+                : "No active student extended absence warnings detected. All students are within normal attendance."}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-gray-200/50">
+          <AppButton
+            size="xs"
+            className={cn(
+              "w-full sm:w-auto text-xs py-2 sm:py-1.5 font-bold",
+              (extendedAbsenceData?.totalAlertCount || 0) > 0
+                ? "bg-amber-600 hover:bg-amber-700 text-white"
+                : "bg-emerald-700 hover:bg-emerald-800 text-white"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExtendedAbsenceModalOpen(true);
+            }}
+          >
+            View Absence Report →
+          </AppButton>
+        </div>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────
@@ -662,6 +734,63 @@ const AdminDashboard = () => {
                 </span>
               </div>
             </AppCard>
+
+            {/* Extended Absence Alert Card */}
+            {extendedAbsenceData && (
+              <AppCard
+                hoverable
+                onClick={() => setIsExtendedAbsenceModalOpen(true)}
+                className="cursor-pointer space-y-4 border-amber-200 bg-amber-50/40"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest block flex items-center gap-1">
+                      ⚠ Extended Absence Alert
+                    </span>
+                    <h3 className="text-2xl font-black text-gray-900 mt-1">
+                      {extendedAbsenceData?.totalAlertCount || 0} Students
+                    </h3>
+                    <p className="text-xs text-gray-600 font-semibold mt-1">
+                      {extendedAbsenceData?.criticalCount || 0} Critical (10+ Days) • {extendedAbsenceData?.warningCount || 0} Warning (8-9 Days)
+                    </p>
+                  </div>
+
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center font-black text-amber-800 text-sm shadow-2xs">
+                    {extendedAbsenceData?.totalAlertCount || 0}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t border-amber-100">
+                  {(extendedAbsenceData?.students || []).slice(0, 2).map((st, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs font-medium">
+                      <span className="text-gray-900 font-bold truncate max-w-[150px]">{st.studentName} ({st.className})</span>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-md text-[10px] font-extrabold",
+                        st.severity === "critical" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
+                      )}>
+                        {st.absenceStreak} Days Absent
+                      </span>
+                    </div>
+                  ))}
+                  {(!extendedAbsenceData?.students || extendedAbsenceData.students.length === 0) && (
+                    <div className="text-xs text-gray-500 font-medium py-1">
+                      ✓ No extended absence warnings
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-amber-100 text-xs">
+                  <AppStatusPill
+                    status="warning"
+                    label="Requires Attention"
+                    size="sm"
+                  />
+                  <span className="text-amber-800 font-bold hover:underline">
+                    View All →
+                  </span>
+                </div>
+              </AppCard>
+            )}
           </div>
         )}
       </AppSection>
@@ -1092,6 +1221,60 @@ const AdminDashboard = () => {
           emptyDescription="100% Teacher Attendance recorded today!"
         />
       </AppModal>
+
+      {/* Extended Absence Detailed Modal */}
+      <AppModal
+        isOpen={isExtendedAbsenceModalOpen}
+        onClose={() => setIsExtendedAbsenceModalOpen(false)}
+        title="⚠ Extended Student Absence Warning (>7 Consecutive Working Days)"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-semibold flex items-center justify-between">
+            <span>Students marked absent for 8+ consecutive working days (excluding Sundays and holidays).</span>
+            <span className="font-extrabold">{extendedAbsenceData?.totalAlertCount || 0} Affected Students</span>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto space-y-2">
+            {(extendedAbsenceData?.students || []).map((st, idx) => (
+              <div
+                key={idx}
+                className="p-3.5 bg-white border border-gray-100 rounded-xl flex items-center justify-between shadow-2xs hover:bg-gray-50 transition-colors"
+              >
+                <div>
+                  <div className="font-bold text-gray-900 text-sm">{st.studentName}</div>
+                  <div className="text-xs text-gray-500 font-medium">
+                    Class: <span className="font-semibold text-gray-700">{st.className}</span> • Roll No: <span className="font-semibold text-gray-700">{st.rollNo}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    Last Present Date: <span className="font-semibold text-gray-600">{st.lastPresentDate}</span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider block",
+                    st.severity === "critical"
+                      ? "bg-rose-100 text-rose-700 border border-rose-200"
+                      : "bg-amber-100 text-amber-800 border border-amber-200"
+                  )}>
+                    {st.absenceStreak} Days Absent
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase mt-1 block">
+                    {st.severity} severity
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            {(!extendedAbsenceData?.students || extendedAbsenceData.students.length === 0) && (
+              <div className="p-8 text-center text-gray-500 font-medium">
+                No students currently have extended consecutive absences.
+              </div>
+            )}
+          </div>
+        </div>
+      </AppModal>
     </AppPage>
   );
 };
@@ -1116,6 +1299,9 @@ const TeacherDashboard = () => {
   });
   const [assignedClasses, setAssignedClasses] = useState([]);
   const [classTeacherOf, setClassTeacherOf] = useState([]);
+  const [teacherExtendedAbsenceData, setTeacherExtendedAbsenceData] = useState(null);
+  const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+
   const [announcement, setAnnouncement] = useState({
     title: "School Announcement",
     content: "Loading announcement...",
@@ -1155,6 +1341,10 @@ const TeacherDashboard = () => {
       try {
         const res = await api.get("/teachers/dashboard/stats");
         const data = res?.data?.data || {};
+
+        if (data.extendedAbsenceAlerts) {
+          setTeacherExtendedAbsenceData(data.extendedAbsenceAlerts);
+        }
 
         const totalClasses = data.totalClasses ?? 0;
         const totalStudents = data.totalStudents ?? 0;
@@ -1232,6 +1422,70 @@ const TeacherDashboard = () => {
             iconColor={st.color}
           />
         ))}
+      </div>
+
+      {/* ─────────────────────────────────────────────────────────────────
+          TEACHER PROMINENT EXTENDED ABSENCE EARLY WARNING BANNER
+      ───────────────────────────────────────────────────────────────── */}
+      <div 
+        onClick={() => setIsTeacherModalOpen(true)}
+        className={cn(
+          "cursor-pointer rounded-2xl p-3.5 sm:p-5 border transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4",
+          (teacherExtendedAbsenceData?.totalAlertCount || 0) > 0
+            ? "bg-amber-50 border-amber-300 hover:bg-amber-100/80"
+            : "bg-emerald-50 border-emerald-200 hover:bg-emerald-100/60"
+        )}
+      >
+        <div className="flex items-start sm:items-center gap-3">
+          <div className={cn(
+            "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center font-black shrink-0 text-base sm:text-lg shadow-2xs mt-0.5 sm:mt-0",
+            (teacherExtendedAbsenceData?.totalAlertCount || 0) > 0
+              ? "bg-amber-500 text-white"
+              : "bg-emerald-600 text-white"
+          )}>
+            {(teacherExtendedAbsenceData?.totalAlertCount || 0) > 0 ? "⚠" : "✓"}
+          </div>
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="text-xs sm:text-sm font-black uppercase tracking-tight text-gray-900 leading-tight">
+                Class Extended Absence Warning (>7 Working Days)
+              </span>
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0",
+                (teacherExtendedAbsenceData?.totalAlertCount || 0) > 0
+                  ? "bg-amber-200 text-amber-900 border border-amber-300"
+                  : "bg-emerald-200 text-emerald-900 border border-emerald-300"
+              )}>
+                {(teacherExtendedAbsenceData?.totalAlertCount || 0) > 0
+                  ? `${teacherExtendedAbsenceData.totalAlertCount} Student Alert`
+                  : "All Clear"}
+              </span>
+            </div>
+            <p className="text-[11px] sm:text-xs font-semibold text-gray-700 leading-normal">
+              {(teacherExtendedAbsenceData?.totalAlertCount || 0) > 0
+                ? `${teacherExtendedAbsenceData.totalAlertCount} student(s) in your assigned classes absent for 8+ working days.`
+                : "No active extended absence warnings in your assigned classes."}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-gray-200/50">
+          <AppButton
+            size="xs"
+            className={cn(
+              "w-full sm:w-auto text-xs py-2 sm:py-1.5 font-bold",
+              (teacherExtendedAbsenceData?.totalAlertCount || 0) > 0
+                ? "bg-amber-600 hover:bg-amber-700 text-white"
+                : "bg-emerald-700 hover:bg-emerald-800 text-white"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsTeacherModalOpen(true);
+            }}
+          >
+            View Absence Report →
+          </AppButton>
+        </div>
       </div>
 
       {/* Class Teacher Prominent Card */}
@@ -1333,6 +1587,57 @@ const TeacherDashboard = () => {
           })}
         </div>
       </AppSection>
+
+      {/* Teacher Extended Absence Detailed Modal */}
+      <AppModal
+        isOpen={isTeacherModalOpen}
+        onClose={() => setIsTeacherModalOpen(false)}
+        title="⚠ Extended Absence Warning (>7 Working Days)"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-semibold flex items-center justify-between">
+            <span>Students in your assigned classes marked absent for 8+ consecutive working days.</span>
+            <span className="font-extrabold">{teacherExtendedAbsenceData?.totalAlertCount || 0} Affected Students</span>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto space-y-2">
+            {(teacherExtendedAbsenceData?.students || []).map((st, idx) => (
+              <div
+                key={idx}
+                className="p-3.5 bg-white border border-gray-100 rounded-xl flex items-center justify-between shadow-2xs hover:bg-gray-50 transition-colors"
+              >
+                <div>
+                  <div className="font-bold text-gray-900 text-sm">{st.studentName}</div>
+                  <div className="text-xs text-gray-500 font-medium">
+                    Class: <span className="font-semibold text-gray-700">{st.className}</span> • Roll No: <span className="font-semibold text-gray-700">{st.rollNo}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    Last Present Date: <span className="font-semibold text-gray-600">{st.lastPresentDate}</span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider block",
+                    st.severity === "critical"
+                      ? "bg-rose-100 text-rose-700 border border-rose-200"
+                      : "bg-amber-100 text-amber-800 border border-amber-200"
+                  )}>
+                    {st.absenceStreak} Days Absent
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            {(!teacherExtendedAbsenceData?.students || teacherExtendedAbsenceData.students.length === 0) && (
+              <div className="p-8 text-center text-gray-500 font-medium">
+                No students currently have extended consecutive absences in your assigned classes.
+              </div>
+            )}
+          </div>
+        </div>
+      </AppModal>
     </AppPage>
   );
 };

@@ -190,6 +190,15 @@ const StudentProfile = () => {
     return `XXXX-XXXX-${cleaned.slice(-4)}`;
   };
 
+  const formatAadhar = (aadhar) => {
+    if (!aadhar || aadhar === "Unknown" || aadhar === "N/A") return "N/A";
+    const cleaned = String(aadhar).replace(/\D/g, "");
+    if (cleaned.length === 12) {
+      return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 8)} ${cleaned.slice(8, 12)}`;
+    }
+    return String(aadhar);
+  };
+
   const calculateAge = (dobString) => {
     if (!dobString) return "N/A";
     const today = new Date();
@@ -325,6 +334,38 @@ const StudentProfile = () => {
       });
     };
 
+    // Check direct documents object if present
+    const docsObj =
+      rawStudent?.documents ||
+      student?.personalDetails?.documents ||
+      student?.documents;
+    if (docsObj) {
+      let docEntries = [];
+      if (Array.isArray(docsObj)) {
+        docsObj.forEach((item) => {
+          if (item && item.type) {
+            docEntries.push([item.type, item]);
+          }
+        });
+      } else if (typeof docsObj === "object" && docsObj !== null) {
+        docEntries = Object.entries(docsObj);
+      }
+      docEntries.forEach(([dKey, dVal]) => {
+        if (isInvalidVal(dVal)) return;
+        const normKey = String(dKey).trim().toUpperCase();
+        for (const [typeKey, aliasList] of Object.entries(aliases)) {
+          if (
+            aliasList.some(
+              (a) => a.toUpperCase() === normKey || normKey.includes(a.toUpperCase())
+            )
+          ) {
+            registerDoc(typeKey, dVal);
+            break;
+          }
+        }
+      });
+    }
+
     const customFieldsData =
       rawStudent?.customFields ||
       student?.personalDetails?.customFields ||
@@ -372,7 +413,8 @@ const StudentProfile = () => {
     const birthVal =
       rawStudent?.birthCertificate ||
       student?.personalDetails?.birthCertificate ||
-      student?.birthCertificate;
+      student?.birthCertificate ||
+      rawStudent?.customFields?.birthCertificateNumber;
     if (!isInvalidVal(birthVal)) {
       registerDoc("BIRTH_CERTIFICATE", birthVal);
     }
@@ -382,7 +424,8 @@ const StudentProfile = () => {
       student?.personalDetails?.transferCertificate ||
       student?.transferCertificate ||
       rawStudent?.tc ||
-      student?.tc;
+      student?.tc ||
+      rawStudent?.customFields?.transferCertificateNumber;
     if (!isInvalidVal(tcVal)) {
       registerDoc("TRANSFER_CERTIFICATE", tcVal);
     }
@@ -440,6 +483,16 @@ const StudentProfile = () => {
   const houseName = rawStudent?.house || personalDetails?.house || "N/A";
   const bloodGroup = personalDetails?.bloodGroup || rawStudent?.bloodGroup || "N/A";
   const secondLanguage = personalDetails?.secondLanguage || rawStudent?.secondLanguage || "N/A";
+
+  const aadharDocData = documentMap.get("AADHAAR");
+  const heroAadharNo = personalDetails?.aadhar || rawStudent?.aadhar || aadharDocData?.docNo || "";
+  const hasHeroAadhar = Boolean(
+    heroAadharNo &&
+    heroAadharNo !== "Unknown" &&
+    heroAadharNo !== "N/A" &&
+    String(heroAadharNo).trim() !== ""
+  );
+  const heroAadharFileUrl = aadharDocData?.url || "";
 
   // Dynamic exam records & activities
   const academicRecords = student?.academicRecords || student?.examResults || rawStudent?.examResults || [];
@@ -538,7 +591,7 @@ const StudentProfile = () => {
                 Class {academicDetails?.className || "N/A"} • Section {academicDetails?.section || "A"}
               </p>
 
-              <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <div className="pt-2 grid grid-cols-2 sm:grid-cols-5 gap-4 text-xs">
                 <div>
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">
                     Roll No.
@@ -554,6 +607,42 @@ const StudentProfile = () => {
                   <span className="font-extrabold text-white font-mono">
                     {personalDetails?.admissionNumber || "N/A"}
                   </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">
+                    Aadhaar No.
+                  </span>
+                  {hasHeroAadhar ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-indigo-200 font-mono text-xs truncate">
+                        {formatAadhar(heroAadharNo)}
+                      </span>
+                      {heroAadharFileUrl && (
+                        <a
+                          href={heroAadharFileUrl.startsWith("http") ? heroAadharFileUrl : `${apiHost}${heroAadharFileUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="View Uploaded Aadhaar Document"
+                          className="text-indigo-400 hover:text-white transition-colors"
+                        >
+                          <Eye size={12} />
+                        </a>
+                      )}
+                    </div>
+                  ) : heroAadharFileUrl ? (
+                    <a
+                      href={heroAadharFileUrl.startsWith("http") ? heroAadharFileUrl : `${apiHost}${heroAadharFileUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-extrabold text-indigo-300 hover:text-white underline flex items-center gap-1 block"
+                    >
+                      <Eye size={12} /> View Doc
+                    </a>
+                  ) : (
+                    <span className="font-semibold text-gray-400 text-xs italic block">
+                      Unavailable
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">
@@ -934,6 +1023,24 @@ const StudentProfile = () => {
 
                 <div>
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">
+                    AADHAAR NUMBER
+                  </span>
+                  <span className="font-extrabold font-mono text-gray-900 block mt-0.5">
+                    {formatAadhar(personalDetails?.aadhar || rawStudent?.aadhar)}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">
+                    CATEGORY / CASTE
+                  </span>
+                  <span className="font-extrabold text-gray-900 block mt-0.5">
+                    {personalDetails?.cast || rawStudent?.cast || "N/A"}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">
                     HOUSE
                   </span>
                   <span className="font-extrabold text-gray-900 block mt-0.5">
@@ -1021,36 +1128,101 @@ const StudentProfile = () => {
           TAB 4: DOCUMENTS CONTENT
       ───────────────────────────────────────────────────────────────── */}
       {activeTab === "documents" && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {standardDocumentTypes.map((docDef) => {
             const docData = documentMap.get(docDef.key);
-            const isUploaded = Boolean(docData && docData.isSubmitted);
+
+            // Resolve Document Number
+            let docNumber = docData?.docNo || "";
+            if (docDef.key === "AADHAAR" && !docNumber) {
+              docNumber = personalDetails?.aadhar || rawStudent?.aadhar || "";
+            } else if (docDef.key === "BIRTH_CERTIFICATE" && !docNumber) {
+              docNumber = rawStudent?.customFields?.birthCertificateNumber || "";
+            } else if (docDef.key === "TRANSFER_CERTIFICATE" && !docNumber) {
+              docNumber = rawStudent?.customFields?.transferCertificateNumber || "";
+            }
+
+            const hasNumber = Boolean(docNumber && docNumber !== "Unknown" && docNumber !== "N/A" && String(docNumber).trim() !== "");
+            const hasFile = Boolean(docData?.url);
+            const isUploaded = hasFile || hasNumber;
+
+            // Extract display filename if file is attached
+            let fileName = "";
+            if (hasFile) {
+              const urlParts = docData.url.split("/");
+              fileName = decodeURIComponent(urlParts[urlParts.length - 1]);
+            }
 
             return (
-              <AppCard key={docDef.key} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-gray-900">{docDef.title}</h4>
-                  <AppBadge variant={isUploaded ? "success" : "neutral"}>
+              <AppCard key={docDef.key} className="space-y-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={cn(
+                        "w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0",
+                        isUploaded ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-400"
+                      )}
+                    >
+                      <FileText size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-gray-900">{docDef.title}</h4>
+                      <p className="text-[11px] text-gray-400 font-semibold">{docDef.subtitle}</p>
+                    </div>
+                  </div>
+
+                  <AppBadge variant={isUploaded ? "success" : "neutral"} size="sm">
                     {isUploaded ? "Submitted" : docDef.tag}
                   </AppBadge>
                 </div>
 
-                <p className="text-xs text-gray-400 font-medium">{docDef.subtitle}</p>
-
-                {docData?.url ? (
-                  <div className="pt-2 border-t border-gray-100">
-                    <a
-                      href={docData.url.startsWith("http") ? docData.url : `${apiHost}${docData.url}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
-                    >
-                      <Eye size={14} /> View Document
-                    </a>
+                {/* Document Information Breakdown */}
+                <div className="space-y-3 text-xs">
+                  {/* Document Number */}
+                  <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 space-y-1">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      {docDef.key === "AADHAAR" ? "Aadhaar Number" : "Document / Reference No."}
+                    </span>
+                    {hasNumber ? (
+                      <span className="font-mono font-extrabold text-gray-900 text-sm tracking-wide block">
+                        {docDef.key === "AADHAAR" ? formatAadhar(docNumber) : docNumber}
+                      </span>
+                    ) : (
+                      <span className="font-medium text-gray-400 italic block text-xs">
+                        No number recorded
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-[10px] text-gray-400 italic pt-1">Document not uploaded yet</p>
-                )}
+
+                  {/* Uploaded Attachment Details */}
+                  <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 space-y-1.5">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">
+                      Uploaded File Attachment
+                    </span>
+                    {hasFile ? (
+                      <div className="flex items-center justify-between gap-2 pt-0.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
+                          <span className="font-semibold text-gray-800 text-xs truncate" title={fileName}>
+                            {fileName || "Uploaded File"}
+                          </span>
+                        </div>
+                        <a
+                          href={docData.url.startsWith("http") ? docData.url : `${apiHost}${docData.url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-[11px] rounded-lg transition-colors shrink-0"
+                        >
+                          <Eye size={12} /> View
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="font-medium text-gray-400 italic block text-xs">
+                        Document file not uploaded yet
+                      </span>
+                    )}
+                  </div>
+                </div>
               </AppCard>
             );
           })}

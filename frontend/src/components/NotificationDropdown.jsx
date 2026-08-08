@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, CheckCheck, Inbox, RefreshCw } from "lucide-react";
+import { Bell, CheckCheck, Inbox, RefreshCw, Trash2 } from "lucide-react";
 import api from "../services/api";
 import { cn } from "../utils/cn";
 
@@ -21,7 +21,7 @@ const NotificationDropdown = () => {
         setUnreadCount(countRes.data.data.unreadCount);
       }
 
-      const listRes = await api.get("/notifications?limit=5");
+      const listRes = await api.get("/notifications?limit=10");
       if (listRes.data.success) {
         setNotifications(listRes.data.data.notifications);
       }
@@ -57,25 +57,40 @@ const NotificationDropdown = () => {
 
   const handleNotificationClick = async (notif) => {
     setIsOpen(false);
-    if (!notif.isRead) {
-      try {
-        await api.put(`/notifications/${notif._id}/read`);
-        fetchNotificationsData(true);
-      } catch (err) {
-        console.error("Failed to mark notification as read:", err);
-      }
+    // Optimistically remove from list immediately upon reading
+    setNotifications(prev => prev.filter(n => n._id !== notif._id));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    try {
+      await api.put(`/notifications/${notif._id}/read`);
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
     }
+
     if (notif.link) {
       navigate(notif.link);
     }
   };
 
+  const handleDeleteSingle = async (e, notifId) => {
+    e.stopPropagation();
+    setNotifications(prev => prev.filter(n => n._id !== notifId));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    try {
+      await api.delete(`/notifications/${notifId}`);
+    } catch (err) {
+      console.error("Failed to delete notification:", err);
+    }
+  };
+
   const handleMarkAllRead = async () => {
+    setNotifications([]);
+    setUnreadCount(0);
     try {
       await api.put("/notifications/read-all");
-      fetchNotificationsData(true);
     } catch (err) {
-      console.error("Failed to mark all as read:", err);
+      console.error("Failed to clear notifications:", err);
     }
   };
 
@@ -123,13 +138,13 @@ const NotificationDropdown = () => {
               >
                 <RefreshCw size={14} className={cn(isLoading && "animate-spin")} />
               </button>
-              {unreadCount > 0 && (
+              {notifications.length > 0 && (
                 <button
                   onClick={handleMarkAllRead}
                   className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 transition-colors"
                 >
-                  <CheckCheck size={14} />
-                  Mark Read
+                  <Trash2 size={13} />
+                  Clear All
                 </button>
               )}
             </div>
@@ -143,7 +158,7 @@ const NotificationDropdown = () => {
                   <Inbox size={24} />
                 </div>
                 <h4 className="text-xs font-black text-gray-500">Inbox is empty</h4>
-                <p className="text-[10px] text-gray-400 mt-1">You have no notifications yet.</p>
+                <p className="text-[10px] text-gray-400 mt-1">You have no notifications right now.</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -151,20 +166,15 @@ const NotificationDropdown = () => {
                   <div
                     key={notif._id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={cn(
-                      "px-6 py-4 flex gap-4 cursor-pointer hover:bg-gray-50/50 transition-colors text-left relative",
-                      !notif.isRead && "bg-indigo-50/10"
-                    )}
+                    className="px-5 py-3.5 flex items-start gap-3 cursor-pointer hover:bg-gray-50/80 transition-colors text-left relative group"
                   >
-                    {!notif.isRead && (
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-indigo-600 rounded-full" />
-                    )}
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className={cn("text-xs text-gray-900", !notif.isRead ? "font-black" : "font-bold")}>
+                    <span className="w-2 h-2 mt-1.5 bg-indigo-600 rounded-full shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-xs text-gray-900 font-black truncate">
                           {notif.title}
                         </h4>
-                        <span className="text-[9px] text-gray-400">
+                        <span className="text-[9px] text-gray-400 shrink-0">
                           {(() => {
                             if (!notif.createdAt) return "";
                             const d = new Date(notif.createdAt);
@@ -172,10 +182,19 @@ const NotificationDropdown = () => {
                           })()}
                         </span>
                       </div>
-                      <p className="text-[11px] text-gray-500 leading-relaxed font-medium">
+                      <p className="text-[11px] text-gray-500 leading-relaxed font-medium line-clamp-2">
                         {notif.message}
                       </p>
                     </div>
+
+                    {/* Single Delete Action Button */}
+                    <button
+                      onClick={(e) => handleDeleteSingle(e, notif._id)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 transition-all shrink-0 self-center"
+                      title="Delete Notification"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 ))}
               </div>

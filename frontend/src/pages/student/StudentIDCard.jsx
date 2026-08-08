@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Printer, FileText, User, Phone, Droplet, Bus, MapPin } from "lucide-react";
+import {
+  ArrowLeft,
+  Printer,
+  FileText,
+  User,
+  Phone,
+  Droplet,
+  Bus,
+  MapPin,
+  IdCard,
+  Calendar,
+  Hash,
+} from "lucide-react";
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import api from "../../services/api";
@@ -13,69 +25,30 @@ import schoolLogoImg from "../../assets/schoollogo.png";
 // ─── Constants ─────────────────────────────────────────────────────────
 const SCHOOL_NAME = "LITTLE FLOWER";
 const SCHOOL_SUBTITLE = "ENGLISH SCHOOL";
-const SCHOOL_LOCATION = "DINDAYALPUR (SIWAN)";
 const SCHOOL_PHONE = "82946 80282";
-const SCHOOL_ADDRESS = "Dindayalpur, Siwan, Bihar - 841506";
-const SCHOOL_WEBSITE = "www.lfessiwan.in";
-const OFFICIAL_STAMP_IMG = "/assets/official/school-stamp.png";
+const SCHOOL_ADDRESS = "DINDAYALPUR, SIWAN, BIHAR – 841506";
 const PRINCIPAL_SIGNATURE_IMG = "/assets/official/principal-signature.png";
 
 // ─── Fonts Injection ───────────────────────────────────────────────────
 export const InjectFonts = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Dancing+Script:wght@700&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Inter:wght@400;500;600;700;800;900&display=swap');
     
     .id-card-container {
-      font-family: 'Poppins', sans-serif;
+      font-family: 'Poppins', 'Inter', sans-serif;
       -webkit-font-smoothing: antialiased;
       box-sizing: border-box;
-    }
-    
-    .font-cinzel {
-      font-family: 'Cinzel', serif;
     }
   `}</style>
 );
 
 export const injectFonts = InjectFonts;
 
-// ─── Dot Grid SVG Component ────────────────────────────────────────────
-export const DotsGrid = ({
-  color = "#888",
-  opacity = 0.5,
-  rows = 3,
-  cols = 4,
-  className,
-  style,
-}) => (
-  <svg
-    style={style}
-    className={className}
-    width={cols * 10}
-    height={rows * 10}
-    viewBox={`0 0 ${cols * 10} ${rows * 10}`}
-  >
-    {Array.from({ length: rows }).map((_, r) =>
-      Array.from({ length: cols }).map((_, c) => (
-        <circle
-          key={`${r}-${c}`}
-          cx={5 + c * 10}
-          cy={5 + r * 10}
-          r="1.5"
-          fill={color}
-          opacity={opacity}
-        />
-      )),
-    )}
-  </svg>
-);
-
-// ─── Front Card ────────────────────────────────────────────────────────
+// ─── Front Card (Exact Match to User Reference Screenshot) ──────────────
 export const IDCardFront = ({
   student,
   photoUrl,
   logoUrl,
-  qrUrl, // Keeping for API compatibility, though moved to back or omitted in new design
   id = "idcard-front",
 }) => {
   const {
@@ -85,18 +58,20 @@ export const IDCardFront = ({
   } = student || {};
 
   const studentName =
-    personalDetails?.name || personalDetails?.fullName || "ARJUN KUMAR";
-  const className = academicDetails?.className || "V";
+    personalDetails?.name || personalDetails?.fullName || "ANJALI KUMAR";
+  const className = academicDetails?.className || "1";
   const section = academicDetails?.section || "A";
-  const rollNumber = personalDetails?.rollNumber || "23";
+  const rollNumber = personalDetails?.rollNumber || "6";
   const admissionNo =
-    personalDetails?.admissionNumber ||
-    personalDetails?.studentId ||
-    "LFS2025/1023";
-  const bloodGroup = contactDetails?.bloodGroup || "O+";
-  const phone = contactDetails?.primaryPhone || SCHOOL_PHONE || "N/A";
+    personalDetails?.admissionNumber || personalDetails?.studentId || "6";
+  const bloodGroup =
+    contactDetails?.bloodGroup || personalDetails?.bloodGroup || "Unknown";
+  const phone =
+    contactDetails?.primaryPhone ||
+    contactDetails?.parentMobile ||
+    "9594283823";
 
-  let dobFormatted = "15-03-2015";
+  let dobFormatted = "24-02-2020";
   if (personalDetails?.dob) {
     try {
       const d = new Date(personalDetails.dob);
@@ -112,274 +87,685 @@ export const IDCardFront = ({
   return (
     <div
       id={id}
-      className="id-card-container relative overflow-hidden flex flex-col shadow-2xl"
+      className="id-card-container relative overflow-hidden flex flex-col bg-white"
       style={{
         width: "350px",
         height: "540px",
-        borderRadius: "20px",
+        borderRadius: "24px",
         boxSizing: "border-box",
-        background: "#F9A41E", // Vibrant orange/yellow
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        fontFamily: "'Poppins', 'Inter', sans-serif",
+        boxShadow: "0 15px 35px rgba(6, 26, 48, 0.18)",
       }}
     >
-      {/* ── SVG Waves Background ── */}
-      <svg
-        width="350"
-        height="540"
-        viewBox="0 0 350 540"
-        preserveAspectRatio="none"
-        style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
-      >
-        {/* Layer 1: Highest curve (backmost visually) */}
-        <path
-          d="M0,190 C100,100 200,340 350,140 L350,540 L0,540 Z"
-          fill="#07515D"
-        />
-        {/* Layer 2: Middle curve */}
-        <path
-          d="M0,210 C110,130 220,350 350,160 L350,540 L0,540 Z"
-          fill="#06424D"
-        />
-        {/* Layer 3: Main Dark Navy background curve */}
-        <path
-          d="M0,230 C130,160 240,360 350,180 L350,540 L0,540 Z"
-          fill="#00343E"
-        />
-        
-        {/* Bottom Decorative Curve Layers */}
-        <path
-          d="M0,510 C120,475 200,565 350,520 L350,540 L0,540 Z"
-          fill="#FFC05C"
-          opacity="0.4"
-        />
-        <path
-          d="M0,525 C100,495 230,575 350,535 L350,540 L0,540 Z"
-          fill="#F9A41E"
-        />
-      </svg>
-
-      {/* ── Content Wrapper ── */}
+      {/* ── Top Section with SVG Graphics ── */}
       <div
         style={{
           position: "relative",
-          zIndex: 2,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          height: "100%",
-          width: "100%",
+          width: "350px",
+          height: "205px",
+          flexShrink: 0,
         }}
       >
-        {/* Header / Logo */}
+        <svg
+          width="350"
+          height="205"
+          viewBox="0 0 350 205"
+          style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
+        >
+          <defs>
+            {/* Top Left Diagonal Lines Texture */}
+            <pattern
+              id="diag-lines"
+              width="8"
+              height="8"
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(45)"
+            >
+              <line
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="8"
+                stroke="#FFFFFF"
+                strokeWidth="0.8"
+                opacity="0.12"
+              />
+            </pattern>
+            {/* Right Side Dots Matrix */}
+            <pattern
+              id="dots-matrix"
+              width="10"
+              height="10"
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx="5" cy="5" r="1" fill="#FFFFFF" opacity="0.15" />
+            </pattern>
+          </defs>
+
+          {/* Deep Navy Main Header #061A30 */}
+          <rect width="350" height="205" fill="#061A30" />
+
+          {/* Patterns */}
+          <rect width="140" height="120" fill="url(#diag-lines)" />
+          <rect
+            x="250"
+            y="20"
+            width="100"
+            height="120"
+            fill="url(#dots-matrix)"
+          />
+
+          {/* Top Right Solid Gold Wedge Accent #F5B51B */}
+          <polygon points="270,0 350,0 350,110" fill="#F5B51B" />
+
+          {/* Transition Gold Wave Ribbon */}
+          <path
+            d="M 0,185 C 90,225 240,150 350,126 L 350,134 C 240,158 90,233 0,193 Z"
+            fill="#F5B51B"
+          />
+
+          {/* White Bottom Body Transition Cutout */}
+          <path
+            d="M 0,189 C 90,229 240,154 350,130 L 350,205 L 0,205 Z"
+            fill="#FFFFFF"
+          />
+        </svg>
+
+        {/* ── Top Content ── */}
         <div
           style={{
-            marginTop: "12px",
+            position: "relative",
+            zIndex: 2,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            paddingTop: "8px",
           }}
         >
+          {/* Top Lanyard Slot Punch Cutout */}
           <div
             style={{
-              width: "70px",
-              height: "70px",
+              width: "60px",
+              height: "12px",
+              borderRadius: "6px",
+              background: "#FFFFFF",
+              border: "1px solid #CBD5E1",
+              boxShadow: "inset 0 1px 3px rgba(0,0,0,0.18)",
+              marginBottom: "8px",
+            }}
+          ></div>
+
+          {/* Centered Circular School Logo */}
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
               borderRadius: "50%",
-              background: "#0D3A4B",
+              background: "#FFFFFF",
+              border: "2.5px solid #F5B51B",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
               overflow: "hidden",
             }}
           >
-            {logoUrl || schoolLogoImg ? (
+            <img
+              src={logoUrl || schoolLogoImg}
+              alt="School Logo"
+              style={{ width: "90%", height: "90%", objectFit: "contain" }}
+              crossOrigin="anonymous"
+            />
+          </div>
+
+          {/* School Name */}
+          <h1
+            style={{
+              margin: "6px 0 0 0",
+              fontSize: "21px",
+              fontWeight: 900,
+              color: "#FFFFFF",
+              letterSpacing: "1.5px",
+              textAlign: "center",
+              lineHeight: 1.1,
+              textTransform: "uppercase",
+            }}
+          >
+            {SCHOOL_NAME}
+          </h1>
+
+          {/* Subtitle with Gold Lines & End Dots */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "5px",
+              marginTop: "3px",
+            }}
+          >
+            <div
+              style={{ width: "22px", height: "1.5px", background: "#F5B51B" }}
+            ></div>
+            <div
+              style={{
+                width: "3.5px",
+                height: "3.5px",
+                borderRadius: "50%",
+                background: "#F5B51B",
+              }}
+            ></div>
+            <span
+              style={{
+                fontSize: "10.5px",
+                fontWeight: 700,
+                color: "#F5B51B",
+                letterSpacing: "2.5px",
+                textTransform: "uppercase",
+              }}
+            >
+              {SCHOOL_SUBTITLE}
+            </span>
+            <div
+              style={{
+                width: "3.5px",
+                height: "3.5px",
+                borderRadius: "50%",
+                background: "#F5B51B",
+              }}
+            ></div>
+            <div
+              style={{ width: "22px", height: "1.5px", background: "#F5B51B" }}
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Student Photo (Centered Double-Ring Circular Frame) ── */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 10,
+          marginTop: "-62px",
+          display: "flex",
+          justifyContent: "center",
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            width: "128px",
+            height: "128px",
+            borderRadius: "50%",
+            padding: "4px",
+            background: "#F5B51B", // Outer Gold Ring
+            boxShadow: "0 8px 25px rgba(6, 26, 48, 0.22)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              borderRadius: "50%",
+              border: "3px solid #FFFFFF", // Inner White Ring
+              overflow: "hidden",
+              background: "#F8FAFC",
+            }}
+          >
+            {photoUrl ? (
               <img
-                src={logoUrl || schoolLogoImg}
-                alt="Logo"
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                src={photoUrl}
+                alt={studentName}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                referrerPolicy="no-referrer"
                 crossOrigin="anonymous"
+                onError={(e) => {
+                  if (photoUrl && photoUrl.includes("googleusercontent.com")) {
+                    const fileId = photoUrl.split("/").pop();
+                    if (fileId) {
+                      e.target.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+                    }
+                  }
+                }}
               />
             ) : (
               <div
                 style={{
-                  width: 0,
-                  height: 0,
-                  borderTop: "8px solid transparent",
-                  borderBottom: "8px solid transparent",
-                  borderLeft: "12px solid #F9A41E",
-                  marginLeft: "4px",
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#94A3B8",
+                  fontSize: "12px",
+                  fontWeight: 700,
                 }}
-              ></div>
+              >
+                PHOTO
+              </div>
             )}
           </div>
-          <div
-            style={{
-              marginTop: "10px",
-              fontSize: "24px",
-              fontFamily: '"Cinzel", "Playfair Display", "Times New Roman", serif',
-              fontWeight: 800,
-              color: "#0D3A4B",
-              letterSpacing: "0.5px",
-              textAlign: "center",
-              lineHeight: "1.1",
-            }}
-          >
-            {SCHOOL_NAME || "LITTLE FLOWER"}
-          </div>
-          <div
-            style={{
-              fontSize: "12px",
-              fontFamily: '"Cinzel", "Playfair Display", "Times New Roman", serif',
-              fontWeight: 700,
-              color: "#0D3A4B",
-              letterSpacing: "1.5px",
-              marginTop: "3px",
-            }}
-          >
-            {SCHOOL_SUBTITLE || "ENGLISH SCHOOL"}
-          </div>
         </div>
+      </div>
 
-        {/* Profile Photo */}
-        <div
+      {/* ── Student Name & Class Pill Badge ── */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          marginTop: "6px",
+          padding: "0 16px",
+        }}
+      >
+        <h2
           style={{
-            marginTop: "8px",
-            width: "135px",
-            height: "135px",
-            borderRadius: "50%",
-            border: "4px solid #F9A41E",
-            overflow: "hidden",
-            background: "#fff",
-            boxShadow: "0 6px 15px rgba(0,0,0,0.2)",
-            flexShrink: 0,
-          }}
-        >
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt="Student"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-              onError={(e) => {
-                if (photoUrl && photoUrl.includes("googleusercontent.com")) {
-                  const fileId = photoUrl.split("/").pop();
-                  if (fileId) {
-                    e.target.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
-                  }
-                }
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#ccc",
-                fontSize: "14px",
-                fontWeight: 600,
-              }}
-            >
-              PHOTO
-            </div>
-          )}
-        </div>
-
-        {/* Student Name */}
-        <div
-          style={{
-            marginTop: "10px",
-            fontSize: "clamp(18px, 6vw, 25px)",
-            fontFamily: '"Poppins", "Inter", sans-serif',
-            color: "#F9A41E",
-            fontWeight: 700,
-            textTransform: "uppercase",
+            margin: 0,
+            fontSize: "22px",
+            fontWeight: 900,
+            color: "#061A30",
             letterSpacing: "0.5px",
+            textTransform: "uppercase",
             textAlign: "center",
-            padding: "0 15px",
-            width: "100%",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
+            maxWidth: "100%",
           }}
         >
           {studentName}
-        </div>
-        
-        {/* Class / Section */}
+        </h2>
+
+        {/* Decorative Gold Separator */}
         <div
           style={{
-            fontSize: "14px",
-            fontFamily: '"Poppins", "Inter", sans-serif',
-            color: "#FFFFFF",
-            marginTop: "2px",
-            fontWeight: 500,
-            letterSpacing: "0.6px",
-            textTransform: "uppercase",
-            textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            margin: "2px 0 3px 0",
           }}
         >
-          CLASS {className} {section ? `- ${section}` : ""}
+          <div
+            style={{ width: "12px", height: "1px", background: "#F5B51B" }}
+          ></div>
+          <div
+            style={{
+              width: "3px",
+              height: "3px",
+              borderRadius: "50%",
+              background: "#F5B51B",
+            }}
+          ></div>
+          <div
+            style={{ width: "12px", height: "1px", background: "#F5B51B" }}
+          ></div>
         </div>
 
-        {/* Yellow Separator Line */}
+        {/* Navy Pill Badge with Gold Outline & End Dots */}
         <div
           style={{
-            width: "60%",
-            height: "2px",
-            background: "#F9A41E",
-            marginTop: "12px",
-            marginBottom: "12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            background: "#061A30",
+            border: "1.5px solid #F5B51B",
+            color: "#FFFFFF",
+            padding: "3.5px 16px",
+            borderRadius: "9999px",
+            fontSize: "11.5px",
+            fontWeight: 800,
+            letterSpacing: "1px",
+            textTransform: "uppercase",
+            boxShadow: "0 2px 6px rgba(6, 26, 48, 0.15)",
           }}
-        ></div>
+        >
+          <div
+            style={{
+              width: "3.5px",
+              height: "3.5px",
+              borderRadius: "50%",
+              background: "#F5B51B",
+            }}
+          ></div>
+          <span>
+            CLASS {className} - {section}
+          </span>
+          <div
+            style={{
+              width: "3.5px",
+              height: "3.5px",
+              borderRadius: "50%",
+              background: "#F5B51B",
+            }}
+          ></div>
+        </div>
+      </div>
 
-        {/* Student Details Grid */}
+      {/* ── Student Information Rows (Clean Minimal 2-Column Key-Value) ── */}
+      <div
+        style={{
+          margin: "10px 24px 0 24px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "5.5px",
+        }}
+      >
+        {/* Row 1: ID NO */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "75px 15px max-content",
-            justifyContent: "center",
-            width: "100%",
-            fontSize: "13.5px",
-            fontFamily: '"Poppins", "Inter", sans-serif',
-            color: "#F3F4F6",
-            rowGap: "7px",
+            gridTemplateColumns: "26px 115px 14px 1fr",
+            alignItems: "center",
+            paddingBottom: "4px",
+            borderBottom: "1px solid #F1F5F9",
+          }}
+        >
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              background: "#061A30",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <IdCard size={11.5} strokeWidth={2.5} />
+          </div>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.5px",
+            }}
+          >
+            ID NO
+          </span>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              textAlign: "center",
+            }}
+          >
+            :
+          </span>
+          <span
+            style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
+          >
+            {admissionNo}
+          </span>
+        </div>
+
+        {/* Row 2: BLOOD GROUP */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "26px 115px 14px 1fr",
+            alignItems: "center",
+            paddingBottom: "4px",
+            borderBottom: "1px solid #F1F5F9",
+          }}
+        >
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              background: "#061A30",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Droplet size={11.5} strokeWidth={2.5} />
+          </div>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.5px",
+            }}
+          >
+            BLOOD GROUP
+          </span>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              textAlign: "center",
+            }}
+          >
+            :
+          </span>
+          <span
+            style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
+          >
+            {bloodGroup}
+          </span>
+        </div>
+
+        {/* Row 3: D.O.B */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "26px 115px 14px 1fr",
+            alignItems: "center",
+            paddingBottom: "4px",
+            borderBottom: "1px solid #F1F5F9",
+          }}
+        >
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              background: "#061A30",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Calendar size={11.5} strokeWidth={2.5} />
+          </div>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.5px",
+            }}
+          >
+            D.O.B
+          </span>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              textAlign: "center",
+            }}
+          >
+            :
+          </span>
+          <span
+            style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
+          >
+            {dobFormatted}
+          </span>
+        </div>
+
+        {/* Row 4: ROLL NO */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "26px 115px 14px 1fr",
+            alignItems: "center",
+            paddingBottom: "4px",
+            borderBottom: "1px solid #F1F5F9",
+          }}
+        >
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              background: "#061A30",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Hash size={11.5} strokeWidth={2.5} />
+          </div>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.5px",
+            }}
+          >
+            ROLL NO
+          </span>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              textAlign: "center",
+            }}
+          >
+            :
+          </span>
+          <span
+            style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
+          >
+            {rollNumber}
+          </span>
+        </div>
+
+        {/* Row 5: PHONE */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "26px 115px 14px 1fr",
             alignItems: "center",
           }}
         >
-          {/* Row 1 */}
-          <div style={{ fontWeight: 600 }}>ID NO</div>
-          <div style={{ fontWeight: 600, textAlign: "center" }}>:</div>
-          <div style={{ fontWeight: 500 }}>{admissionNo}</div>
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              background: "#061A30",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Phone size={11.5} strokeWidth={2.5} />
+          </div>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.5px",
+            }}
+          >
+            PHONE
+          </span>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              textAlign: "center",
+            }}
+          >
+            :
+          </span>
+          <span
+            style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
+          >
+            {phone}
+          </span>
+        </div>
+      </div>
 
-          {/* Row 2 */}
-          <div style={{ fontWeight: 600 }}>Blood</div>
-          <div style={{ fontWeight: 600, textAlign: "center" }}>:</div>
-          <div style={{ fontWeight: 500 }}>{bloodGroup}</div>
+      {/* ── Bottom Section (Navy Footer with Gold Icons & Address) ── */}
+      <div
+        style={{
+          marginTop: "auto",
+          position: "relative",
+          width: "350px",
+          height: "58px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <svg
+          width="350"
+          height="48"
+          viewBox="0 0 350 48"
+          style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
+        >
+          {/* Gold Curved Wave Line Accent #F5B51B */}
+          <path d="M0,12 C120,-6 230,20 350,6 L350,48 L0,48 Z" fill="#F5B51B" />
+          {/* Deep Navy Footer Base #061A30 */}
+          <path
+            d="M0,16 C130,-2 240,24 350,10 L350,48 L0,48 Z"
+            fill="#061A30"
+          />
+        </svg>
 
-          {/* Row 3 */}
-          <div style={{ fontWeight: 600 }}>D.O.B</div>
-          <div style={{ fontWeight: 600, textAlign: "center" }}>:</div>
-          <div style={{ fontWeight: 500 }}>{dobFormatted}</div>
-
-          {/* Row 4 */}
-          <div style={{ fontWeight: 600 }}>Roll No</div>
-          <div style={{ fontWeight: 600, textAlign: "center" }}>:</div>
-          <div style={{ fontWeight: 500 }}>{rollNumber}</div>
-
-          {/* Row 5 */}
-          <div style={{ fontWeight: 600 }}>Phone</div>
-          <div style={{ fontWeight: 600, textAlign: "center" }}>:</div>
-          <div style={{ fontWeight: 500 }}>{phone}</div>
+        {/* Footer Text & Icons */}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            color: "#FFFFFF",
+            fontSize: "9px",
+            fontWeight: 800,
+            letterSpacing: "0.4px",
+            paddingTop: "6px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+            <MapPin size={11} color="#F5B51B" fill="#F5B51B" />
+            <span>{SCHOOL_ADDRESS}</span>
+          </div>
+          <span style={{ color: "#F5B51B", fontWeight: 900 }}>|</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+            <Phone size={11} color="#F5B51B" fill="#F5B51B" />
+            <span>PH: {SCHOOL_PHONE}</span>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-// ─── Back Card ─────────────────────────────────────────────────────────
+// ─── Back Card (Matching Reference Theme) ──────────────────────────────
 export const IDCardBack = ({ student, logoUrl, id = "idcard-back" }) => {
   const { personalDetails = {}, contactDetails = {} } = student || {};
 
@@ -389,306 +775,455 @@ export const IDCardBack = ({ student, logoUrl, id = "idcard-back" }) => {
     contactDetails?.parentMobile ||
     contactDetails?.emergencyContact ||
     contactDetails?.phone ||
-    "9594283823";
-  const bloodGroup = personalDetails?.bloodGroup || "Unknown";
-  const transportMode = personalDetails?.transportMode || "Private";
-  const address =
-    contactDetails?.address || "Salahpur";
+    SCHOOL_PHONE;
+  const bloodGroup =
+    contactDetails?.bloodGroup || personalDetails?.bloodGroup || "Unknown";
+  const transportMode = personalDetails?.transportMode || "School Bus";
+  const address = contactDetails?.address || "Dindayalpur, Siwan";
 
   return (
     <div
       id={id}
-      className="id-card-container relative overflow-hidden flex flex-col shadow-2xl"
+      className="id-card-container relative overflow-hidden flex flex-col bg-white"
       style={{
         width: "350px",
         height: "540px",
-        borderRadius: "20px",
+        borderRadius: "24px",
         boxSizing: "border-box",
-        background: "#F9A41E", // Vibrant orange top base
         fontFamily: "'Poppins', 'Inter', sans-serif",
+        boxShadow: "0 15px 35px rgba(6, 26, 48, 0.18)",
       }}
     >
-
-      {/* ── SVG Waves Background ── */}
-      <svg
-        width="350"
-        height="540"
-        viewBox="0 0 350 540"
-        preserveAspectRatio="none"
-        style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
+      {/* ── Top Navy Header ── */}
+      <div
+        style={{
+          position: "relative",
+          width: "350px",
+          height: "105px",
+          flexShrink: 0,
+        }}
       >
-        {/* Main 3-Layer Waves in Middle */}
-        {/* Layer 1: Topmost teal curve */}
-        <path
-          d="M0,230 C80,180 220,310 350,140 L350,540 L0,540 Z"
-          fill="#07515D"
-        />
-        {/* Layer 2: Middle dark teal curve */}
-        <path
-          d="M0,248 C90,198 230,328 350,158 L350,540 L0,540 Z"
-          fill="#043F48"
-        />
-        {/* Layer 3: Main Deep Navy background curve */}
-        <path
-          d="M0,265 C100,215 240,345 350,175 L350,540 L0,540 Z"
-          fill="#00343E"
-        />
+        <svg
+          width="350"
+          height="105"
+          viewBox="0 0 350 105"
+          style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
+        >
+          <path d="M0,0 L350,0 L350,80 C240,110 110,65 0,95 Z" fill="#061A30" />
+          <polygon points="270,0 350,0 350,80" fill="#F5B51B" />
+          <path
+            d="M0,93 C110,63 240,108 350,78 L350,84 C240,114 110,69 0,99 Z"
+            fill="#F5B51B"
+          />
+        </svg>
 
-        {/* Bottom Decorative Footer Curve Layers */}
-        <path
-          d="M0,490 C100,460 250,530 350,480 L350,540 L0,540 Z"
-          fill="#3B6353"
-          opacity="0.6"
-        />
-        <path
-          d="M0,505 C120,475 230,545 350,495 L350,540 L0,540 Z"
-          fill="#F9A41E"
-        />
-      </svg>
+        <div
+          style={{
+            position: "relative",
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            padding: "16px 20px 0 20px",
+          }}
+        >
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "50%",
+              background: "#FFFFFF",
+              border: "2px solid #F5B51B",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              overflow: "hidden",
+              flexShrink: 0,
+            }}
+          >
+            <img
+              src={logoUrl || schoolLogoImg}
+              alt="Logo"
+              style={{ width: "88%", height: "88%", objectFit: "contain" }}
+              crossOrigin="anonymous"
+            />
+          </div>
+
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "15px",
+                fontWeight: 900,
+                color: "#FFFFFF",
+                letterSpacing: "0.8px",
+                textTransform: "uppercase",
+              }}
+            >
+              {SCHOOL_NAME}
+            </h1>
+            <span
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "#F5B51B",
+                letterSpacing: "1.5px",
+                textTransform: "uppercase",
+              }}
+            >
+              STUDENT INFORMATION
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* ── Main Content Area ── */}
       <div
         style={{
-          position: "relative",
-          zIndex: 2,
-          padding: "24px 22px 10px 22px",
-          flex: 1,
+          padding: "12px 18px",
           display: "flex",
           flexDirection: "column",
+          gap: "12px",
+          flex: 1,
         }}
       >
-        {/* ── SECTION 1: EMERGENCY CONTACT (Orange Area) ── */}
+        {/* Section 1: Emergency Contact Box */}
         <div>
-          {/* Header */}
-          <div style={{ marginBottom: "16px" }}>
-            <h2
-              style={{
-                color: "#00343E",
-                fontSize: "16px",
-                fontWeight: 800,
-                letterSpacing: "0.8px",
-                textTransform: "uppercase",
-                margin: 0,
-              }}
-            >
-              EMERGENCY CONTACT
-            </h2>
-            {/* Header Line with 3 Dots */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                marginTop: "4px",
-                width: "200px",
-              }}
-            >
-              <div
-                style={{
-                  flex: 1,
-                  height: "1.5px",
-                  background: "#00343E",
-                  opacity: 0.8,
-                }}
-              ></div>
-              <div style={{ display: "flex", gap: "3px" }}>
-                <div
-                  style={{
-                    width: "4px",
-                    height: "4px",
-                    borderRadius: "50%",
-                    background: "#00343E",
-                  }}
-                ></div>
-                <div
-                  style={{
-                    width: "4px",
-                    height: "4px",
-                    borderRadius: "50%",
-                    background: "#00343E",
-                  }}
-                ></div>
-                <div
-                  style={{
-                    width: "4px",
-                    height: "4px",
-                    borderRadius: "50%",
-                    background: "#00343E",
-                  }}
-                ></div>
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  height: "1.5px",
-                  background: "#00343E",
-                  opacity: 0.8,
-                }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Contact Details Rows */}
-          <div
+          <h3
             style={{
-              display: "grid",
-              gridTemplateColumns: "22px 105px 12px 1fr",
-              rowGap: "10px",
-              fontSize: "13px",
-              color: "#00343E",
+              margin: "0 0 6px 0",
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.8px",
+              textTransform: "uppercase",
+              display: "flex",
               alignItems: "center",
+              gap: "6px",
             }}
           >
-            {/* Row 1: Guardian */}
-            <User size={17} color="#00343E" strokeWidth={2.2} />
-            <div style={{ fontWeight: 600 }}>Guardian</div>
-            <div style={{ fontWeight: 700 }}>:</div>
-            <div style={{ fontWeight: 800 }}>{parentName}</div>
+            <span
+              style={{
+                width: "4px",
+                height: "14px",
+                background: "#F5B51B",
+                borderRadius: "2px",
+              }}
+            ></span>
+            EMERGENCY CONTACT DETAILS
+          </h3>
 
-            {/* Row 2: Contact No. */}
-            <Phone size={17} color="#00343E" strokeWidth={2.2} />
-            <div style={{ fontWeight: 600 }}>Contact No.</div>
-            <div style={{ fontWeight: 700 }}>:</div>
-            <div style={{ fontWeight: 800 }}>{emergencyPhone}</div>
+          <div
+            style={{
+              background: "#F8FAFC",
+              borderRadius: "14px",
+              border: "1px solid #E2E8F0",
+              padding: "8px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "5px",
+            }}
+          >
+            {/* Guardian */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "24px 105px 14px 1fr",
+                alignItems: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  background: "#061A30",
+                  color: "#FFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <User size={11} />
+              </div>
+              <span
+                style={{ fontSize: "11px", fontWeight: 700, color: "#061A30" }}
+              >
+                Guardian
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                  textAlign: "center",
+                }}
+              >
+                :
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                }}
+              >
+                {parentName}
+              </span>
+            </div>
 
-            {/* Row 3: Blood Group */}
-            <Droplet size={17} color="#00343E" strokeWidth={2.2} />
-            <div style={{ fontWeight: 600 }}>Blood Group</div>
-            <div style={{ fontWeight: 700 }}>:</div>
-            <div style={{ fontWeight: 800 }}>{bloodGroup}</div>
+            {/* Contact No */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "24px 105px 14px 1fr",
+                alignItems: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  background: "#061A30",
+                  color: "#FFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Phone size={11} />
+              </div>
+              <span
+                style={{ fontSize: "11px", fontWeight: 700, color: "#061A30" }}
+              >
+                Contact No.
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                  textAlign: "center",
+                }}
+              >
+                :
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                }}
+              >
+                {emergencyPhone}
+              </span>
+            </div>
 
-            {/* Row 4: Transport */}
-            <Bus size={17} color="#00343E" strokeWidth={2.2} />
-            <div style={{ fontWeight: 600 }}>Transport</div>
-            <div style={{ fontWeight: 700 }}>:</div>
-            <div style={{ fontWeight: 800 }}>{transportMode}</div>
+            {/* Blood Group */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "24px 105px 14px 1fr",
+                alignItems: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  background: "#061A30",
+                  color: "#FFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Droplet size={11} />
+              </div>
+              <span
+                style={{ fontSize: "11px", fontWeight: 700, color: "#061A30" }}
+              >
+                Blood Group
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                  textAlign: "center",
+                }}
+              >
+                :
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                }}
+              >
+                {bloodGroup}
+              </span>
+            </div>
 
-            {/* Row 5: Address */}
-            <MapPin size={17} color="#00343E" strokeWidth={2.2} />
-            <div style={{ fontWeight: 600 }}>Address</div>
-            <div style={{ fontWeight: 700 }}>:</div>
-            <div style={{ fontWeight: 800, lineHeight: 1.2 }}>{address}</div>
+            {/* Transport */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "24px 105px 14px 1fr",
+                alignItems: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  background: "#061A30",
+                  color: "#FFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Bus size={11} />
+              </div>
+              <span
+                style={{ fontSize: "11px", fontWeight: 700, color: "#061A30" }}
+              >
+                Transport
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                  textAlign: "center",
+                }}
+              >
+                :
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                }}
+              >
+                {transportMode}
+              </span>
+            </div>
+
+            {/* Address */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "24px 105px 14px 1fr",
+                alignItems: "flex-start",
+                paddingTop: "2px",
+              }}
+            >
+              <div
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  background: "#061A30",
+                  color: "#FFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <MapPin size={11} />
+              </div>
+              <span
+                style={{ fontSize: "11px", fontWeight: 700, color: "#061A30" }}
+              >
+                Address
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                  textAlign: "center",
+                }}
+              >
+                :
+              </span>
+              <span
+                style={{
+                  fontSize: "11.5px",
+                  fontWeight: 800,
+                  color: "#061A30",
+                  textAlign: "left",
+                }}
+              >
+                {address}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* ── SECTION 2: IMPORTANT RULES (Dark Teal Area) ── */}
-        <div style={{ marginTop: "60px" }}>
-          {/* Section Header */}
-          <div
+        {/* Section 2: Important Rules */}
+        <div>
+          <h3
             style={{
+              margin: "0 0 6px 0",
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.8px",
+              textTransform: "uppercase",
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
-              marginBottom: "14px",
+              gap: "6px",
             }}
           >
-            <div
+            <span
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                width: "100%",
-                justifyContent: "center",
+                width: "4px",
+                height: "14px",
+                background: "#F5B51B",
+                borderRadius: "2px",
               }}
-            >
-              <div
-                style={{
-                  width: "40px",
-                  height: "1.5px",
-                  background: "#F9A41E",
-                }}
-              ></div>
-              <span
-                style={{
-                  color: "#F9A41E",
-                  fontSize: "14px",
-                  fontWeight: 800,
-                  letterSpacing: "1px",
-                  textTransform: "uppercase",
-                }}
-              >
-                IMPORTANT RULES
-              </span>
-              <div
-                style={{
-                  width: "40px",
-                  height: "1.5px",
-                  background: "#F9A41E",
-                }}
-              ></div>
-            </div>
+            ></span>
+            IMPORTANT INSTRUCTIONS
+          </h3>
 
-            {/* 4 Yellow Dots under Important Rules */}
-            <div style={{ display: "flex", gap: "4px", marginTop: "4px" }}>
-              <div
-                style={{
-                  width: "4px",
-                  height: "4px",
-                  borderRadius: "50%",
-                  background: "#F9A41E",
-                }}
-              ></div>
-              <div
-                style={{
-                  width: "4px",
-                  height: "4px",
-                  borderRadius: "50%",
-                  background: "#F9A41E",
-                }}
-              ></div>
-              <div
-                style={{
-                  width: "4px",
-                  height: "4px",
-                  borderRadius: "50%",
-                  background: "#F9A41E",
-                }}
-              ></div>
-              <div
-                style={{
-                  width: "4px",
-                  height: "4px",
-                  borderRadius: "50%",
-                  background: "#F9A41E",
-                }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Rules List */}
           <div
             style={{
+              background: "#F8FAFC",
+              borderRadius: "14px",
+              border: "1px solid #E2E8F0",
+              padding: "8px 12px",
+              fontSize: "10.5px",
+              color: "#334155",
+              fontWeight: 600,
               display: "flex",
               flexDirection: "column",
-              gap: "8px",
-              fontSize: "11px",
-              color: "#FFFFFF",
-              fontWeight: 500,
-              lineHeight: 1.45,
-              padding: "0 4px",
+              gap: "4px",
+              lineHeight: 1.35,
             }}
           >
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-              <span style={{ color: "#F9A41E", fontSize: "14px", lineHeight: 1 }}>
-                •
-              </span>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <span style={{ color: "#F5B51B", fontWeight: 800 }}>•</span>
               <span>
-                This ID card is the property of {SCHOOL_NAME || "LITTLE FLOWER"}.
+                This card is the property of {SCHOOL_NAME} {SCHOOL_SUBTITLE}.
               </span>
             </div>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-              <span style={{ color: "#F9A41E", fontSize: "14px", lineHeight: 1 }}>
-                •
-              </span>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <span style={{ color: "#F5B51B", fontWeight: 800 }}>•</span>
               <span>
-                This card is non-transferable and must be worn during school
-                hours.
+                Must be displayed prominently during school hours & exams.
               </span>
             </div>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-              <span style={{ color: "#F9A41E", fontSize: "14px", lineHeight: 1 }}>
-                •
-              </span>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <span style={{ color: "#F5B51B", fontWeight: 800 }}>•</span>
               <span>
                 If found, please return to the school office immediately.
               </span>
@@ -696,71 +1231,69 @@ export const IDCardBack = ({ student, logoUrl, id = "idcard-back" }) => {
           </div>
         </div>
 
-        {/* ── SECTION 3: PRINCIPAL SIGNATURE ── */}
+        {/* Section 3: Principal Signature */}
         <div
           style={{
             marginTop: "auto",
             display: "flex",
             flexDirection: "column",
-            alignItems: "center",
-            marginBottom: "10px",
+            alignItems: "flex-end",
+            paddingRight: "10px",
           }}
         >
           <img
             src={PRINCIPAL_SIGNATURE_IMG}
             alt="Principal Signature"
             style={{
-              height: "36px",
-              maxWidth: "120px",
+              height: "30px",
+              maxWidth: "110px",
               objectFit: "contain",
-              marginBottom: "3px",
-              filter: "brightness(0) invert(1)", // White signature graphic
+              marginBottom: "2px",
             }}
             crossOrigin="anonymous"
           />
           <div
             style={{
-              borderTop: "1.5px solid #F9A41E",
-              width: "140px",
-              paddingTop: "4px",
+              borderTop: "2px solid #F5B51B",
+              width: "120px",
+              paddingTop: "3px",
               textAlign: "center",
             }}
           >
             <span
               style={{
                 fontSize: "11px",
-                fontWeight: 700,
-                color: "#F9A41E",
+                fontWeight: 800,
+                color: "#061A30",
                 letterSpacing: "0.5px",
+                textTransform: "uppercase",
               }}
             >
               Principal
             </span>
           </div>
         </div>
+      </div>
 
-        {/* ── SECTION 4: BOTTOM ADDRESS FOOTER ── */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "6px",
-            fontSize: "11px",
-            color: "#00343E",
-            fontWeight: 700,
-            letterSpacing: "0.3px",
-            marginTop: "auto",
-            paddingBottom: "2px",
-          }}
-        >
-          <MapPin size={14} color="#00343E" fill="#00343E" />
-          <span>{SCHOOL_ADDRESS}</span>
-        </div>
+      {/* ── Footer ── */}
+      <div
+        style={{
+          background: "#061A30",
+          borderTop: "3px solid #F5B51B",
+          padding: "6px 12px",
+          color: "#FFFFFF",
+          fontSize: "10px",
+          fontWeight: 700,
+          textAlign: "center",
+          letterSpacing: "0.4px",
+        }}
+      >
+        {SCHOOL_ADDRESS} • Ph: {SCHOOL_PHONE}
       </div>
     </div>
   );
 };
+
 // ─── Main Component ────────────────────────────────────────────────────
 const StudentIDCard = () => {
   const { studentId } = useParams();
@@ -772,9 +1305,7 @@ const StudentIDCard = () => {
   const [activeTab, setActiveTab] = useState("front");
 
   const [photoUrl, setPhotoUrl] = useState(null);
-  const [qrCodeUrl, setQrCodeUrl] = useState(null);
 
-  // Dynamic host URL resolution for photo serving
   const apiHost = api.defaults.baseURL
     ? api.defaults.baseURL.replace("/api", "")
     : "";
@@ -787,17 +1318,10 @@ const StudentIDCard = () => {
           const st = res.data.data;
           setStudent(st);
 
-          // Resolve photo URL
           const pUrl = resolveStudentPhotoUrl(st, apiHost);
           if (pUrl) {
             setPhotoUrl(pUrl);
           }
-
-          // Generate dynamic QR code payload
-          const qrPayload = `Name: ${st.personalDetails?.name || st.personalDetails?.fullName || "N/A"}\nID: ${st.personalDetails?.studentId || "N/A"}\nClass: ${st.academicDetails?.className || ""}${st.academicDetails?.section ? ` (${st.academicDetails.section})` : ""}\nPhone: ${st.contactDetails?.parentMobile || st.contactDetails?.phone || "N/A"}\nSchool: Little Flower English School`;
-          setQrCodeUrl(
-            `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrPayload)}`,
-          );
         }
       } catch (error) {
         console.error(error);
@@ -815,7 +1339,6 @@ const StudentIDCard = () => {
       const frontEl = document.getElementById("idcard-front");
       const backEl = document.getElementById("idcard-back");
 
-      // Temporarily render both if hidden
       const prevTab = activeTab;
       if (activeTab === "back") setActiveTab("front");
 
@@ -828,16 +1351,13 @@ const StudentIDCard = () => {
 
       const frontCanvas = await html2canvas(frontEl, options);
 
-      // Switch to back to capture
       setActiveTab("back");
-      // Small timeout to allow render
       await new Promise((r) => setTimeout(r, 100));
       const backCanvas = await html2canvas(
         document.getElementById("idcard-back"),
         options,
       );
 
-      // Restore tab
       setActiveTab(prevTab);
 
       const pdf = new jsPDF({
@@ -866,14 +1386,13 @@ const StudentIDCard = () => {
         cardH,
       );
 
-      // Add cutting lines
       pdf.setDrawColor(200, 200, 200);
       pdf.setLineDash([2, 2], 0);
       pdf.rect(30, 40, cardW, cardH, "D");
       pdf.rect(110, 40, cardW, cardH, "D");
 
       pdf.save(
-        `ID-Card-${student.personalDetails?.studentId || "Student"}.pdf`,
+        `ID-Card-${student.personalDetails?.admissionNumber || student.personalDetails?.studentId || "Student"}.pdf`,
       );
       addToast("ID Card Exported successfully!", "success");
     } catch (err) {
@@ -898,7 +1417,7 @@ const StudentIDCard = () => {
     <div className="space-y-6 max-w-5xl mx-auto pb-20 print:bg-white print:m-0 print:p-0 print:block">
       {injectFonts()}
 
-      {/* ── Toolbar ── */}
+      {/* Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-4">
           <button
@@ -947,29 +1466,25 @@ const StudentIDCard = () => {
           </Button>
           <Button
             onClick={handlePrint}
-            className="gap-2 bg-[#061F42] hover:bg-[#0A2E63] text-white"
+            className="gap-2 bg-[#061A30] hover:bg-[#0E335B] text-white"
           >
             <Printer size={16} /> Print Card
           </Button>
         </div>
       </div>
 
-      {/* ── Card Display (Web Preview) ── */}
-      <div className="flex justify-center items-center py-10 print:hidden bg-gray-50 rounded-3xl border border-gray-100 shadow-inner">
+      {/* Card Display (Web Preview) */}
+      <div className="flex justify-center items-center py-10 print:hidden bg-gray-100 rounded-3xl border border-gray-200 shadow-inner">
         {activeTab === "front" ? (
-          <IDCardFront
-            student={student}
-            photoUrl={photoUrl}
-            qrUrl={qrCodeUrl}
-          />
+          <IDCardFront student={student} photoUrl={photoUrl} />
         ) : (
           <IDCardBack student={student} />
         )}
       </div>
 
-      {/* ── Print Layout (Hidden on Web) ── */}
+      {/* Print Layout (Hidden on Web) */}
       <div className="hidden print:flex flex-row justify-center items-start gap-10 mt-10">
-        <IDCardFront student={student} photoUrl={photoUrl} qrUrl={qrCodeUrl} />
+        <IDCardFront student={student} photoUrl={photoUrl} />
         <IDCardBack student={student} />
       </div>
 

@@ -168,6 +168,14 @@ class AdminService {
     const collectedThisMonth = collectedThisMonthStats.length > 0 ? collectedThisMonthStats[0].total : 0;
     const todayCollData = todayStats.length > 0 ? todayStats[0] : { todayCollection: 0, transactionCount: 0 };
 
+    const extendedAbsenceService = require('./extendedAbsenceService');
+    let extendedAbsenceAlerts = { available: true, totalAlertCount: 0, criticalCount: 0, warningCount: 0, students: [] };
+    try {
+      extendedAbsenceAlerts = await extendedAbsenceService.getExtendedAbsenceAlerts({ threshold: 8 });
+    } catch (e) {
+      console.error('Failed to attach extendedAbsenceAlerts to admin dashboard stats:', e);
+    }
+
     const statsData = {
       totalStudents: students.length,
       totalTeachers: teacherCount,
@@ -177,7 +185,8 @@ class AdminService {
       todayTransactionCount: todayCollData.transactionCount || 0,
       currentDueAmount,
       upcomingFeeAmount,
-      collectedThisMonth
+      collectedThisMonth,
+      extendedAbsenceAlerts
     };
 
     this.dashboardStatsCache.data = statsData;

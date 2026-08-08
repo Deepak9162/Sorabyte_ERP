@@ -7,6 +7,9 @@ exports.getNotifications = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
+    // Clean up any legacy read notifications
+    await Notification.deleteMany({ recipient: req.user._id, isRead: true });
+
     const count = await Notification.countDocuments({ recipient: req.user._id });
     const notifications = await Notification.find({ recipient: req.user._id })
       .sort({ createdAt: -1 })
@@ -28,9 +31,11 @@ exports.getNotifications = async (req, res, next) => {
 
 exports.getUnreadCount = async (req, res, next) => {
   try {
+    // Delete any marked read ones
+    await Notification.deleteMany({ recipient: req.user._id, isRead: true });
+
     const unreadCount = await Notification.countDocuments({
-      recipient: req.user._id,
-      isRead: false
+      recipient: req.user._id
     });
     return successResponse(res, { unreadCount }, 'Unread count fetched successfully');
   } catch (error) {
@@ -40,17 +45,17 @@ exports.getUnreadCount = async (req, res, next) => {
 
 exports.markAsRead = async (req, res, next) => {
   try {
-    const notification = await Notification.findOneAndUpdate(
-      { _id: req.params.id, recipient: req.user._id },
-      { isRead: true },
-      { new: true }
-    );
+    // Once read, delete notification automatically from database
+    const notification = await Notification.findOneAndDelete({
+      _id: req.params.id,
+      recipient: req.user._id
+    });
 
     if (!notification) {
       return errorResponse(res, 'Notification not found or unauthorized', 404);
     }
 
-    return successResponse(res, notification, 'Notification marked as read');
+    return successResponse(res, notification, 'Notification read and deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -58,11 +63,26 @@ exports.markAsRead = async (req, res, next) => {
 
 exports.markAllAsRead = async (req, res, next) => {
   try {
-    await Notification.updateMany(
-      { recipient: req.user._id, isRead: false },
-      { isRead: true }
-    );
-    return successResponse(res, null, 'All notifications marked as read');
+    // Delete all notifications for the user
+    await Notification.deleteMany({ recipient: req.user._id });
+    return successResponse(res, null, 'All notifications read and deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteNotification = async (req, res, next) => {
+  try {
+    const notification = await Notification.findOneAndDelete({
+      _id: req.params.id,
+      recipient: req.user._id
+    });
+
+    if (!notification) {
+      return errorResponse(res, 'Notification not found or unauthorized', 404);
+    }
+
+    return successResponse(res, null, 'Notification deleted successfully');
   } catch (error) {
     next(error);
   }

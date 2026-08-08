@@ -510,6 +510,43 @@ const markSelfAttendance = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Get extended absence alerts details (for "View All" modal / detail page)
+ * @route   GET /api/attendance/extended-absences
+ * @access  Private (Admin, Teacher)
+ */
+const getExtendedAbsenceAlerts = async (req, res, next) => {
+  try {
+    const extendedAbsenceService = require('../services/extendedAbsenceService');
+    const threshold = req.query.threshold ? parseInt(req.query.threshold, 10) : 8;
+    
+    let classIds = null;
+
+    if (req.user.role === 'teacher') {
+      const timetableService = require('../services/timetableService');
+      const teacher = await Teacher.findOne({ user: req.user._id });
+      const assignedClasses = await timetableService.getTeacherAssignedClasses(req.user._id);
+      const classTeacherClasses = teacher ? await Class.find({ teacher: teacher._id, isActive: true }) : [];
+
+      classIds = [
+        ...new Set([
+          ...assignedClasses.map(c => c._id.toString()),
+          ...classTeacherClasses.map(c => c._id.toString())
+        ])
+      ];
+    }
+
+    const alerts = await extendedAbsenceService.getExtendedAbsenceAlerts({
+      classIds,
+      threshold
+    });
+
+    return successResponse(res, alerts, 'Extended absence alerts fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   markAttendance,
   updateAttendance,
@@ -527,4 +564,5 @@ module.exports = {
   getTeacherAttendanceAnalysis,
   getMyAttendanceAnalysis,
   markSelfAttendance,
+  getExtendedAbsenceAlerts,
 };

@@ -243,8 +243,16 @@ const getTeacherDashboardStats = async (req, res, next) => {
       date: { $gte: today, $lt: tomorrow }
     });
 
-    const presentCount = todayAttendance.filter(a => a.status === 'Present').length;
-    const absentCount = todayAttendance.filter(a => a.status === 'Absent').length;
+    const extendedAbsenceService = require('../services/extendedAbsenceService');
+    let extendedAbsenceAlerts = { available: true, totalAlertCount: 0, criticalCount: 0, warningCount: 0, students: [] };
+    try {
+      extendedAbsenceAlerts = await extendedAbsenceService.getExtendedAbsenceAlerts({
+        classIds: allQueryClassIds,
+        threshold: 8
+      });
+    } catch (e) {
+      console.error('Failed to attach extendedAbsenceAlerts to teacher dashboard stats:', e);
+    }
 
     return successResponse(res, {
       totalClasses: classes.length,
@@ -264,7 +272,8 @@ const getTeacherDashboardStats = async (req, res, next) => {
         id: c._id,
         name: c.name,
         studentCount: c.students ? c.students.length : 0
-      }))
+      })),
+      extendedAbsenceAlerts
     }, 'Teacher stats fetched successfully');
   } catch (error) {
     next(error);

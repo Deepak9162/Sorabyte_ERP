@@ -23,7 +23,7 @@ router.post('/', isTeacher, homeworkUpload, homeworkController.createHomework);
 router.get('/teacher/assigned-options', homeworkController.getTeacherAssignedOptions);
 router.get('/teacher/my-homework', isTeacher, homeworkController.getTeacherMyHomework);
 router.put('/:id', isTeacher, homeworkUpload, homeworkController.updateTeacherHomework);
-router.delete('/:id', isTeacher, homeworkController.deleteTeacherHomework);
+router.delete('/:id', homeworkController.deleteTeacherHomework);
 
 // Class Incharge / Class Teacher routes
 router.get('/class-teacher/consolidated', isTeacher, homeworkController.getClassTeacherConsolidatedHomework);

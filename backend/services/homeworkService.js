@@ -212,16 +212,9 @@ class HomeworkService {
   }
 
   /**
-   * Teacher deletes pending/rejected homework
+   * Delete homework record (Admin or Teacher)
    */
-  async deleteTeacherHomework({ userId, homeworkId }) {
-    const teacher = await Teacher.findOne({ user: userId });
-    if (!teacher) {
-      const error = new Error('Teacher profile not found');
-      error.statusCode = 403;
-      throw error;
-    }
-
+  async deleteTeacherHomework({ user, homeworkId }) {
     const homework = await Homework.findById(homeworkId);
     if (!homework) {
       const error = new Error('Homework not found');
@@ -229,15 +222,24 @@ class HomeworkService {
       throw error;
     }
 
-    if (homework.teacher.toString() !== teacher._id.toString()) {
-      const error = new Error('You can only delete your own homework submissions');
+    // Admin can delete any homework record
+    if (user && user.role === 'admin') {
+      await Homework.findByIdAndDelete(homeworkId);
+      return true;
+    }
+
+    // Teacher can delete their own homework
+    const userId = user?._id || user;
+    const teacher = await Teacher.findOne({ user: userId });
+    if (!teacher) {
+      const error = new Error('Teacher profile not found');
       error.statusCode = 403;
       throw error;
     }
 
-    if (homework.status === 'Approved') {
-      const error = new Error('Approved homework cannot be deleted');
-      error.statusCode = 400;
+    if (homework.teacher.toString() !== teacher._id.toString()) {
+      const error = new Error('You can only delete your own homework submissions');
+      error.statusCode = 403;
       throw error;
     }
 

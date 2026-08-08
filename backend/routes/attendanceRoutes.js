@@ -25,11 +25,15 @@ const {
   getTeacherAttendanceAnalysis,
   getMyAttendanceAnalysis,
   markSelfAttendance,
+  getExtendedAbsenceAlerts,
 } = require('../controllers/attendanceController');
 const { protect, authorize } = require('../middleware/auth');
 
 // Protect all routes
 router.use(protect);
+
+// ── Extended absence alerts optional detail listing ──
+router.get('/extended-absences', authorize('admin', 'teacher'), getExtendedAbsenceAlerts);
 
 // ── Class Teacher's own class info (teacher only) ──
 router.get('/my-class', authorize('admin', 'teacher'), getMyClassInfo);
