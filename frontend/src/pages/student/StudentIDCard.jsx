@@ -62,14 +62,29 @@ export const IDCardFront = ({
   const className = academicDetails?.className || "1";
   const section = academicDetails?.section || "A";
   const rollNumber = personalDetails?.rollNumber || "6";
-  const admissionNo =
-    personalDetails?.admissionNumber || personalDetails?.studentId || "6";
+  // const admissionNo =
+  //   personalDetails?.admissionNumber || personalDetails?.studentId || "6";
+  const studentId =
+  personalDetails?.studentId ||
+  personalDetails?._id ||
+  "6";
   const bloodGroup =
     contactDetails?.bloodGroup || personalDetails?.bloodGroup || "Unknown";
   const phone =
     contactDetails?.primaryPhone ||
     contactDetails?.parentMobile ||
     "9594283823";
+
+    const fatherName =
+  personalDetails?.fatherName ||
+  personalDetails?.father ||
+  contactDetails?.fatherName ||
+  "N/A";
+
+  const address =
+  contactDetails?.address ||
+  personalDetails?.address ||
+  "N/A";
 
   let dobFormatted = "24-02-2020";
   if (personalDetails?.dob) {
@@ -222,7 +237,7 @@ export const IDCardFront = ({
           <h1
             style={{
               margin: "6px 0 0 0",
-              fontSize: "21px",
+              fontSize: "24px",
               fontWeight: 900,
               color: "#FFFFFF",
               letterSpacing: "1.5px",
@@ -241,7 +256,7 @@ export const IDCardFront = ({
               alignItems: "center",
               justifyContent: "center",
               gap: "5px",
-              marginTop: "3px",
+              marginTop: "-3px",
             }}
           >
             <div
@@ -257,7 +272,7 @@ export const IDCardFront = ({
             ></div>
             <span
               style={{
-                fontSize: "10.5px",
+                fontSize: "15.5px",
                 fontWeight: 700,
                 color: "#F5B51B",
                 letterSpacing: "2.5px",
@@ -441,6 +456,9 @@ export const IDCardFront = ({
               background: "#F5B51B",
             }}
           ></div>
+          <span>
+            ROLL NO {rollNumber}
+          </span>
         </div>
       </div>
 
@@ -453,7 +471,7 @@ export const IDCardFront = ({
           gap: "5.5px",
         }}
       >
-        {/* Row 1: ID NO */}
+        {/* Row 1: ID NO -> STUDENT ID */}
         <div
           style={{
             display: "grid",
@@ -485,7 +503,7 @@ export const IDCardFront = ({
               letterSpacing: "0.5px",
             }}
           >
-            ID NO
+            STUDENT ID
           </span>
           <span
             style={{
@@ -500,12 +518,12 @@ export const IDCardFront = ({
           <span
             style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
           >
-            {admissionNo}
+            {studentId}
           </span>
         </div>
-
+            
         {/* Row 2: BLOOD GROUP */}
-        <div
+        {/* <div
           style={{
             display: "grid",
             gridTemplateColumns: "26px 115px 14px 1fr",
@@ -552,6 +570,57 @@ export const IDCardFront = ({
             style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
           >
             {bloodGroup}
+          </span>
+        </div> */}
+
+        {/* Row 2: Father's Name */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "26px 115px 14px 1fr",
+            alignItems: "center",
+            paddingBottom: "4px",
+            borderBottom: "1px solid #F1F5F9",
+          }}
+        >
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              background: "#061A30",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <User size={11.5} strokeWidth={2.5} />
+          </div>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.5px",
+            }}
+          >
+            FATHER'S NAME
+          </span>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              textAlign: "center",
+            }}
+          >
+            :
+          </span>
+          <span
+            style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
+          >
+            {fatherName}
           </span>
         </div>
 
@@ -606,56 +675,7 @@ export const IDCardFront = ({
           </span>
         </div>
 
-        {/* Row 4: ROLL NO */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "26px 115px 14px 1fr",
-            alignItems: "center",
-            paddingBottom: "4px",
-            borderBottom: "1px solid #F1F5F9",
-          }}
-        >
-          <div
-            style={{
-              width: "22px",
-              height: "22px",
-              borderRadius: "50%",
-              background: "#061A30",
-              color: "#FFFFFF",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Hash size={11.5} strokeWidth={2.5} />
-          </div>
-          <span
-            style={{
-              fontSize: "11px",
-              fontWeight: 800,
-              color: "#061A30",
-              letterSpacing: "0.5px",
-            }}
-          >
-            ROLL NO
-          </span>
-          <span
-            style={{
-              fontSize: "12px",
-              fontWeight: 800,
-              color: "#061A30",
-              textAlign: "center",
-            }}
-          >
-            :
-          </span>
-          <span
-            style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
-          >
-            {rollNumber}
-          </span>
-        </div>
+       
 
         {/* Row 5: PHONE */}
         <div
@@ -705,6 +725,58 @@ export const IDCardFront = ({
             {phone}
           </span>
         </div>
+          
+           {/* Row 4: ROLL NO */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "26px 115px 14px 1fr",
+            alignItems: "center",
+            paddingBottom: "4px",
+            borderBottom: "1px solid #F1F5F9",
+          }}
+        >
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              background: "#061A30",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MapPin  size={11.5} strokeWidth={2.5} />
+          </div>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 800,
+              color: "#061A30",
+              letterSpacing: "0.5px",
+            }}
+          >
+            ADDRESS
+          </span>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 800,
+              color: "#061A30",
+              textAlign: "center",
+            }}
+          >
+            :
+          </span>
+          <span
+            style={{ fontSize: "12.5px", fontWeight: 800, color: "#061A30" }}
+          >
+            {address}
+          </span>
+        </div>
+
       </div>
 
       {/* ── Bottom Section (Navy Footer with Gold Icons & Address) ── */}
