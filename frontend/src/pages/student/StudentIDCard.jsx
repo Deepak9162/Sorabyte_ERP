@@ -820,7 +820,7 @@ export const IDCardFront = ({
             justifyContent: "center",
             gap: "5px",
             color: "#FFFFFF",
-            fontSize: "8.5px",
+            fontSize: "10px",
             fontWeight: 800,
             letterSpacing: "0.2px",
             paddingTop: "4px",
@@ -837,7 +837,7 @@ export const IDCardFront = ({
           <span style={{ color: "#F5B51B", fontWeight: 900, flexShrink: 0 }}>|</span>
           <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
             <Phone size={11} color="#F5B51B" fill="#F5B51B" style={{ flexShrink: 0 }} />
-            <span style={{ whiteSpace: "nowrap" }}>PH: {SCHOOL_PHONE}</span>
+            <span style={{ whiteSpace: "nowrap" }}>{SCHOOL_PHONE}</span>
           </div>
         </div>
       </div>
@@ -1396,7 +1396,7 @@ export const IDCardBack = ({ student, logoUrl, id = "idcard-back" }) => {
             justifyContent: "center",
             gap: "5px",
             color: "#FFFFFF",
-            fontSize: "8.5px",
+            fontSize: "10px",
             fontWeight: 800,
             letterSpacing: "0.2px",
             paddingTop: "4px",
@@ -1413,7 +1413,7 @@ export const IDCardBack = ({ student, logoUrl, id = "idcard-back" }) => {
           <span style={{ color: "#F5B51B", fontWeight: 900, flexShrink: 0 }}>|</span>
           <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
             <Phone size={11} color="#F5B51B" fill="#F5B51B" style={{ flexShrink: 0 }} />
-            <span style={{ whiteSpace: "nowrap" }}>PH: {SCHOOL_PHONE}</span>
+            <span style={{ whiteSpace: "nowrap" }}>{SCHOOL_PHONE}</span>
           </div>
         </div>
       </div>
