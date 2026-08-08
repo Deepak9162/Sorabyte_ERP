@@ -736,7 +736,7 @@ const AdminDashboard = () => {
             </AppCard>
 
             {/* Extended Absence Alert Card */}
-            {extendedAbsenceData && (
+            {/* {extendedAbsenceData && (
               <AppCard
                 hoverable
                 onClick={() => setIsExtendedAbsenceModalOpen(true)}
@@ -790,7 +790,7 @@ const AdminDashboard = () => {
                   </span>
                 </div>
               </AppCard>
-            )}
+            )} */}
           </div>
         )}
       </AppSection>

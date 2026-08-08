@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import {
@@ -64,6 +64,7 @@ const FeeCollection = () => {
   const [amount, setAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState("CASH");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const receiptRef = useRef(null);
   const [transaction, setTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [currentStep, setCurrentStep] = useState("selector"); // selector, active
@@ -1728,10 +1729,28 @@ const FeeCollection = () => {
         maxWidth="lg"
         className="rounded-3xl border border-zinc-100 shadow-xl overflow-hidden"
         footer={
-          <div className="flex gap-4 w-full p-2">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full p-2">
+            <div className="flex gap-2 sm:gap-3 flex-1 min-w-0">
+              <Button
+                variant="secondary"
+                icon={Printer}
+                onClick={() => receiptRef.current?.handlePrint()}
+                className="flex-1 py-3 sm:py-3.5 rounded-2xl text-[10px] sm:text-xs font-bold text-zinc-600 border border-zinc-200 hover:bg-zinc-50 uppercase tracking-wider cursor-pointer"
+              >
+                Print PDF
+              </Button>
+              <Button
+                variant="primary"
+                icon={Download}
+                onClick={() => receiptRef.current?.handleDownload()}
+                className="flex-1 py-3 sm:py-3.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer shadow-lg shadow-orange-100"
+              >
+                Download PDF
+              </Button>
+            </div>
             <Button
               variant="secondary"
-              className="flex-1 py-3.5 rounded-2xl text-xs font-bold text-zinc-500 border border-zinc-200 hover:bg-zinc-50 uppercase tracking-wider cursor-pointer"
+              className="w-full sm:w-auto sm:px-6 py-3 sm:py-3.5 rounded-2xl text-[10px] sm:text-xs font-bold text-zinc-400 border border-zinc-150 hover:bg-zinc-50 uppercase tracking-wider cursor-pointer"
               onClick={() => setIsSuccessModalOpen(false)}
             >
               Close
@@ -1739,9 +1758,10 @@ const FeeCollection = () => {
           </div>
         }
       >
-        <div className="p-4 md:p-6 bg-zinc-50 max-h-[80vh] overflow-y-auto custom-scrollbar rounded-2xl">
+        <div className="p-2 md:p-4 bg-zinc-50 rounded-2xl">
           {transaction && (
             <ReceiptPreview
+              ref={receiptRef}
               transaction={transaction}
               student={student}
             />

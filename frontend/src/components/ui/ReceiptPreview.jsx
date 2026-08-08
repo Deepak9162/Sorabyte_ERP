@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useImperativeHandle, forwardRef } from "react";
 import {
   Printer,
   Download,
@@ -24,108 +24,12 @@ import SchoolLogo from "./SchoolLogo";
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 
-const ReceiptPreview = ({ transaction, student, className }) => {
+const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => {
   const { addToast } = useToast();
 
   if (!transaction) return null;
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownload = async () => {
-    const element = document.getElementById("receipt-content");
-    if (!element) {
-      addToast("Receipt element not found", "error");
-      return;
-    }
-
-    // Save original styles to restore later
-    const originalWidth = element.style.width;
-    const originalMaxWidth = element.style.maxWidth;
-    const originalBoxShadow = element.style.boxShadow;
-    const originalBorder = element.style.border;
-    const originalBorderRadius = element.style.borderRadius;
-
-    try {
-      addToast("Generating your high-resolution receipt PDF...", "info");
-
-      // Force standard A4 print dimensions and clear card decorations for a clean PDF copy
-      element.style.width = "794px";
-      element.style.maxWidth = "none";
-      element.style.boxShadow = "none";
-      element.style.border = "none";
-      element.style.borderRadius = "0px";
-
-      // Configure html2canvas options for 3x scale, CORS compatibility, and desktop viewport simulation
-      const options = {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        allowTaint: true,
-        windowWidth: 1024, // Simulate a desktop viewport to trigger desktop media queries
-      };
-
-      const canvas = await html2canvas(element, options);
-      const imgData = canvas.toDataURL("image/png");
-
-      // A4 Size: 210mm x 297mm
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-
-      // Save the generated document
-      pdf.save(`receipt_${studentName.replace(/\s+/g, "_")}.pdf`);
-      addToast("Receipt PDF downloaded successfully!", "success");
-    } catch (error) {
-      console.error(
-        "Client-side PDF generation failed, falling back to server...",
-        error,
-      );
-
-      // Fallback to server download if client-side fails
-      try {
-        const downloadId =
-          transaction._id || transaction.mongoId || transaction.id;
-        const res = await api.get(`/fees/receipt/${downloadId}`, {
-          responseType: "blob",
-        });
-        const blob = new Blob([res.data], { type: "application/pdf" });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute(
-          "download",
-          `receipt_${studentName.replace(/\s+/g, "_")}.pdf`,
-        );
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        addToast("Receipt downloaded successfully (server copy)", "success");
-      } catch (srvError) {
-        console.error("Server-side fallback also failed:", srvError);
-        addToast("Failed to download receipt", "error");
-      }
-    } finally {
-      // Always restore original styles
-      element.style.width = originalWidth;
-      element.style.maxWidth = originalMaxWidth;
-      element.style.boxShadow = originalBoxShadow;
-      element.style.border = originalBorder;
-      element.style.borderRadius = originalBorderRadius;
-    }
-  };
-
-  // Robust field mappings to support different backend/frontend schemas
+  // Robust field mappings to support all backend/frontend schema variations
   const receiptNo =
     transaction.receiptNumber || transaction.id || transaction._id || "N/A";
   const session = transaction.academicYear || "2026 - 2027";
@@ -149,44 +53,231 @@ const ReceiptPreview = ({ transaction, student, className }) => {
 
   const studentName =
     student?.name ||
+    student?.fullName ||
     transaction.studentName ||
     (transaction.student &&
       (transaction.student.fullName || transaction.student.name)) ||
+    transaction.name ||
     "N/A";
+
   const rollNumber =
     student?.rollNumber ||
+    student?.roll ||
     transaction.roll ||
-    (transaction.student && transaction.student.rollNumber) ||
+    transaction.rollNumber ||
+    (transaction.student &&
+      (transaction.student.rollNumber || transaction.student.roll)) ||
     "N/A";
+
   const admissionNo =
     student?.studentId ||
     student?.admissionNumber ||
+    transaction.studentId ||
+    transaction.admissionNumber ||
     (transaction.student &&
       (transaction.student.studentId || transaction.student.admissionNumber)) ||
-    `LFES-${rollNumber}`;
+    (rollNumber !== "N/A" ? `LFES-${rollNumber}` : "N/A");
+
   const fatherName =
     student?.fatherName ||
+    transaction.fatherName ||
     (transaction.student && transaction.student.fatherName) ||
     "N/A";
+
   const classNameVal =
     student?.class ||
+    transaction.class ||
+    transaction.className ||
     (transaction.student &&
       (transaction.student.class?.name || transaction.student.class)) ||
     "N/A";
+
   const section =
     student?.section ||
+    transaction.section ||
     (transaction.student && transaction.student.section) ||
     "A";
+
   const mobile =
     student?.phone ||
     student?.mobile ||
+    transaction.phone ||
+    transaction.mobile ||
     (transaction.student &&
       (transaction.student.phone || transaction.student.mobile)) ||
     "N/A";
+
   const aadharNo =
     student?.aadhar ||
-    (transaction.student && transaction.student.aadhar) ||
+    student?.aadharNumber ||
+    transaction.aadhar ||
+    transaction.aadharNumber ||
+    (transaction.student &&
+      (transaction.student.aadhar || transaction.student.aadharNumber)) ||
     "N/A";
+
+  // ── Shared PDF generator (used by both Print and Download) ──
+  // scale=2 + JPEG for fast print, scale=3 + PNG for high-quality download
+  const generatePDF = async ({ scale = 2, format = "JPEG", quality = 0.85 } = {}) => {
+    const element = document.getElementById("receipt-content");
+    if (!element) {
+      addToast("Receipt element not found", "error");
+      return null;
+    }
+
+    // Save original styles
+    const originalWidth = element.style.width;
+    const originalMaxWidth = element.style.maxWidth;
+    const originalBoxShadow = element.style.boxShadow;
+    const originalBorder = element.style.border;
+    const originalBorderRadius = element.style.borderRadius;
+
+    try {
+      // Force standard A4 print dimensions and clear card decorations
+      element.style.width = "794px";
+      element.style.maxWidth = "none";
+      element.style.boxShadow = "none";
+      element.style.border = "none";
+      element.style.borderRadius = "0px";
+
+      const canvas = await html2canvas(element, {
+        scale,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        allowTaint: true,
+        windowWidth: 1024,
+      });
+
+      const imgData = format === "JPEG"
+        ? canvas.toDataURL("image/jpeg", quality)
+        : canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, format, 0, 0, imgWidth, imgHeight);
+
+      return pdf;
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      return null;
+    } finally {
+      element.style.width = originalWidth;
+      element.style.maxWidth = originalMaxWidth;
+      element.style.boxShadow = originalBoxShadow;
+      element.style.border = originalBorder;
+      element.style.borderRadius = originalBorderRadius;
+    }
+  };
+
+  // Expose handlePrint and handleDownload to parent via ref
+  useImperativeHandle(ref, () => ({
+    handlePrint,
+    handleDownload,
+  }));
+
+  // ── Print Receipt: Generate PDF → open in hidden iframe → trigger print ──
+  const handlePrint = async () => {
+    addToast("Generating receipt for printing...", "info");
+
+    const pdf = await generatePDF({ scale: 2, format: "JPEG", quality: 0.8 });
+    if (!pdf) {
+      addToast("Failed to generate receipt PDF for printing", "error");
+      return;
+    }
+
+    try {
+      // Get PDF as blob URL
+      const pdfBlob = pdf.output("blob");
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+
+      // Remove any previous print iframe
+      const existingFrame = document.getElementById("receipt-print-iframe");
+      if (existingFrame) existingFrame.remove();
+
+      // Create hidden iframe to hold the PDF
+      const iframe = document.createElement("iframe");
+      iframe.id = "receipt-print-iframe";
+      iframe.style.position = "fixed";
+      iframe.style.top = "-10000px";
+      iframe.style.left = "-10000px";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      iframe.src = pdfUrl;
+
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (e) {
+          // If iframe print fails (cross-origin), open PDF in new tab for printing
+          console.warn("Iframe print failed, opening PDF in new tab:", e);
+          const printWindow = window.open(pdfUrl, "_blank");
+          if (printWindow) {
+            printWindow.addEventListener("load", () => {
+              printWindow.print();
+            });
+          }
+        }
+
+        // Cleanup after a delay
+        setTimeout(() => {
+          iframe.remove();
+          URL.revokeObjectURL(pdfUrl);
+        }, 60000); // Keep alive for 60s for printing to complete
+      };
+    } catch (error) {
+      console.error("Print via PDF failed:", error);
+      addToast("Print failed, please use Download PDF instead", "error");
+    }
+  };
+
+  // ── Download PDF: Generate PDF → save as file ──
+  const handleDownload = async () => {
+    addToast("Generating your high-resolution receipt PDF...", "info");
+
+    const pdf = await generatePDF({ scale: 3, format: "PNG" });
+    if (pdf) {
+      pdf.save(`receipt_${studentName.replace(/\s+/g, "_")}.pdf`);
+      addToast("Receipt PDF downloaded successfully!", "success");
+      return;
+    }
+
+    // Fallback to server download if client-side fails
+    try {
+      const downloadId =
+        transaction._id || transaction.mongoId || transaction.id;
+      const res = await api.get(`/fees/receipt/${downloadId}`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `receipt_${studentName.replace(/\s+/g, "_")}.pdf`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      addToast("Receipt downloaded successfully (server copy)", "success");
+    } catch (srvError) {
+      console.error("Server-side fallback also failed:", srvError);
+      addToast("Failed to download receipt", "error");
+    }
+  };
 
   const totalAmount = transaction.amount || 0;
   const transportPaid = transaction.transportAmount || 0;
@@ -274,7 +365,7 @@ const ReceiptPreview = ({ transaction, student, className }) => {
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrPayload)}`;
 
   return (
-    <div className={cn("space-y-6 max-w-4xl mx-auto", className)}>
+    <div className={cn("space-y-4 w-full mx-auto", className)}>
       {/* Success Decoration */}
       <div className="flex flex-col items-center text-center space-y-2 mb-4 md:hidden">
         <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shadow-inner">
@@ -291,8 +382,7 @@ const ReceiptPreview = ({ transaction, student, className }) => {
       {/* The Printable A4 Receipt Container */}
       <div
         id="receipt-content"
-        className="bg-white border border-gray-200 rounded-3xl p-6 md:p-10 space-y-6 relative overflow-hidden shadow-md print:border-none print:shadow-none print:p-0 print:m-0 print:rounded-none"
-        style={{ minHeight: "297mm", boxSizing: "border-box" }}
+        className="bg-white border border-gray-200 rounded-3xl p-4 md:p-8 space-y-5 relative shadow-md print:border-none print:shadow-none print:p-0 print:m-0 print:rounded-none"
       >
         {/* Anti-fraud background watermark */}
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none select-none rotate-12">
@@ -300,39 +390,38 @@ const ReceiptPreview = ({ transaction, student, className }) => {
         </div>
 
         {/* 1. Header Section */}
-        <div className="flex flex-row justify-between items-center border-b-2 border-gray-150 pb-5 gap-4 relative">
-          <div className="flex items-center gap-4">
-            <SchoolLogo className="w-16 h-16 md:w-20 md:h-20 shrink-0" />
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center border-b-2 border-gray-150 pb-4 gap-3 relative">
+          <div className="flex items-center gap-3">
+            <SchoolLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
             <div>
-              <h1 className="text-lg md:text-2xl font-black text-indigo-900 tracking-tight leading-none">
+              <h1 className="text-sm md:text-xl font-black text-indigo-900 tracking-tight leading-tight">
                 LITTLE FLOWER ENGLISH SCHOOL
               </h1>
-              <p className="text-[10px] md:text-xs font-bold text-gray-500 mt-1 leading-snug">
+              <p className="text-[9px] md:text-xs font-bold text-gray-500 mt-0.5 leading-snug">
                 Dindayalpur, Siwan, Bihar
               </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[9px] md:text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1.5">
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[8px] md:text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">
                 <span className="flex items-center gap-1">
-                  <Globe size={11} /> www.lfessiwan.in
+                  <Globe size={10} /> www.lfessiwan.in
                 </span>
-
                 <span className="flex items-center gap-1">
-                  <Phone size={11} /> +91 82946 80282
+                  <Phone size={10} /> +91 82946 80282
                 </span>
               </div>
             </div>
           </div>
-          <div className="text-right shrink-0">
-            <div className="px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest mb-2 border border-indigo-100/50">
+          <div className="text-left md:text-right shrink-0">
+            <div className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest mb-1 border border-indigo-100/50">
               Fee Collection Receipt
             </div>
-            <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-wider">
+            <p className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase tracking-wider">
               Academic Session: <span className="text-gray-900">{session}</span>
             </p>
           </div>
         </div>
 
-        {/* 2. Receipt Information (Two-Column Layout) */}
-        <div className="grid grid-cols-2 gap-6 bg-gray-50/50 border border-gray-100 rounded-2xl p-4 text-xs font-bold">
+        {/* 2. Receipt Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50/50 border border-gray-100 rounded-2xl p-3 md:p-4 text-[10px] md:text-xs font-bold">
           <div className="space-y-2">
             <div className="flex justify-between border-b border-gray-100/50 pb-1.5">
               <span className="text-gray-400 uppercase tracking-wider text-[9px]">
@@ -353,7 +442,7 @@ const ReceiptPreview = ({ transaction, student, className }) => {
               <span className="text-gray-800">{formattedDate}</span>
             </div>
           </div>
-          <div className="space-y-2 border-l border-gray-100 pl-6">
+          <div className="space-y-2 md:border-l border-gray-100 md:pl-4">
             <div className="flex justify-between border-b border-gray-100/50 pb-1.5">
               <span className="text-gray-400 uppercase tracking-wider text-[9px]">
                 Payment Date
@@ -380,7 +469,7 @@ const ReceiptPreview = ({ transaction, student, className }) => {
         </div>
 
         {/* 3. Student Information Card */}
-        <div className="border border-gray-150 rounded-2xl p-5 space-y-4">
+        <div className="border border-gray-150 rounded-2xl p-3 md:p-5 space-y-3">
           <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
             <User size={14} className="text-indigo-600" />
             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -450,8 +539,8 @@ const ReceiptPreview = ({ transaction, student, className }) => {
         </div>
 
         {/* 4. Payment Details Table */}
-        <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full border-collapse text-left text-xs">
+        <div className="border border-gray-150 rounded-2xl overflow-x-auto shadow-sm">
+          <table className="w-full border-collapse text-left text-[10px] md:text-xs min-w-[400px]">
             <thead>
               <tr className="border-b-2 border-gray-400 text-gray-900 uppercase tracking-wide">
                 <th className="px-5 py-3 text-[11px] font-extrabold">
@@ -579,51 +668,51 @@ const ReceiptPreview = ({ transaction, student, className }) => {
         </div>
 
         {/* 6. Footer, Verification & Stamp / Signature Area */}
-        <div className="flex flex-row justify-between items-end gap-6 pt-6 border-t border-gray-100 relative min-h-[120px]">
+        <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-4 pt-4 border-t border-gray-100 relative">
           {/* QR Verification */}
-          <div className="flex items-center gap-4">
-            <div className="w-24 h-24 border border-gray-200 rounded-xl p-1.5 bg-white shrink-0 shadow-sm flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-16 md:w-20 md:h-20 border border-gray-200 rounded-xl p-1 bg-white shrink-0 shadow-sm flex items-center justify-center">
               <img
                 src={qrCodeUrl}
                 alt="Verification QR Code"
                 className="w-full h-full object-contain"
               />
             </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-black text-gray-900 tracking-tight uppercase flex items-center gap-1">
-                <ShieldCheck size={12} className="text-emerald-600" /> Verified
+            <div className="space-y-0.5">
+              <p className="text-[9px] md:text-[10px] font-black text-gray-900 tracking-tight uppercase flex items-center gap-1">
+                <ShieldCheck size={11} className="text-emerald-600" /> Verified
                 Record
               </p>
-              <p className="text-[8px] text-gray-400 font-bold uppercase leading-tight">
+              <p className="text-[7px] md:text-[8px] text-gray-400 font-bold uppercase leading-tight">
                 Scan to Verify
               </p>
-              <p className="text-[8px] text-gray-450 font-mono tracking-tighter max-w-[150px] truncate">
+              <p className="text-[7px] md:text-[8px] text-gray-450 font-mono tracking-tighter max-w-[150px] truncate">
                 ID: {receiptNo}
               </p>
             </div>
           </div>
 
           {/* Overlapping Stamp & Signature */}
-          <div className="relative text-center w-40 h-28 flex flex-col justify-end items-center">
+          <div className="relative text-center w-32 md:w-40 h-24 md:h-28 flex flex-col justify-end items-center">
             {/* The Signature Image */}
             <img
               src="/assets/official/principal-signature.png"
               alt="Principal Signature"
-              className="absolute bottom-10 w-24 h-auto z-20 pointer-events-none select-none"
+              className="absolute bottom-10 w-20 md:w-24 h-auto z-20 pointer-events-none select-none"
             />
 
             {/* Overlapping Stamp Image (20-30% overlap, 75-80% opacity) */}
             <img
               src="/assets/official/school-stamp.png"
               alt="Official School Stamp"
-              className="absolute bottom-6 w-20 h-auto z-10 opacity-75 pointer-events-none select-none left-4"
+              className="absolute bottom-6 w-16 md:w-20 h-auto z-10 opacity-75 pointer-events-none select-none left-2 md:left-4"
             />
 
             <div className="w-full border-t border-gray-200 pt-1.5 relative z-30 bg-white/70 backdrop-blur-sm">
-              <p className="text-[10px] font-black text-gray-900 leading-none">
+              <p className="text-[9px] md:text-[10px] font-black text-gray-900 leading-none">
                 Principal
               </p>
-              <p className="text-[8px] font-bold text-gray-405 mt-0.5 leading-none">
+              <p className="text-[7px] md:text-[8px] font-bold text-gray-405 mt-0.5 leading-none">
                 Little Flower English School
               </p>
             </div>
@@ -644,27 +733,8 @@ const ReceiptPreview = ({ transaction, student, className }) => {
         </div>
       </div>
 
-      {/* Action Buttons (Hidden during printing) */}
-      <div className="flex gap-4 pt-4 print:hidden">
-        <Button
-          variant="secondary"
-          icon={Printer}
-          onClick={handlePrint}
-          className="flex-1 rounded-2xl border-gray-150 h-12 text-xs font-black uppercase tracking-wider"
-        >
-          Print Receipt
-        </Button>
-        <Button
-          variant="primary"
-          icon={Download}
-          onClick={handleDownload}
-          className="flex-1 rounded-2xl shadow-xl shadow-indigo-100 h-12 text-xs font-black uppercase tracking-wider"
-        >
-          Download PDF
-        </Button>
-      </div>
     </div>
   );
-};
+});
 
 export default ReceiptPreview;

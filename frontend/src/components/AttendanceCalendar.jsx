@@ -137,65 +137,65 @@ const AttendanceCalendar = ({ records = [], userType = "Both" }) => {
 
       {/* Days Grid */}
       {!isCollapsed && (
-        <div className="grid grid-cols-7 gap-1 md:gap-2">
-          {days.map(day => (
+          <div className="grid grid-cols-7 gap-1 md:gap-2">
+            {days.map(day => (
             <div key={day} className="text-center text-[10px] md:text-xs font-bold text-gray-400 py-1.5">
-              {day}
-            </div>
-          ))}
-          
-          {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-            <div key={`empty-${i}`} className="h-12 md:h-24 bg-gray-50/30 rounded-xl border border-gray-100 border-dashed" />
-          ))}
-          
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const dateNum = i + 1;
-            const record = attendanceMap[dateNum];
-            const markedAt = record?.markedAt;
-            const isHol = isDayHoliday(dateNum, currentMonth, currentYear, userType);
-            const effStatus = getEffectiveAttendanceStatus(record?.status, isHol);
-            const displayLabel = effStatus ? (effStatus === 'holiday' ? 'Holiday' : effStatus.charAt(0).toUpperCase() + effStatus.slice(1)) : null;
-
-            const tooltipText = displayLabel 
-              ? `${displayLabel} on ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}${markedAt ? ` at ${markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : ''}`
-              : `No record for ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}`;
-
-            return (
-              <div 
-                key={dateNum}
-                title={tooltipText}
-                className={cn(
-                  "h-12 md:h-24 p-1 md:p-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer",
-                  effStatus ? getStatusColor(effStatus) : "bg-gray-50/40 text-gray-400 border-gray-100 hover:border-gray-200 hover:bg-white"
-                )}
-              >
-                <span className={cn("text-xs md:text-lg font-black", effStatus ? "" : "opacity-50")}>{dateNum}</span>
-                {displayLabel && (
-                  <>
-                    <div className="hidden md:flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/60 shadow-sm animate-in fade-in duration-300">
-                        {displayLabel}
-                      </span>
-                      {markedAt && (
-                        <span className="text-[9px] font-semibold opacity-75 mt-0.5">
-                          {markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                        </span>
-                      )}
-                    </div>
-                    <div className={cn(
-                      "md:hidden w-1.5 h-1.5 rounded-full bg-current",
-                      effStatus === 'present' && "text-emerald-700",
-                      effStatus === 'absent' && "text-red-700",
-                      effStatus === 'leave' && "text-amber-700",
-                      effStatus === 'late' && "text-orange-700",
-                      effStatus === 'holiday' && "text-blue-700",
-                    )} />
-                  </>
-                )}
+                {day}
               </div>
-            );
-          })}
-        </div>
+            ))}
+            
+            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+            <div key={`empty-${i}`} className="h-12 md:h-24 bg-gray-50/30 rounded-xl border border-gray-100 border-dashed" />
+            ))}
+            
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const dateNum = i + 1;
+              const record = attendanceMap[dateNum];
+              const markedAt = record?.markedAt;
+              const isHol = isDayHoliday(dateNum, currentMonth, currentYear, userType);
+              const effStatus = getEffectiveAttendanceStatus(record?.status, isHol);
+              const displayLabel = effStatus ? (effStatus === 'holiday' ? 'Holiday' : effStatus.charAt(0).toUpperCase() + effStatus.slice(1)) : null;
+
+              const tooltipText = displayLabel 
+                ? `${displayLabel} on ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}${markedAt ? ` at ${markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : ''}`
+                : `No record for ${currentDate.toLocaleString('default', { month: 'short' })} ${dateNum}`;
+
+              return (
+                <div 
+                  key={dateNum}
+                  title={tooltipText}
+                  className={cn(
+                  "h-12 md:h-24 p-1 md:p-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all duration-200 hover:scale-105 hover:shadow-md cursor-pointer",
+                    effStatus ? getStatusColor(effStatus) : "bg-gray-50/40 text-gray-400 border-gray-100 hover:border-gray-200 hover:bg-white"
+                  )}
+                >
+                <span className={cn("text-xs md:text-lg font-black", effStatus ? "" : "opacity-50")}>{dateNum}</span>
+                  {displayLabel && (
+                    <>
+                      <div className="hidden md:flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/60 shadow-sm animate-in fade-in duration-300">
+                          {displayLabel}
+                        </span>
+                        {markedAt && (
+                          <span className="text-[9px] font-semibold opacity-75 mt-0.5">
+                            {markedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                          </span>
+                        )}
+                      </div>
+                      <div className={cn(
+                      "md:hidden w-1.5 h-1.5 rounded-full bg-current",
+                        effStatus === 'present' && "text-emerald-700",
+                        effStatus === 'absent' && "text-red-700",
+                        effStatus === 'leave' && "text-amber-700",
+                        effStatus === 'late' && "text-orange-700",
+                        effStatus === 'holiday' && "text-blue-700",
+                      )} />
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
       )}
     </div>
   );

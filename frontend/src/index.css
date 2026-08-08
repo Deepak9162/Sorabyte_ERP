@@ -150,6 +150,7 @@ main .space-y-8 > .flex.flex-col.md\:flex-row.items-start.md\:items-center.justi
   border-color: rgba(51, 65, 85, 0.8);
 }
 
+
 /* Fluid Scroll & GPU Performance Optimizations */
 @layer utilities {
   .gpu-accelerated {
@@ -157,6 +158,126 @@ main .space-y-8 > .flex.flex-col.md\:flex-row.items-start.md\:items-center.justi
     backface-visibility: hidden;
   }
 }
+
+/* ==========================================
+   PRODUCTION PRINT CSS SPECIFICATION
+   Ensures Fee Receipts print flawlessly with 100% visible student details
+   ========================================== */
+@media print {
+  /* 1. Global Reset for Print Viewport */
+  html, body, #root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: static !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 2. Hide ERP Application background layout when printing a receipt */
+  body.printing-receipt-active #root,
+  body:has(#receipt-content) #root,
+  body:has(.printable-receipt) #root {
+    display: none !important;
+  }
+
+  /* 3. Reset Modal Wrappers and Portals during receipt print */
+  body.printing-receipt-active div[role="dialog"],
+  body.printing-receipt-active .fixed,
+  body:has(#receipt-content) div[role="dialog"],
+  body:has(#receipt-content) .fixed,
+  body:has(.printable-receipt) div[role="dialog"],
+  body:has(.printable-receipt) .fixed {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    max-height: none !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: auto !important;
+  }
+
+  /* 4. Hide interactive elements (buttons, modals headers/footers) during print */
+  .print\:hidden,
+  button,
+  .no-print,
+  [role="dialog"] button,
+  [role="dialog"] > div > .flex.items-center.justify-between,
+  [role="dialog"] > div > .flex.items-center.justify-end {
+    display: none !important;
+  }
+
+  /* 5. Ensure Receipt Container expands naturally without height/overflow constraints */
+  #receipt-content,
+  .printable-receipt {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 6. Preserve text colors and legibility for student information */
+  #receipt-content *,
+  .printable-receipt * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow: visible !important;
+  }
+
+  #receipt-content .text-gray-900,
+  .printable-receipt .text-gray-900,
+  #receipt-content .text-gray-800,
+  .printable-receipt .text-gray-800 {
+    color: #111827 !important;
+  }
+
+  #receipt-content .text-gray-400,
+  #receipt-content .text-gray-500,
+  .printable-receipt .text-gray-400,
+  .printable-receipt .text-gray-500 {
+    color: #374151 !important;
+  }
+
+  /* 7. Preserve multi-column grid layout for Student Information Card */
+  #receipt-content .grid,
+  .printable-receipt .grid {
+    display: grid !important;
+  }
+
+  /* 8. Ensure images, logos, QR codes & signatures remain sharp and visible */
+  #receipt-content img,
+  .printable-receipt img {
+    max-width: 100% !important;
+    object-fit: contain !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
 
 
 

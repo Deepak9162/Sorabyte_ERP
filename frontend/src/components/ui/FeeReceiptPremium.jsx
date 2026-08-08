@@ -24,6 +24,62 @@ const FeeReceiptPremium = ({ transaction, student, onDownload }) => {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      document.body.classList.remove("printing-receipt-active");
+    };
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => {
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
+  }, []);
+
+  const studentName =
+    student?.name ||
+    student?.fullName ||
+    transaction?.studentName ||
+    (transaction?.student &&
+      (transaction.student.fullName || transaction.student.name)) ||
+    transaction?.name ||
+    "N/A";
+
+  const rollNumber =
+    student?.rollNumber ||
+    student?.roll ||
+    transaction?.roll ||
+    transaction?.rollNumber ||
+    (transaction?.student &&
+      (transaction.student.rollNumber || transaction.student.roll)) ||
+    "N/A";
+
+  const admissionNo =
+    student?.studentId ||
+    student?.admissionNumber ||
+    transaction?.studentId ||
+    transaction?.admissionNumber ||
+    (transaction?.student &&
+      (transaction.student.studentId || transaction.student.admissionNumber)) ||
+    (rollNumber !== "N/A" ? `LFES-${rollNumber}` : "N/A");
+
+  const classNameVal =
+    student?.class ||
+    transaction?.class ||
+    transaction?.className ||
+    (transaction?.student &&
+      (transaction.student.class?.name || transaction.student.class)) ||
+    "N/A";
+
+  const section =
+    student?.section ||
+    transaction?.section ||
+    (transaction?.student && transaction.student.section) ||
+    "A";
+
+  const handlePrint = () => {
+    document.body.classList.add("printing-receipt-active");
+    window.print();
+  };
+
   // Example breakdown logic (mapping from total amount for demo)
   const breakdown = [
     { label: "Tuition Fee", amount: transaction.amount * 0.7 },
@@ -51,7 +107,7 @@ const FeeReceiptPremium = ({ transaction, student, onDownload }) => {
       link.href = url;
       link.setAttribute(
         "download",
-        `receipt_${transaction.studentName.replace(/\s+/g, "_")}.pdf`,
+        `receipt_${studentName.replace(/\s+/g, "_")}.pdf`,
       );
       document.body.appendChild(link);
       link.click();
@@ -64,7 +120,7 @@ const FeeReceiptPremium = ({ transaction, student, onDownload }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-gray-50 min-h-screen pb-10 flex flex-col font-sans">
+    <div className="max-w-md mx-auto bg-gray-50 min-h-screen pb-10 flex flex-col font-sans printable-receipt">
       {/* 1. Header Section */}
       <div className="bg-white px-6 py-6 border-b border-gray-100 flex flex-col items-center">
         <div className="flex items-center justify-center mb-2">
@@ -87,15 +143,15 @@ const FeeReceiptPremium = ({ transaction, student, onDownload }) => {
           <div className="grid grid-cols-2 gap-y-4 gap-x-6">
             <DetailItem
               label="Student Name"
-              value={transaction.studentName}
+              value={studentName}
               isFull
             />
-            <DetailItem label="Class" value={student?.class || "10th"} />
-            <DetailItem label="Section" value="A" />
-            <DetailItem label="Roll Number" value={transaction.roll} />
+            <DetailItem label="Class" value={classNameVal} />
+            <DetailItem label="Section" value={section} />
+            <DetailItem label="Roll Number" value={rollNumber} />
             <DetailItem
               label="Admission No"
-              value={`LFES${transaction.roll}X`}
+              value={admissionNo}
             />
           </div>
         </div>
@@ -177,8 +233,8 @@ const FeeReceiptPremium = ({ transaction, student, onDownload }) => {
           </div>
         </div>
 
-        {/* 7. Action Buttons Row */}
-        <div className="flex gap-3 pt-4">
+        {/* 7. Action Buttons Row (Hidden in Print) */}
+        <div className="flex gap-3 pt-4 print:hidden">
           <ActionButton label="PDF" icon={Download} onClick={handleDownload} />
           <ActionButton
             label="Share"
@@ -188,7 +244,7 @@ const FeeReceiptPremium = ({ transaction, student, onDownload }) => {
           <ActionButton
             label="Print"
             icon={Printer}
-            onClick={() => window.print()}
+            onClick={handlePrint}
           />
         </div>
       </div>

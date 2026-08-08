@@ -128,6 +128,16 @@ const routeHeaderConfig = {
     description:
       "Review, approve, and export class consolidated homework summaries.",
   },
+  "/admin/staff/attendance-history": {
+    category: "Staff Management",
+    title: "Staff Attendance History",
+    description: "View and analyze individual staff attendance records.",
+  },
+  "/teacher/my-attendance": {
+    category: "Personal Workspace",
+    title: "My Attendance & Leaves",
+    description: "Track your attendance history and submit leave requests.",
+  },
 };
 
 const getRouteHeader = (path, getPageTitle) => {
@@ -403,7 +413,10 @@ const Layout = ({ children }) => {
       return "Student Profile";
     }
 
-    return lastSegment.replace("-", " ");
+    return lastSegment
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
   };
 
   const headerInfo = getRouteHeader(location.pathname, getPageTitle);
