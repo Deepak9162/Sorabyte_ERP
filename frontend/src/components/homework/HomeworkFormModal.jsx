@@ -342,9 +342,7 @@ const HomeworkFormModal = ({ isOpen, onClose, onSuccess, initialData = null }) =
               <FileText className="w-4 h-4 text-indigo-600" />
               <span>Homework Content</span>
             </div>
-            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
-              Large Text Mode
-            </span>
+            
           </div>
 
           {/* Title Input */}
