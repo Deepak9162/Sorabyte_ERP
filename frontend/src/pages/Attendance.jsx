@@ -40,9 +40,9 @@ import * as XLSX from "xlsx";
 import { getTodayDateString } from "../utils/dateUtils";
 import { isDayHoliday as checkIsDayHoliday, getEffectiveAttendanceStatus } from "../utils/holidayUtils";
 // Memoized Mobile Student Attendance Card
-const StudentAttendanceCard = React.memo(({ student, status, isMarked, sessionStatus, toggleStudentStatus, isHoliday, isAdmin }) => {
+const StudentAttendanceCard = React.memo(({ student, status, isMarked, isEditing, sessionStatus, toggleStudentStatus, isHoliday, isAdmin }) => {
   const isInactive = student.status && student.status !== 'Active';
-  const isEditingDisabled = isInactive || isHoliday || isMarked || (sessionStatus === 'locked' && !isAdmin) || (!isAdmin && sessionStatus === 'submitted');
+  const isEditingDisabled = isInactive || isHoliday || (isMarked && !isEditing) || (sessionStatus === 'locked' && !isAdmin);
   
   return (
     <div className={cn("bg-white rounded-2xl border p-3 flex flex-col gap-2.5 transition-all shadow-2xs", isInactive ? "border-red-100 opacity-60" : "border-slate-200/80")}>
@@ -336,6 +336,7 @@ const Attendance = () => {
   const [students, setStudents] = useState([]);
   const [attendanceData, setAttendanceData] = useState({});
   const [isMarked, setIsMarked] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [hasExistingRecords, setHasExistingRecords] = useState(false);
 
   // Attendance Session status (draft/submitted/locked)
@@ -548,6 +549,7 @@ const Attendance = () => {
           const records = Array.isArray(reportData) ? reportData : (reportData.records || []);
           const session = reportData.session || null;
           setSessionStatus(session?.attendanceStatus || null);
+          setIsEditing(false);
 
           if (records.length > 0) {
             setIsMarked(true);
@@ -717,13 +719,16 @@ const Attendance = () => {
 
   const toggleStudentStatus = (id, status) => {
     if (holidayInfo && !holidayInfo.isWorkingDay) return;
-    if (isMarked) return;
     // Block attendance toggle for inactive students
     const studentObj = students.find(s => s._id === id);
     if (studentObj && studentObj.status && studentObj.status !== 'Active') return;
     const isAdmin = user?.role === 'admin';
     if (!isAdmin && sessionStatus === 'locked') return;
-    if (!isAdmin && sessionStatus === 'submitted') return;
+
+    if (isMarked && !isEditing) {
+      setIsEditing(true);
+    }
+
     setAttendanceData((prev) => ({
       ...prev,
       [id]: status,
@@ -758,66 +763,24 @@ const Attendance = () => {
           attendanceData[s._id].slice(1), // 'present' -> 'Present'
       }));
 
-      if (hasExistingRecords || isMarked) {
-        // Update existing attendance (works for draft, submitted or admin updates)
-        const res = await api.put("/attendance", {
-          classId: selectedClass,
-          date: selectedDate,
-          attendanceData: attendanceDataArray,
-        });
-        if (res.data.success) {
-          setIsMarked(true);
-          setHasExistingRecords(true);
-          if (user?.role === 'admin') {
-            setSessionStatus('submitted');
-          }
-          addToast("Attendance updated successfully", "success");
-        }
-      } else {
-        // Create new attendance
-        const res = await api.post("/attendance", {
-          classId: selectedClass,
-          date: selectedDate,
-          attendanceData: attendanceDataArray,
-        });
-        if (res.data.success) {
-          setIsMarked(true);
-          setHasExistingRecords(true);
-          const initialStatus = user?.role === 'admin' ? 'submitted' : 'draft';
-          setSessionStatus(initialStatus);
-          addToast(
-            `Student attendance for class archived successfully`,
-            "success",
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Submit student attendance error:", error);
-      addToast(
-        error.response?.data?.message || "Failed to submit student attendance",
-        "error",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Submit attendance for review (draft → submitted)
-  const handleSubmitForReview = async () => {
-    if (!selectedClass) return;
-    setLoading(true);
-    try {
-      const res = await api.post("/attendance/submit", {
+      const res = await api.post("/attendance", {
         classId: selectedClass,
         date: selectedDate,
+        attendanceData: attendanceDataArray,
       });
+
       if (res.data.success) {
+        const wasMarked = isMarked;
+        setIsMarked(true);
+        setHasExistingRecords(true);
+        setIsEditing(false);
         setSessionStatus('submitted');
-        addToast("Attendance submitted for review", "success");
+        addToast(wasMarked ? "Attendance updated successfully" : "Attendance saved successfully", "success");
       }
     } catch (error) {
+      console.error("Save student attendance error:", error);
       addToast(
-        error.response?.data?.message || "Failed to submit attendance",
+        error.response?.data?.message || "Failed to save student attendance",
         "error",
       );
     } finally {
@@ -1700,16 +1663,11 @@ const Attendance = () => {
                 </div>
               ) : null}
 
-              {/* Session status badge (for teachers) */}
-              {activeTab === "mark-students" && sessionStatus && (
-                <div className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border",
-                  sessionStatus === 'draft' && "bg-amber-50 text-amber-700 border-amber-200",
-                  sessionStatus === 'submitted' && "bg-blue-50 text-blue-700 border-blue-200",
-                  sessionStatus === 'locked' && "bg-rose-50 text-rose-700 border-rose-200",
-                )}>
-                  {sessionStatus === 'locked' ? <Lock size={14} /> : sessionStatus === 'submitted' ? <Send size={14} /> : <AlertCircle size={14} />}
-                  {sessionStatus}
+              {/* Session status badge (if locked by Admin) */}
+              {activeTab === "mark-students" && sessionStatus === 'locked' && (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border bg-rose-50 text-rose-700 border-rose-200">
+                  <Lock size={14} />
+                  Locked
                 </div>
               )}
             </>
@@ -1830,52 +1788,52 @@ const Attendance = () => {
 
         {/* Action Buttons for Mark tabs */}
         {(activeTab === "mark-students" || activeTab === "mark-staff") && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
-            {/* Modify Entry (Top) */}
-            {((activeTab === "mark-students" && isMarked && (user?.role === 'admin' || sessionStatus === 'draft')) ||
-              (activeTab === "mark-staff" && isStaffMarked && user?.role === 'admin')) && (
-              <Button
-                onClick={() => activeTab === "mark-students" ? setIsMarked(false) : setIsStaffMarked(false)}
-                variant="secondary"
-                className="w-full sm:w-auto rounded-2xl shadow-md px-4 sm:px-6 h-12 border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs sm:text-sm font-bold"
-              >
-                Modify
-              </Button>
-            )}
-
-            {/* Save/Submit student attendance */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0 min-w-0">
+            {/* Student Attendance Actions */}
             {activeTab === "mark-students" && (sessionStatus !== 'locked' || user?.role === 'admin') && (
-              <Button
-                onClick={handleStudentSubmit}
-                loading={loading}
-                disabled={(user?.role !== 'admin' && (sessionStatus === 'submitted' || sessionStatus === 'locked')) || (holidayInfo && !holidayInfo.isWorkingDay)}
-                icon={Save}
-                className="w-full sm:w-auto rounded-2xl shadow-lg px-8 h-12 text-xs sm:text-sm font-bold"
-              >
-                {!isMarked
-                  ? "Save as Draft"
-                  : user?.role === 'admin'
-                    ? "Update Student Attendance"
-                    : sessionStatus === 'submitted'
-                      ? "Submitted"
-                      : sessionStatus === 'locked'
-                        ? "Locked"
-                        : "Save Changes"}
-              </Button>
-            )}
-
-            {/* Submit for review (teacher: draft → submitted) */}
-            {activeTab === "mark-students" && isMarked && sessionStatus === 'draft' && user?.role !== 'admin' && (
-              <Button
-                onClick={handleSubmitForReview}
-                loading={loading}
-                disabled={holidayInfo && !holidayInfo.isWorkingDay}
-                icon={Send}
-                variant="primary"
-                className="w-full sm:w-auto rounded-2xl shadow-lg px-6 h-12 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold border-none"
-              >
-                Final Submit
-              </Button>
+              <>
+                {!isMarked ? (
+                  <Button
+                    onClick={handleStudentSubmit}
+                    loading={loading}
+                    disabled={holidayInfo && !holidayInfo.isWorkingDay}
+                    icon={Save}
+                    className="w-full sm:w-auto rounded-2xl shadow-lg px-8 h-12 text-xs sm:text-sm font-bold"
+                  >
+                    Save Attendance
+                  </Button>
+                ) : !isEditing ? (
+                  <Button
+                    onClick={() => setIsEditing(true)}
+                    variant="secondary"
+                    icon={Save}
+                    disabled={holidayInfo && !holidayInfo.isWorkingDay}
+                    className="w-full sm:w-auto rounded-2xl shadow-md px-6 h-12 border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs sm:text-sm font-bold"
+                  >
+                    Modify Attendance
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                    <Button
+                      onClick={() => setIsEditing(false)}
+                      variant="secondary"
+                      disabled={loading}
+                      className="shrink-0 px-3.5 sm:px-5 h-11 sm:h-12 rounded-2xl shadow-xs border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-bold"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleStudentSubmit}
+                      loading={loading}
+                      disabled={holidayInfo && !holidayInfo.isWorkingDay}
+                      icon={Save}
+                      className="flex-1 sm:flex-initial min-w-0 px-3 sm:px-8 h-11 sm:h-12 rounded-2xl shadow-lg text-xs sm:text-sm font-bold truncate"
+                    >
+                      Update Attendance
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Locked indicator */}
@@ -2174,7 +2132,7 @@ const Attendance = () => {
                                     },
                                   ].map((option) => {
                                     const isSelected = status === option.id;
-                                    const isBtnDisabled = (holidayInfo && !holidayInfo.isWorkingDay) || isMarked || (sessionStatus === 'locked' && user?.role !== 'admin') || (user?.role !== 'admin' && sessionStatus === 'submitted');
+                                    const isBtnDisabled = (holidayInfo && !holidayInfo.isWorkingDay) || (isMarked && !isEditing) || (sessionStatus === 'locked' && user?.role !== 'admin');
                                     return (
                                       <button
                                         key={option.id}
@@ -2232,6 +2190,7 @@ const Attendance = () => {
                           student={student}
                           status={status}
                           isMarked={isMarked}
+                          isEditing={isEditing}
                           sessionStatus={sessionStatus}
                           toggleStudentStatus={toggleStudentStatus}
                           isHoliday={holidayInfo && !holidayInfo.isWorkingDay}

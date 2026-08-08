@@ -465,7 +465,7 @@ const AdminDashboard = () => {
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="text-xs sm:text-sm font-black uppercase tracking-tight text-gray-900 leading-tight">
-                Extended Absence Warning System (>7 Working Days)
+                Extended Absence Warning System (&gt;7 Working Days)
               </span>
               <span className={cn(
                 "px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0",
@@ -1448,7 +1448,7 @@ const TeacherDashboard = () => {
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="text-xs sm:text-sm font-black uppercase tracking-tight text-gray-900 leading-tight">
-                Class Extended Absence Warning (>7 Working Days)
+                Class Extended Absence Warning (&gt;7 Working Days)
               </span>
               <span className={cn(
                 "px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0",

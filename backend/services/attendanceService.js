@@ -81,15 +81,14 @@ class AttendanceService {
     const results = await Attendance.insertMany(operations);
 
     // 5. Create or update attendance session
-    const initialStatus = userInfo.role === 'admin' ? 'submitted' : 'draft';
     await AttendanceSession.findOneAndUpdate(
       { class: classId, date: { $gte: targetDate, $lte: dayEnd } },
       {
         class: classId,
         date: targetDate,
         markedBy: userInfo.userId || null,
-        attendanceStatus: initialStatus,
-        ...(userInfo.role === 'admin' ? { submittedAt: new Date() } : {})
+        attendanceStatus: 'submitted',
+        submittedAt: new Date()
       },
       { upsert: true, new: true }
     );
@@ -144,25 +143,20 @@ class AttendanceService {
 
     const results = await Promise.all(updatePromises);
 
-    // Update session status: if admin updates, ensure it is 'submitted' (or stays 'locked' if locked). If teacher updates a submitted entry, revert to draft.
+    // Update session status
     if (session) {
-      if (userInfo.role === 'admin') {
-        if (session.attendanceStatus !== 'locked') {
-          session.attendanceStatus = 'submitted';
-          session.submittedAt = session.submittedAt || new Date();
-        }
-      } else if (session.attendanceStatus === 'submitted') {
-        session.attendanceStatus = 'draft';
+      if (session.attendanceStatus !== 'locked') {
+        session.attendanceStatus = 'submitted';
+        session.submittedAt = session.submittedAt || new Date();
       }
       await session.save();
     } else {
-      const initialStatus = userInfo.role === 'admin' ? 'submitted' : 'draft';
       await AttendanceSession.create({
         class: classId,
         date: targetDate,
         markedBy: userInfo.userId || null,
-        attendanceStatus: initialStatus,
-        ...(userInfo.role === 'admin' ? { submittedAt: new Date() } : {})
+        attendanceStatus: 'submitted',
+        submittedAt: new Date(),
       });
     }
 
