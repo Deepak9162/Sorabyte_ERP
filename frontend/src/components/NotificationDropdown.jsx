@@ -35,10 +35,24 @@ const NotificationDropdown = () => {
   useEffect(() => {
     fetchNotificationsData();
 
-    // Set up polling every 30 seconds
+    // Set up polling every 15 seconds
     const interval = setInterval(() => {
       fetchNotificationsData(true);
-    }, 30000);
+    }, 15000);
+
+    const handleFocusOrVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchNotificationsData(true);
+      }
+    };
+
+    const handleCustomNotificationUpdate = () => {
+      fetchNotificationsData(true);
+    };
+
+    window.addEventListener("focus", handleFocusOrVisibility);
+    document.addEventListener("visibilitychange", handleFocusOrVisibility);
+    window.addEventListener("notification-updated", handleCustomNotificationUpdate);
 
     // Event listener for click outside to close dropdown
     const handleClickOutside = (event) => {
@@ -51,6 +65,9 @@ const NotificationDropdown = () => {
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener("focus", handleFocusOrVisibility);
+      document.removeEventListener("visibilitychange", handleFocusOrVisibility);
+      window.removeEventListener("notification-updated", handleCustomNotificationUpdate);
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);

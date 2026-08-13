@@ -143,6 +143,7 @@ const MyAttendance = () => {
       const res = await api.post('/leaves', payload);
       if (res.data.success) {
         addToast('Leave request submitted successfully!', 'success');
+        window.dispatchEvent(new Event("notification-updated"));
         setIsLeaveModalOpen(false);
         setLeaveForm({
           leaveType: 'Casual Leave',
@@ -168,6 +169,7 @@ const MyAttendance = () => {
       const res = await api.put(`/leaves/${leaveId}/cancel`, { reason: 'Cancelled by teacher' });
       if (res.data.success) {
         addToast('Leave request cancelled', 'info');
+        window.dispatchEvent(new Event("notification-updated"));
         fetchMyLeaves();
         fetchMyAttendance();
       }

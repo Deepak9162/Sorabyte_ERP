@@ -69,14 +69,20 @@ class LeaveService {
 
     // Notify all admin users
     try {
-      const admins = await User.find({ role: 'admin' });
-      const teacherName = `${teacher.firstName} ${teacher.lastName}`;
+      const admins = await User.find({ role: { $regex: /^admin$/i } });
+      const teacherName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || 'A Teacher';
+      
+      const sDay = new Date(startDayObj);
+      const eDay = new Date(endDayObj);
+      const sStr = isNaN(sDay.getTime()) ? startDate : sDay.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const eStr = isNaN(eDay.getTime()) ? endDate : eDay.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
       const notificationPromises = admins.map(admin =>
         Notification.create({
           recipient: admin._id,
           sender: userId,
           title: 'New Leave Request',
-          message: `${teacherName} has requested ${leaveType} for ${totalDays} day(s) (${startDayObj.toLocaleDateString('en-IN')} to ${endDayObj.toLocaleDateString('en-IN')}).`,
+          message: `${teacherName} has requested ${leaveType} for ${totalDays} day(s) (${sStr} to ${eStr}).`,
           type: 'info',
           link: '/attendance?tab=leave-requests'
         })
@@ -240,6 +246,27 @@ class LeaveService {
     leaveRequest.cancelledAt = new Date();
     leaveRequest.cancellationReason = cancellationReason || 'Cancelled by user';
     await leaveRequest.save();
+
+    // Notify admins if cancelled by teacher
+    if (userRole === 'teacher') {
+      try {
+        const admins = await User.find({ role: { $regex: /^admin$/i } });
+        const teacherName = `${leaveRequest.teacher?.firstName || ''} ${leaveRequest.teacher?.lastName || ''}`.trim() || 'A Teacher';
+        const notificationPromises = admins.map(admin =>
+          Notification.create({
+            recipient: admin._id,
+            sender: userId,
+            title: 'Leave Request Cancelled',
+            message: `${teacherName} has cancelled their ${leaveRequest.leaveType} request.`,
+            type: 'warning',
+            link: '/attendance?tab=leave-requests'
+          })
+        );
+        await Promise.all(notificationPromises);
+      } catch (err) {
+        console.error('Failed to send leave cancellation notifications to admin:', err.message);
+      }
+    }
 
     return leaveRequest;
   }
