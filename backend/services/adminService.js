@@ -42,7 +42,9 @@ class AdminService {
     }
 
     const [students, teacherCount, classCount, feeStats] = await Promise.all([
-      Student.find({ status: 'Active' }).populate('class'),
+      Student.find({ status: 'Active' })
+        .select('status discountPercentage transportMode transportFee admissionDate createdAt class')
+        .populate('class', 'tuitionFee'),
       Teacher.countDocuments(),
       Class.countDocuments(),
       FeeTransaction.aggregate([
@@ -52,7 +54,8 @@ class AdminService {
     ]);
 
     const FeeLedger = require('../models/FeeLedger');
-    const ledgers = await FeeLedger.find({ academicYear: '2026-2027' });
+    const ledgers = await FeeLedger.find({ academicYear: '2026-2027' })
+      .select('studentId totalPaid monthlyFees');
     const ledgerMap = new Map();
     ledgers.forEach(l => {
       ledgerMap.set(l.studentId.toString(), l);

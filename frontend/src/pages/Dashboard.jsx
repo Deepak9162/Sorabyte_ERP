@@ -278,11 +278,14 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    fetchStats();
-    fetchAttendanceAnalytics();
-    fetchAnnouncement();
-    fetchPendingStudents();
-    fetchFinancialSummary();
+    // Launch all 5 initial Admin Dashboard API requests concurrently in parallel
+    Promise.allSettled([
+      fetchStats(),
+      fetchAttendanceAnalytics(),
+      fetchAnnouncement(),
+      fetchPendingStudents(),
+      fetchFinancialSummary(),
+    ]);
 
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {

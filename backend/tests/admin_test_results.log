@@ -4,10 +4,18 @@
 Admin logged in.
 
 [2] Creating Class (10-A)...
-Create Class Status: 409 Duplicate value for field: name
+Create Class Status: 201 Class created successfully
 
 [3] Creating Teacher...
-Create Teacher Status: 409 Duplicate value for field: email
+Create Teacher Status: 201 Teacher created successfully
+
+[4] Updating Class with real Teacher ID (mocking separate flow)...
+
+[5] Creating Student in Class...
+Create Student Status: 400 Validation Error
 
 [6] Fetching all Classes...
-Fetch Classes Status: 200 Found 4 classes
+Fetch Classes Status: 200 Found 17 classes
+
+[7] Fetching Students in Class 6a7e19cb2956d830b81b54e2...
+Fetch Students Status: 200 Found 0 students
