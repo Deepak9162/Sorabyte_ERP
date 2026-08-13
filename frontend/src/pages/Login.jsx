@@ -28,16 +28,10 @@ const Login = () => {
   const { login, logout } = useAuth();
   const navigate = useNavigate();
   const hasLoggedInRef = useRef(false);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
-    // If we just logged in and are redirecting, bypass auto-logout
     if (hasLoggedInRef.current) return;
-
-    // Auto-logout when user lands on login page but has a token (e.g., using Back button)
-    const token = localStorage.getItem("token");
-    if (token) {
-      logout();
-    }
 
     // Check if redirected due to inactivity
     const wasInactive = localStorage.getItem("inactivityLogout");
@@ -45,26 +39,25 @@ const Login = () => {
       setError("Your session has expired due to inactivity. Please log in again.");
       localStorage.removeItem("inactivityLogout");
     }
-  }, [logout]);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading || isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
     setIsLoading(true);
     setError("");
 
     try {
       const user = await login(email, password);
       hasLoggedInRef.current = true;
-      // Redirect based on role
-      if (user.role === "admin") {
-        navigate("/dashboard");
-      } else {
-        navigate("/teacher-dashboard");
-      }
+      // Direct navigation to /dashboard (which handles both Admin & Teacher views)
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err);
-    } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 

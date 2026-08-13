@@ -1,10 +1,10 @@
 --- Starting Auth Verification ---
 
 [1] Registering Admin...
-Admin Register Status: 409 User with this email already exists
+Admin Register Status: 201 User registered successfully
 
 [2] Registering Teacher...
-Teacher Register Status: 409 User with this email already exists
+Teacher Register Status: 201 User registered successfully
 
 [3] Logging in Admin...
 Admin Login Status: 200 Token Received

@@ -241,6 +241,13 @@ const getTeacherDashboardStats = async (req, res, next) => {
     const todayAttendance = await Attendance.find({
       class: { $in: classTeacherIds.length > 0 ? classTeacherIds : classIds },
       date: { $gte: today, $lt: tomorrow }
+    }).select('status student class');
+
+    let presentCount = 0;
+    let absentCount = 0;
+    todayAttendance.forEach(att => {
+      if (att.status === 'Present') presentCount++;
+      else if (att.status === 'Absent') absentCount++;
     });
 
     const extendedAbsenceService = require('../services/extendedAbsenceService');

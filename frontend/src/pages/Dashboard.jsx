@@ -1309,12 +1309,21 @@ const TeacherDashboard = () => {
   const [announcementLoading, setAnnouncementLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAnnouncement = async () => {
+    let isMounted = true;
+
+    const loadTeacherDashboardData = async () => {
       setAnnouncementLoading(true);
       try {
-        const res = await api.get("/holidays/upcoming");
-        if (res?.data?.success && res?.data?.data) {
-          setAnnouncement(res.data.data);
+        const [holidayRes, statsRes] = await Promise.allSettled([
+          api.get("/holidays/upcoming"),
+          api.get("/teachers/dashboard/stats"),
+        ]);
+
+        if (!isMounted) return;
+
+        // Process Announcement/Holiday response
+        if (holidayRes.status === "fulfilled" && holidayRes.value?.data?.success && holidayRes.value?.data?.data) {
+          setAnnouncement(holidayRes.value.data.data);
         } else {
           setAnnouncement({
             title: "No Upcoming Holidays",
@@ -1322,74 +1331,66 @@ const TeacherDashboard = () => {
             createdBy: { name: "System" },
           });
         }
-      } catch (error) {
-        console.error("Fetch upcoming holiday error:", error);
-        setAnnouncement({
-          title: "No Upcoming Holidays",
-          content: "There are currently no upcoming holidays scheduled.",
-          createdBy: { name: "System" },
-        });
-      } finally {
-        setAnnouncementLoading(false);
-      }
-    };
-    fetchAnnouncement();
-  }, []);
 
-  useEffect(() => {
-    const fetchTeacherStats = async () => {
-      try {
-        const res = await api.get("/teachers/dashboard/stats");
-        const data = res?.data?.data || {};
+        // Process Teacher Stats response
+        if (statsRes.status === "fulfilled" && statsRes.value?.data?.success) {
+          const data = statsRes.value.data.data || {};
 
-        if (data.extendedAbsenceAlerts) {
-          setTeacherExtendedAbsenceData(data.extendedAbsenceAlerts);
+          if (data.extendedAbsenceAlerts) {
+            setTeacherExtendedAbsenceData(data.extendedAbsenceAlerts);
+          }
+
+          const totalClasses = data.totalClasses ?? 0;
+          const totalStudents = data.totalStudents ?? 0;
+          const assigned = data.assignedClasses || [];
+          const att = data.attendanceSummary || {
+            present: 0,
+            absent: 0,
+            totalMarked: 0,
+          };
+
+          setStats([
+            {
+              label: "My Classes",
+              value: totalClasses.toString(),
+              icon: BookOpen,
+              color: "indigo",
+            },
+            {
+              label: "My Students",
+              value: totalStudents.toString(),
+              icon: Users,
+              color: "emerald",
+            },
+            {
+              label: "Classes Assigned",
+              value: assigned.length.toString(),
+              icon: ArrowUpRight,
+              color: "amber",
+            },
+          ]);
+
+          setAttendance({
+            present: att.present || 0,
+            absent: att.absent || 0,
+            total: att.totalMarked || 0,
+          });
+
+          setAssignedClasses(assigned);
+          setClassTeacherOf(data.classTeacherOf || []);
         }
-
-        const totalClasses = data.totalClasses ?? 0;
-        const totalStudents = data.totalStudents ?? 0;
-        const assigned = data.assignedClasses || [];
-        const att = data.attendanceSummary || {
-          present: 0,
-          absent: 0,
-          totalMarked: 0,
-        };
-
-        setStats([
-          {
-            label: "My Classes",
-            value: totalClasses.toString(),
-            icon: BookOpen,
-            color: "indigo",
-          },
-          {
-            label: "My Students",
-            value: totalStudents.toString(),
-            icon: Users,
-            color: "emerald",
-          },
-          {
-            label: "Classes Assigned",
-            value: assigned.length.toString(),
-            icon: ArrowUpRight,
-            color: "amber",
-          },
-        ]);
-
-        setAttendance({
-          present: att.present || 0,
-          absent: att.absent || 0,
-          total: att.totalMarked || 0,
-        });
-
-        setAssignedClasses(assigned);
-        setClassTeacherOf(data.classTeacherOf || []);
       } catch (error) {
-        console.error("Teacher Dashboard error:", error);
+        console.error("Teacher Dashboard load error:", error);
+      } finally {
+        if (isMounted) setAnnouncementLoading(false);
       }
     };
 
-    fetchTeacherStats();
+    loadTeacherDashboardData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

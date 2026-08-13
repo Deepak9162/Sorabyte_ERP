@@ -223,11 +223,12 @@ const Layout = ({ children }) => {
     const mainEl = document.getElementById("main-scroll-container");
     const handleScroll = () => {
       if (mainEl) {
-        setIsScrolled(mainEl.scrollTop > 10);
+        const scrolled = mainEl.scrollTop > 10;
+        setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
       }
     };
     if (mainEl) {
-      mainEl.addEventListener("scroll", handleScroll);
+      mainEl.addEventListener("scroll", handleScroll, { passive: true });
     }
     return () => {
       if (mainEl) mainEl.removeEventListener("scroll", handleScroll);

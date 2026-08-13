@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../services/api";
+import api, { cancelAllPendingRequests } from "../services/api";
 
 const AuthContext = createContext();
 
@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const heartbeatRef = useRef(null);
+  const lastActivityTimeRef = useRef(0);
 
   // Send a single heartbeat ping to backend
   const sendHeartbeat = async () => {
@@ -22,10 +23,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Start heartbeat: ping IMMEDIATELY, then every 90 seconds
+  // Start heartbeat: schedule background ping, then every 90 seconds
   const startHeartbeat = () => {
     stopHeartbeat();
-    sendHeartbeat(); // ✅ Fire immediately — don't wait for first interval
+    setTimeout(sendHeartbeat, 0); // Non-blocking background ping
     heartbeatRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
   };
 
@@ -54,7 +55,6 @@ export const AuthProvider = ({ children }) => {
     const handleUnload = () => {
       const token = localStorage.getItem("token");
       if (token) {
-        // sendBeacon works even when page is unloading
         const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
         navigator.sendBeacon(
           `${baseURL}/auth/logout`,
@@ -86,21 +86,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async (isInactive = false) => {
-    try {
-      // ── Tell backend to mark user as Offline
-      await api.post("/auth/logout");
-    } catch {
-      // silent — still clear local state even if API fails
-    } finally {
-      stopHeartbeat();
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      if (isInactive) {
-        localStorage.setItem("inactivityLogout", "true");
-      }
-      setUser(null);
-      navigate("/login");
+  const logout = (isInactive = false) => {
+    // 1. Immediately abort all pending in-flight API requests
+    cancelAllPendingRequests();
+
+    // 2. Stop heartbeat interval
+    stopHeartbeat();
+
+    // 3. Clear auth tokens & user state locally
+    const token = localStorage.getItem("token");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    if (isInactive) {
+      localStorage.setItem("inactivityLogout", "true");
+    }
+
+    setUser(null);
+
+    // 4. Immediately transition UI to login route
+    navigate("/login");
+
+    // 5. Fire server-side logout cleanup asynchronously without blocking the UI
+    if (token) {
+      api.post("/auth/logout").catch(() => {});
     }
   };
 
@@ -122,10 +131,18 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       const events = ["mousemove", "mousedown", "keypress", "scroll", "touchstart"];
-      const handleActivity = () => resetInactivityTimer();
+      
+      const handleActivity = () => {
+        const now = Date.now();
+        // Throttle to at most once per 5 seconds (5000ms) to eliminate CPU thrashing & scroll stutter
+        if (now - lastActivityTimeRef.current > 5000) {
+          lastActivityTimeRef.current = now;
+          resetInactivityTimer();
+        }
+      };
 
       events.forEach((event) => {
-        window.addEventListener(event, handleActivity);
+        window.addEventListener(event, handleActivity, { passive: true });
       });
 
       resetInactivityTimer();
