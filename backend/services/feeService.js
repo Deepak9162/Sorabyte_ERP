@@ -354,6 +354,27 @@ class FeeService {
       }
     }
 
+    let customDueTotal = 0;
+    const customFeesList = [];
+    if (ledger && ledger.customFees) {
+      ledger.customFees.forEach(cf => {
+        const pending = Math.max(0, (cf.amount || 0) - (cf.paidAmount || 0));
+        if (cf.status !== 'PAID') {
+          customDueTotal += pending;
+        }
+        customFeesList.push({
+          _id: cf._id,
+          name: cf.name,
+          amount: cf.amount,
+          paidAmount: cf.paidAmount || 0,
+          pending: pending,
+          status: cf.status,
+          remarks: cf.remarks || '',
+          createdAt: cf.createdAt
+        });
+      });
+    }
+
     return {
       student: {
         id: student._id,
@@ -373,7 +394,7 @@ class FeeService {
       feeSummary: ledger ? {
         totalFee: ledger.totalFee,
         paidFee: ledger.totalPaid,
-        dueFee: dueFeeTotal,
+        dueFee: dueFeeTotal + customDueTotal,
         upcomingFee: upcomingFeeTotal
       } : {
         totalFee: (student.class.tuitionFee || 0) * 12,
@@ -383,7 +404,8 @@ class FeeService {
       },
       ledger: ledger ? {
         academicYear: ledger.academicYear,
-        monthlyBreakdown: monthlyBreakdown
+        monthlyBreakdown: monthlyBreakdown,
+        customFees: customFeesList
       } : null,
       transactions: transactions
     };
@@ -395,7 +417,7 @@ class FeeService {
   async processPayment(studentId, paymentData) {
     const mongoose = require('mongoose');
     const FeeLedger = require('../models/FeeLedger');
-    const { amount, type, transactionId, remarks, dueDate, month, academicYear, paymentMode, includeTransport } = paymentData;
+    const { amount, type, transactionId, remarks, dueDate, month, academicYear, paymentMode, includeTransport, selectedCustomFeeIds } = paymentData;
 
     try {
       // Normalize month to a string for FeeTransaction database record and target months array
@@ -449,6 +471,40 @@ class FeeService {
 
       let remainingAmount = amount;
       let totalTransportPaid = 0;
+      const paidCustomFeesList = [];
+
+      // A. Pay selected custom fees first if provided
+      if (Array.isArray(selectedCustomFeeIds) && selectedCustomFeeIds.length > 0 && ledger.customFees && ledger.customFees.length > 0) {
+        for (const cfId of selectedCustomFeeIds) {
+          const cfEntry = ledger.customFees.find(c => c._id.toString() === cfId.toString());
+          if (cfEntry && cfEntry.status !== 'PAID') {
+            const cfPending = Math.max(0, (cfEntry.amount || 0) - (cfEntry.paidAmount || 0));
+            if (cfPending > 0 && remainingAmount > 0) {
+              if (remainingAmount >= cfPending) {
+                cfEntry.paidAmount = (cfEntry.paidAmount || 0) + cfPending;
+                cfEntry.status = 'PAID';
+                paidCustomFeesList.push({
+                  customFeeId: cfEntry._id,
+                  name: cfEntry.name,
+                  amount: cfPending,
+                  remarks: cfEntry.remarks || ''
+                });
+                remainingAmount -= cfPending;
+              } else {
+                cfEntry.paidAmount = (cfEntry.paidAmount || 0) + remainingAmount;
+                cfEntry.status = 'PARTIAL';
+                paidCustomFeesList.push({
+                  customFeeId: cfEntry._id,
+                  name: cfEntry.name,
+                  amount: remainingAmount,
+                  remarks: cfEntry.remarks || ''
+                });
+                remainingAmount = 0;
+              }
+            }
+          }
+        }
+      }
 
       for (const mName of targetMonths) {
         const monthEntry = ledger.monthlyFees.find(m => m.month === mName);
@@ -515,8 +571,19 @@ class FeeService {
       }
 
       // Save transportAmount on the transaction record if any transport fee was settled
+      let needTxSave = false;
       if (totalTransportPaid > 0) {
         transaction.transportAmount = totalTransportPaid;
+        needTxSave = true;
+      }
+
+      if (paidCustomFeesList.length > 0) {
+        transaction.customFees = paidCustomFeesList;
+        ledger.markModified('customFees');
+        needTxSave = true;
+      }
+
+      if (needTxSave) {
         await transaction.save();
       }
 
@@ -643,38 +710,45 @@ class FeeService {
     doc.moveTo(40, tableY + 12).lineTo(555, tableY + 12).stroke('#e5e7eb');
     
     const transportPaid = transaction.transportAmount || 0;
-    const tuitionPaid = transaction.amount - transportPaid;
+    const customFeesPaid = transaction.customFees || [];
+    const customFeesTotalPaid = customFeesPaid.reduce((acc, cf) => acc + (cf.amount || 0), 0);
+    const tuitionPaid = Math.max(0, transaction.amount - transportPaid - customFeesTotalPaid);
     const billMonth = transaction.month || 'Current Installment';
     
     let currentY = tableY + 20;
     
-    if (transportPaid > 0) {
-      // Row 1: Tuition
+    if (tuitionPaid > 0 || (transportPaid === 0 && customFeesPaid.length === 0)) {
       doc.rect(40, currentY - 4, 515, 18).fill('#ffffff');
-      doc.fillColor('#374151').fontSize(8.5).text('Tuition Fee', 50, currentY);
+      doc.fillColor('#374151').fontSize(8.5).text(`${transaction.type || 'Tuition'} Fee`, 50, currentY);
       doc.text(billMonth, 250, currentY);
-      doc.fillColor('#111827').text(`INR ${tuitionPaid.toLocaleString('en-IN')}.00`, 420, currentY, { align: 'right', width: 100 });
+      doc.fillColor('#111827').text(`INR ${(tuitionPaid > 0 ? tuitionPaid : transaction.amount).toLocaleString('en-IN')}.00`, 420, currentY, { align: 'right', width: 100 });
       doc.moveTo(40, currentY + 12).lineTo(555, currentY + 12).stroke('#f3f4f6');
       
       currentY += 18;
-      
-      // Row 2: Transport
+    }
+
+    if (transportPaid > 0) {
       doc.rect(40, currentY - 4, 515, 18).fill('#f9fafb');
-      doc.fillColor('#374151').text('Transport Fee', 50, currentY);
+      doc.fillColor('#374151').fontSize(8.5).text('Transport Fee', 50, currentY);
       doc.text(billMonth, 250, currentY);
       doc.fillColor('#111827').text(`INR ${transportPaid.toLocaleString('en-IN')}.00`, 420, currentY, { align: 'right', width: 100 });
       doc.moveTo(40, currentY + 12).lineTo(555, currentY + 12).stroke('#f3f4f6');
       
       currentY += 18;
-    } else {
-      // Single Tuition Row
-      doc.rect(40, currentY - 4, 515, 18).fill('#ffffff');
-      doc.fillColor('#374151').fontSize(8.5).text(`${transaction.type || 'Tuition'} Fee`, 50, currentY);
-      doc.text(billMonth, 250, currentY);
-      doc.fillColor('#111827').text(`INR ${transaction.amount.toLocaleString('en-IN')}.00`, 420, currentY, { align: 'right', width: 100 });
-      doc.moveTo(40, currentY + 12).lineTo(555, currentY + 12).stroke('#f3f4f6');
-      
-      currentY += 18;
+    }
+
+    if (customFeesPaid.length > 0) {
+      customFeesPaid.forEach((cf, idx) => {
+        const rowBg = idx % 2 === 0 ? '#ffffff' : '#f9fafb';
+        doc.rect(40, currentY - 4, 515, 18).fill(rowBg);
+        const displayName = cf.remarks ? `${cf.name} (${cf.remarks})` : cf.name;
+        doc.fillColor('#374151').fontSize(8.5).text(displayName, 50, currentY);
+        doc.text(billMonth, 250, currentY);
+        doc.fillColor('#111827').text(`INR ${(cf.amount || 0).toLocaleString('en-IN')}.00`, 420, currentY, { align: 'right', width: 100 });
+        doc.moveTo(40, currentY + 12).lineTo(555, currentY + 12).stroke('#f3f4f6');
+        
+        currentY += 18;
+      });
     }
 
     doc.y = currentY + 10;
@@ -1170,6 +1244,83 @@ class FeeService {
       monthSummary,
       transactionsList: flatTransactions
     };
+  }
+
+  /**
+   * Add a custom fee for a student
+   */
+  async addCustomFee(studentId, { name, amount, remarks, academicYear = '2026-2027', createdBy }) {
+    const Student = require('../models/Student');
+    const FeeLedger = require('../models/FeeLedger');
+
+    if (!studentId) throw new Error('Student ID is required');
+    if (!name || typeof name !== 'string' || !name.trim()) throw new Error('Fee name is required');
+    
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount <= 0) {
+      throw new Error('Fee amount must be a valid number greater than 0');
+    }
+
+    const student = await Student.findById(studentId).populate('class');
+    if (!student) throw new Error('Student not found');
+
+    const tuitionFee = student.class?.tuitionFee || 0;
+    const ledger = await this.ensureFeeLedger(student._id, academicYear, tuitionFee);
+
+    if (!ledger.customFees) ledger.customFees = [];
+
+    ledger.customFees.push({
+      name: name.trim(),
+      amount: parsedAmount,
+      paidAmount: 0,
+      status: 'UNPAID',
+      remarks: remarks ? remarks.trim() : '',
+      createdAt: new Date(),
+      createdBy: createdBy || null
+    });
+
+    ledger.markModified('customFees');
+    await ledger.save();
+
+    // Invalidate dashboard stats cache
+    const adminService = require('./adminService');
+    adminService.invalidateDashboardStatsCache();
+
+    return await this.getStudentFeeDetails(student.class._id, student.rollNumber, academicYear);
+  }
+
+  /**
+   * Delete an unpaid custom fee
+   */
+  async deleteCustomFee(studentId, customFeeId, academicYear = '2026-2027') {
+    const Student = require('../models/Student');
+    const FeeLedger = require('../models/FeeLedger');
+
+    const student = await Student.findById(studentId).populate('class');
+    if (!student) throw new Error('Student not found');
+
+    const ledger = await FeeLedger.findOne({ studentId: student._id, academicYear });
+    if (!ledger) throw new Error('Fee ledger not found for this student');
+
+    if (!ledger.customFees) ledger.customFees = [];
+
+    const cfIndex = ledger.customFees.findIndex(cf => cf._id.toString() === customFeeId.toString());
+    if (cfIndex === -1) throw new Error('Custom fee not found');
+
+    const cfItem = ledger.customFees[cfIndex];
+    if (cfItem.paidAmount > 0 || cfItem.status === 'PAID' || cfItem.status === 'PARTIAL') {
+      throw new Error('This custom fee cannot be deleted because payment has already been recorded.');
+    }
+
+    ledger.customFees.splice(cfIndex, 1);
+    ledger.markModified('customFees');
+    await ledger.save();
+
+    // Invalidate dashboard stats cache
+    const adminService = require('./adminService');
+    adminService.invalidateDashboardStatsCache();
+
+    return await this.getStudentFeeDetails(student.class._id, student.rollNumber, academicYear);
   }
 }
 

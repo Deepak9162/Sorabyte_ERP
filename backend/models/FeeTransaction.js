@@ -70,6 +70,25 @@ const feeTransactionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    customFees: [
+      {
+        customFeeId: {
+          type: mongoose.Schema.Types.ObjectId,
+        },
+        name: {
+          type: String,
+          trim: true,
+        },
+        amount: {
+          type: Number,
+          default: 0,
+        },
+        remarks: {
+          type: String,
+          trim: true,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

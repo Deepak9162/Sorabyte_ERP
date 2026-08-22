@@ -281,7 +281,9 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
 
   const totalAmount = transaction.amount || 0;
   const transportPaid = transaction.transportAmount || 0;
-  const tuitionPaid = totalAmount - transportPaid;
+  const customFeesPaid = Array.isArray(transaction.customFees) ? transaction.customFees : [];
+  const customFeesTotalPaid = customFeesPaid.reduce((acc, cf) => acc + (cf.amount || 0), 0);
+  const tuitionPaid = Math.max(0, totalAmount - transportPaid - customFeesTotalPaid);
   const monthsPaid = Array.isArray(transaction.month)
     ? transaction.month.join(", ")
     : transaction.month || "Current Month";
@@ -390,17 +392,17 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
         </div>
 
         {/* 1. Header Section */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center border-b-2 border-gray-150 pb-4 gap-3 relative">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-row justify-between items-start border-b-2 border-gray-150 pb-4 gap-3 relative">
+          <div className="flex items-center gap-3 min-w-0">
             <SchoolLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
-            <div>
-              <h1 className="text-sm md:text-xl font-black text-indigo-900 tracking-tight leading-tight">
+            <div className="min-w-0">
+              <h1 className="text-sm md:text-xl font-black text-indigo-900 tracking-tight leading-tight truncate">
                 LITTLE FLOWER ENGLISH SCHOOL
               </h1>
               <p className="text-[9px] md:text-xs font-bold text-gray-500 mt-0.5 leading-snug">
                 Dindayalpur, Siwan, Bihar
               </p>
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[8px] md:text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[8px] md:text-[10px] font-black text-orange-500 uppercase tracking-widest mt-1">
                 <span className="flex items-center gap-1">
                   <Globe size={10} /> www.lfessiwan.in
                 </span>
@@ -410,8 +412,8 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
               </div>
             </div>
           </div>
-          <div className="text-left md:text-right shrink-0">
-            <div className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest mb-1 border border-indigo-100/50">
+          <div className="text-right shrink-0 flex flex-col items-end">
+            <div className="inline-block px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[9px] md:text-xs font-black uppercase tracking-widest mb-1 border border-orange-100">
               Fee Collection Receipt
             </div>
             <p className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase tracking-wider">
@@ -559,44 +561,7 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-150">
-              {transportPaid > 0 ? (
-                <>
-                  <tr className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-3 font-extrabold text-gray-900">
-                      Tuition Fee
-                    </td>
-                    <td className="px-5 py-3 font-semibold text-gray-550">
-                      {monthsPaid}
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium text-gray-600">
-                      {formatToINR(tuitionPaid)}
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium text-gray-400">
-                      ₹0.00
-                    </td>
-                    <td className="px-5 py-3 text-right font-extrabold text-gray-900">
-                      {formatToINR(tuitionPaid)}
-                    </td>
-                  </tr>
-                  <tr className="bg-gray-50/20 hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-3 font-extrabold text-gray-900">
-                      Transport Fee
-                    </td>
-                    <td className="px-5 py-3 font-semibold text-gray-550">
-                      {monthsPaid}
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium text-gray-600">
-                      {formatToINR(transportPaid)}
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium text-gray-400">
-                      ₹0.00
-                    </td>
-                    <td className="px-5 py-3 text-right font-extrabold text-gray-900">
-                      {formatToINR(transportPaid)}
-                    </td>
-                  </tr>
-                </>
-              ) : (
+              {(tuitionPaid > 0 || (transportPaid === 0 && customFeesPaid.length === 0)) && (
                 <tr className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-5 py-3 font-extrabold text-gray-900">
                     {transaction.type || "Tuition"} Fee
@@ -605,16 +570,59 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
                     {monthsPaid}
                   </td>
                   <td className="px-5 py-3 text-right font-medium text-gray-600">
-                    {formatToINR(totalAmount)}
+                    {formatToINR(tuitionPaid > 0 ? tuitionPaid : totalAmount)}
                   </td>
                   <td className="px-5 py-3 text-right font-medium text-gray-400">
                     ₹0.00
                   </td>
                   <td className="px-5 py-3 text-right font-extrabold text-gray-900">
-                    {formatToINR(totalAmount)}
+                    {formatToINR(tuitionPaid > 0 ? tuitionPaid : totalAmount)}
                   </td>
                 </tr>
               )}
+              {transportPaid > 0 && (
+                <tr className="bg-gray-50/20 hover:bg-gray-50/50 transition-colors">
+                  <td className="px-5 py-3 font-extrabold text-gray-900">
+                    Transport Fee
+                  </td>
+                  <td className="px-5 py-3 font-semibold text-gray-550">
+                    {monthsPaid}
+                  </td>
+                  <td className="px-5 py-3 text-right font-medium text-gray-600">
+                    {formatToINR(transportPaid)}
+                  </td>
+                  <td className="px-5 py-3 text-right font-medium text-gray-400">
+                    ₹0.00
+                  </td>
+                  <td className="px-5 py-3 text-right font-extrabold text-gray-900">
+                    {formatToINR(transportPaid)}
+                  </td>
+                </tr>
+              )}
+              {customFeesPaid.length > 0 && customFeesPaid.map((cf, idx) => (
+                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-5 py-3 font-extrabold text-gray-900">
+                    <div>{cf.name}</div>
+                    {cf.remarks && (
+                      <div className="text-[9px] font-normal text-gray-500 italic mt-0.5">
+                        {cf.remarks}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-5 py-3 font-semibold text-gray-550">
+                    {monthsPaid}
+                  </td>
+                  <td className="px-5 py-3 text-right font-medium text-gray-600">
+                    {formatToINR(cf.amount)}
+                  </td>
+                  <td className="px-5 py-3 text-right font-medium text-gray-400">
+                    ₹0.00
+                  </td>
+                  <td className="px-5 py-3 text-right font-extrabold text-gray-900">
+                    {formatToINR(cf.amount)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -668,7 +676,7 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
         </div>
 
         {/* 6. Footer, Verification & Stamp / Signature Area */}
-        <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-4 pt-4 border-t border-gray-100 relative">
+        <div className="flex flex-row justify-between items-end gap-4 pt-4 border-t border-gray-100 relative">
           {/* QR Verification */}
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 md:w-20 md:h-20 border border-gray-200 rounded-xl p-1 bg-white shrink-0 shadow-sm flex items-center justify-center">
@@ -693,26 +701,26 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
           </div>
 
           {/* Overlapping Stamp & Signature */}
-          <div className="relative text-center w-32 md:w-40 h-24 md:h-28 flex flex-col justify-end items-center">
+          <div className="relative text-right w-32 md:w-40 h-24 md:h-28 flex flex-col justify-end items-end shrink-0">
             {/* The Signature Image */}
             <img
               src="/assets/official/principal-signature.png"
               alt="Principal Signature"
-              className="absolute bottom-10 w-20 md:w-24 h-auto z-20 pointer-events-none select-none"
+              className="absolute bottom-9 right-2 w-20 md:w-24 h-auto z-20 pointer-events-none select-none"
             />
 
             {/* Overlapping Stamp Image (20-30% overlap, 75-80% opacity) */}
             <img
               src="/assets/official/school-stamp.png"
               alt="Official School Stamp"
-              className="absolute bottom-6 w-16 md:w-20 h-auto z-10 opacity-75 pointer-events-none select-none left-2 md:left-4"
+              className="absolute bottom-5 right-6 w-16 md:w-20 h-auto z-10 opacity-75 pointer-events-none select-none"
             />
 
-            <div className="w-full border-t border-gray-200 pt-1.5 relative z-30 bg-white/70 backdrop-blur-sm">
+            <div className="w-full border-t border-gray-200 pt-1.5 relative z-30 bg-white/70 backdrop-blur-sm text-right">
               <p className="text-[9px] md:text-[10px] font-black text-gray-900 leading-none">
                 Principal
               </p>
-              <p className="text-[7px] md:text-[8px] font-bold text-gray-405 mt-0.5 leading-none">
+              <p className="text-[7px] md:text-[8px] font-bold text-gray-400 mt-0.5 leading-none">
                 Little Flower English School
               </p>
             </div>

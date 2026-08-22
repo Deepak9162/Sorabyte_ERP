@@ -59,6 +59,43 @@ const feeLedgerSchema = new mongoose.Schema(
         },
       },
     ],
+    customFees: [
+      {
+        name: {
+          type: String,
+          required: [true, 'Fee name is required'],
+          trim: true,
+        },
+        amount: {
+          type: Number,
+          required: [true, 'Fee amount is required'],
+          min: [0.01, 'Amount must be greater than 0'],
+        },
+        paidAmount: {
+          type: Number,
+          default: 0,
+          min: [0, 'Paid amount cannot be negative'],
+        },
+        status: {
+          type: String,
+          enum: ["PAID", "PARTIAL", "UNPAID"],
+          default: "UNPAID",
+        },
+        remarks: {
+          type: String,
+          trim: true,
+          default: '',
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        createdBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      },
+    ],
     totalFee: {
       type: Number,
       default: 0,
@@ -82,6 +119,9 @@ feeLedgerSchema.index({ studentId: 1, academicYear: 1 }, { unique: true });
 
 // Pre-save middleware to calculate totals and status
 feeLedgerSchema.pre('save', async function () {
+  let monthlyTotalFee = 0;
+  let monthlyTotalPaid = 0;
+
   if (this.monthlyFees && this.monthlyFees.length > 0) {
     this.monthlyFees.forEach((month) => {
       // Handle Tuition Status
@@ -109,10 +149,30 @@ feeLedgerSchema.pre('save', async function () {
       }
     });
 
-    this.totalFee = this.monthlyFees.reduce((acc, curr) => acc + curr.amount + (curr.transportAmount || 0), 0);
-    this.totalPaid = this.monthlyFees.reduce((acc, curr) => acc + (curr.paidAmount || 0) + (curr.transportPaidAmount || 0), 0);
-    this.pendingAmount = this.totalFee - this.totalPaid;
+    monthlyTotalFee = this.monthlyFees.reduce((acc, curr) => acc + curr.amount + (curr.transportAmount || 0), 0);
+    monthlyTotalPaid = this.monthlyFees.reduce((acc, curr) => acc + (curr.paidAmount || 0) + (curr.transportPaidAmount || 0), 0);
   }
+
+  let customTotalFee = 0;
+  let customTotalPaid = 0;
+
+  if (this.customFees && this.customFees.length > 0) {
+    this.customFees.forEach((cf) => {
+      if (cf.paidAmount >= cf.amount) {
+        cf.status = "PAID";
+      } else if (cf.paidAmount > 0) {
+        cf.status = "PARTIAL";
+      } else {
+        cf.status = "UNPAID";
+      }
+      customTotalFee += cf.amount || 0;
+      customTotalPaid += cf.paidAmount || 0;
+    });
+  }
+
+  this.totalFee = monthlyTotalFee + customTotalFee;
+  this.totalPaid = monthlyTotalPaid + customTotalPaid;
+  this.pendingAmount = this.totalFee - this.totalPaid;
 });
 
 module.exports = mongoose.model('FeeLedger', feeLedgerSchema);

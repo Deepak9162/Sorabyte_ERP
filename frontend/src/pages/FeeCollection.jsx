@@ -26,7 +26,10 @@ import {
   Users,
   Filter,
   Check,
-  FileText
+  FileText,
+  Plus,
+  Trash2,
+  Tag
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -96,6 +99,15 @@ const FeeCollection = () => {
   const [isClassStudentsLoading, setIsClassStudentsLoading] = useState(false);
   const [monthlySummary, setMonthlySummary] = useState([]);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
+  // Custom Fee State variables
+  const [isAddCustomFeeModalOpen, setIsAddCustomFeeModalOpen] = useState(false);
+  const [customFeeName, setCustomFeeName] = useState("");
+  const [customFeeAmount, setCustomFeeAmount] = useState("");
+  const [customFeeRemarks, setCustomFeeRemarks] = useState("");
+  const [isSavingCustomFee, setIsSavingCustomFee] = useState(false);
+  const [selectedCustomFees, setSelectedCustomFees] = useState([]);
+  const [deletingCustomFeeId, setDeletingCustomFeeId] = useState(null);
 
   // Load recent students from LocalStorage on mount
   useEffect(() => {
@@ -325,10 +337,11 @@ const FeeCollection = () => {
     setCurrentStep("selector");
   }, [selectedClass, classes]);
 
-  // Reactively calculate total payment amount based on selected months and transport toggle
+  // Reactively calculate total payment amount based on selected months, transport toggle, and custom fees
   useEffect(() => {
     if (!student) return;
     const breakdown = student.ledger?.monthlyBreakdown || [];
+    const customFees = student.ledger?.customFees || [];
     
     // Sum outstanding tuition fees for selected months
     const tuitionPending = selectedMonths.reduce((sum, mName) => {
@@ -345,8 +358,82 @@ const FeeCollection = () => {
         }, 0)
       : 0;
 
-    setAmount((tuitionPending + transportPending).toString());
-  }, [selectedMonths, includeTransport, student]);
+    // Sum selected custom fees pending amounts
+    const customFeesPending = selectedCustomFees.reduce((sum, cfId) => {
+      const cfInfo = customFees.find(cf => cf._id === cfId);
+      return sum + (cfInfo ? (cfInfo.pending !== undefined ? cfInfo.pending : Math.max(0, cfInfo.amount - (cfInfo.paidAmount || 0))) : 0);
+    }, 0);
+
+    setAmount((tuitionPending + transportPending + customFeesPending).toString());
+  }, [selectedMonths, includeTransport, selectedCustomFees, student]);
+
+  // Custom Fee Handlers
+  const handleAddCustomFee = async (e) => {
+    if (e) e.preventDefault();
+    const trimmedName = customFeeName.trim();
+    if (!trimmedName) {
+      addToast("Fee name is required", "error");
+      return;
+    }
+
+    const parsedAmt = parseFloat(customFeeAmount);
+    if (isNaN(parsedAmt) || !isFinite(parsedAmt) || parsedAmt <= 0) {
+      addToast("Amount must be a valid positive number", "error");
+      return;
+    }
+
+    setIsSavingCustomFee(true);
+    try {
+      const res = await api.post("/fees/custom", {
+        studentId: student.id,
+        name: trimmedName,
+        amount: parsedAmt,
+        remarks: customFeeRemarks.trim(),
+        academicYear: academicYear
+      });
+
+      if (res.data.success) {
+        addToast("Custom fee added successfully", "success");
+        setIsAddCustomFeeModalOpen(false);
+        setCustomFeeName("");
+        setCustomFeeAmount("");
+        setCustomFeeRemarks("");
+        // Refresh student record
+        handleSearch();
+      }
+    } catch (err) {
+      console.error("Error adding custom fee:", err);
+      addToast(err.response?.data?.message || "Failed to add custom fee", "error");
+    } finally {
+      setIsSavingCustomFee(false);
+    }
+  };
+
+  const handleDeleteCustomFee = async (customFeeId) => {
+    if (!student || !customFeeId) return;
+    setDeletingCustomFeeId(customFeeId);
+    try {
+      const res = await api.delete(`/fees/custom/${student.id}/${customFeeId}?academicYear=${academicYear}`);
+      if (res.data.success) {
+        addToast("Custom fee deleted successfully", "success");
+        setSelectedCustomFees(prev => prev.filter(id => id !== customFeeId));
+        handleSearch();
+      }
+    } catch (err) {
+      console.error("Error deleting custom fee:", err);
+      addToast(err.response?.data?.message || "Failed to delete custom fee", "error");
+    } finally {
+      setDeletingCustomFeeId(null);
+    }
+  };
+
+  const handleCustomFeeToggle = (cfId) => {
+    if (selectedCustomFees.includes(cfId)) {
+      setSelectedCustomFees(selectedCustomFees.filter(id => id !== cfId));
+    } else {
+      setSelectedCustomFees([...selectedCustomFees, cfId]);
+    }
+  };
 
   // Dynamic Overall Collection calculation (when selectedClass is empty)
   const overallCollectionStats = useMemo(() => {
@@ -544,29 +631,37 @@ const FeeCollection = () => {
     if (e) e.preventDefault();
     if (!amount || amount <= 0) return;
 
-    if (selectedMonths.length === 0) {
-      addToast("Please select at least one month to pay", "error");
+    if (selectedMonths.length === 0 && selectedCustomFees.length === 0) {
+      addToast("Please select at least one month or custom fee to pay", "error");
       return;
     }
 
     setLoading(true);
     try {
+      const remarksText = [
+        selectedMonths.length > 0 ? `Months: ${selectedMonths.join(', ')}` : null,
+        includeTransport ? 'Transport' : null,
+        selectedCustomFees.length > 0 ? `${selectedCustomFees.length} Custom Fee(s)` : null
+      ].filter(Boolean).join(' | ');
+
       const res = await api.post("/fees/pay", {
         studentId: student.id,
         amount: parseFloat(amount),
         type: "Tuition",
         paymentMode: paymentMode,
-        month: selectedMonths,
+        month: selectedMonths.length > 0 ? selectedMonths : ["Custom Fee"],
         includeTransport: includeTransport,
+        selectedCustomFeeIds: selectedCustomFees,
         academicYear: academicYear,
         transactionId: "TXN-" + Math.random().toString(36).substring(2, 9).toUpperCase(),
-        remarks: `Fee paid for ${selectedMonths.join(', ')} via Finance Portal` + (includeTransport ? ' (Includes Transport)' : ''),
+        remarks: `Fee settlement (${remarksText}) via Finance Portal`,
       });
 
       if (res.data.success) {
         const { transaction: tx } = res.data.data;
         setTransaction(tx);
         setIsSuccessModalOpen(true);
+        setSelectedCustomFees([]);
         addToast("Transaction processed successfully", "success");
         handleSearch();
 
@@ -580,7 +675,7 @@ const FeeCollection = () => {
       }
     } catch (error) {
       console.error("Payment Error:", error);
-      addToast("Failed to process payment", "error");
+      addToast(error.response?.data?.message || "Failed to process payment", "error");
     } finally {
       setLoading(false);
     }
@@ -1456,6 +1551,74 @@ const FeeCollection = () => {
                       </div>
                     </div>
 
+                    {/* Custom Fees Breakdown Card */}
+                    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 space-y-4">
+                      <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Tag size={15} className="text-orange-500" />
+                          <h5 className="text-xs font-bold text-zinc-800 uppercase tracking-wider">Custom / Other Fees</h5>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddCustomFeeModalOpen(true)}
+                          className="flex items-center gap-1 px-3 py-1 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-100 hover:border-orange-200 rounded-xl text-[10px] font-bold uppercase transition-all shadow-sm cursor-pointer"
+                        >
+                          <Plus size={13} />
+                          <span>Add Custom Fee</span>
+                        </button>
+                      </div>
+
+                      {(!student.ledger?.customFees || student.ledger.customFees.length === 0) ? (
+                        <div className="text-center py-4 text-zinc-400 text-xs font-medium">
+                          No custom fees added for this student.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {student.ledger.customFees.map((cf) => (
+                            <div key={cf._id} className="p-3 bg-zinc-50/50 border border-zinc-200/70 rounded-xl flex items-center justify-between gap-3 hover:border-orange-200 transition-colors">
+                              <div className="min-w-0 flex-1 space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-xs text-zinc-800 truncate">{cf.name}</span>
+                                  <span className={cn(
+                                    "px-2 py-0.5 rounded text-[8px] font-bold uppercase border",
+                                    cf.status === 'PAID'
+                                      ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                      : cf.status === 'PARTIAL'
+                                        ? "bg-orange-50 text-orange-600 border-orange-100"
+                                        : "bg-red-50 text-red-500 border-red-100"
+                                  )}>
+                                    {cf.status}
+                                  </span>
+                                </div>
+                                {cf.remarks && (
+                                  <p className="text-[10px] text-zinc-400 italic truncate">{cf.remarks}</p>
+                                )}
+                                <div className="text-[10px] font-bold text-zinc-500">
+                                  Total: {formatToINR(cf.amount)} | Paid: {formatToINR(cf.paidAmount)} | Pending: <span className="text-zinc-900 font-extrabold">{formatToINR(cf.pending)}</span>
+                                </div>
+                              </div>
+
+                              {(cf.paidAmount === 0 && cf.status === 'UNPAID') && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCustomFee(cf._id)}
+                                  disabled={deletingCustomFeeId === cf._id}
+                                  className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                                  title="Delete unpaid custom fee"
+                                >
+                                  {deletingCustomFeeId === cf._id ? (
+                                    <span className="text-[9px] font-bold">...</span>
+                                  ) : (
+                                    <Trash2 size={14} />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Timeline Statement Breakdown */}
                     <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 space-y-4">
                       <div className="flex flex-col gap-2 border-b border-zinc-100 pb-3">
@@ -1589,6 +1752,40 @@ const FeeCollection = () => {
                           <label htmlFor="include-transport-checkbox" className="text-xs font-bold text-zinc-700 cursor-pointer select-none">
                             Include Transport Fee <span className="text-orange-600 font-black">(₹{student.transportFee !== undefined && student.transportFee !== null ? student.transportFee : 500} / Month)</span>
                           </label>
+                        </div>
+                      )}
+
+                      {student.ledger?.customFees && student.ledger.customFees.filter(cf => cf.status !== 'PAID').length > 0 && (
+                        <div className="space-y-3 pt-1">
+                          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Include Custom / Other Fees</label>
+                          <div className="space-y-2">
+                            {student.ledger.customFees.filter(cf => cf.status !== 'PAID').map((cf) => (
+                              <div
+                                key={cf._id}
+                                onClick={() => handleCustomFeeToggle(cf._id)}
+                                className={cn(
+                                  "flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-all select-none",
+                                  selectedCustomFees.includes(cf._id)
+                                    ? "bg-orange-50/40 border-orange-400 shadow-sm"
+                                    : "bg-zinc-50/50 border-zinc-200 hover:border-orange-200"
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedCustomFees.includes(cf._id)}
+                                    onChange={() => {}}
+                                    className="w-4 h-4 text-orange-500 border-zinc-300 rounded focus:ring-orange-500 cursor-pointer accent-orange-500"
+                                  />
+                                  <div>
+                                    <p className="text-xs font-bold text-zinc-800">{cf.name}</p>
+                                    {cf.remarks && <p className="text-[9px] text-zinc-400 italic">{cf.remarks}</p>}
+                                  </div>
+                                </div>
+                                <span className="text-xs font-black text-orange-600">₹{cf.pending}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
@@ -1726,7 +1923,7 @@ const FeeCollection = () => {
       <Modal
         isOpen={isSuccessModalOpen}
         onClose={() => setIsSuccessModalOpen(false)}
-        maxWidth="lg"
+        maxWidth="3xl"
         className="rounded-3xl border border-zinc-100 shadow-xl overflow-hidden"
         footer={
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full p-2">
@@ -1819,6 +2016,80 @@ const FeeCollection = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Add Custom Fee Modal */}
+      <Modal
+        isOpen={isAddCustomFeeModalOpen}
+        onClose={() => setIsAddCustomFeeModalOpen(false)}
+        maxWidth="md"
+        className="rounded-3xl border border-zinc-150 shadow-xl overflow-hidden"
+        title="Add Custom Fee"
+      >
+        <form onSubmit={handleAddCustomFee} className="p-6 space-y-5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-zinc-600 uppercase tracking-wider block">
+              Fee Name *
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Exam Fee, Annual Function Fee"
+              value={customFeeName}
+              onChange={(e) => setCustomFeeName(e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-zinc-600 uppercase tracking-wider block">
+              Amount (₹) *
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="any"
+              placeholder="e.g. 500"
+              value={customFeeAmount}
+              onChange={(e) => setCustomFeeAmount(e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-zinc-600 uppercase tracking-wider block">
+              Remarks (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Annual Examination Fee"
+              value={customFeeRemarks}
+              onChange={(e) => setCustomFeeRemarks(e.target.value)}
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-zinc-100">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1 py-3 rounded-xl text-xs font-bold text-zinc-500 border border-zinc-200 hover:bg-zinc-50 uppercase tracking-wider cursor-pointer"
+              onClick={() => setIsAddCustomFeeModalOpen(false)}
+              disabled={isSavingCustomFee}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              loading={isSavingCustomFee}
+              disabled={!customFeeName.trim() || !customFeeAmount || parseFloat(customFeeAmount) <= 0}
+              className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer shadow-md shadow-orange-100"
+            >
+              Add Fee
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

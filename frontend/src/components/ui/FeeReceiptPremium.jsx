@@ -80,14 +80,23 @@ const FeeReceiptPremium = ({ transaction, student, onDownload }) => {
     window.print();
   };
 
-  // Example breakdown logic (mapping from total amount for demo)
-  const breakdown = [
-    { label: "Tuition Fee", amount: transaction.amount * 0.7 },
-    { label: "Transport Fee", amount: transaction.amount * 0.15 },
-    { label: "Library Fee", amount: transaction.amount * 0.05 },
-    { label: "Exam Fee", amount: transaction.amount * 0.05 },
-    { label: "Other Charges", amount: transaction.amount * 0.05 },
-  ];
+  const transportPaid = transaction.transportAmount || 0;
+  const customFeesPaid = Array.isArray(transaction.customFees) ? transaction.customFees : [];
+  const customFeesTotalPaid = customFeesPaid.reduce((acc, cf) => acc + (cf.amount || 0), 0);
+  const tuitionPaid = Math.max(0, (transaction.amount || 0) - transportPaid - customFeesTotalPaid);
+
+  const breakdown = [];
+  if (tuitionPaid > 0 || (transportPaid === 0 && customFeesPaid.length === 0)) {
+    breakdown.push({ label: `${transaction.type || "Tuition"} Fee`, amount: tuitionPaid > 0 ? tuitionPaid : transaction.amount });
+  }
+  if (transportPaid > 0) {
+    breakdown.push({ label: "Transport Fee", amount: transportPaid });
+  }
+  if (customFeesPaid.length > 0) {
+    customFeesPaid.forEach((cf) => {
+      breakdown.push({ label: cf.remarks ? `${cf.name} (${cf.remarks})` : cf.name, amount: cf.amount || 0 });
+    });
+  }
 
   const handleDownload = async () => {
     if (onDownload) {

@@ -15,6 +15,8 @@ const {
   getMonthlyFinancialSummary,
   updateTransportFee,
   getFeeReport,
+  addCustomFee,
+  deleteCustomFee,
 } = require('../controllers/feeController');
 const { protect, isAdmin } = require('../middleware/auth');
 
@@ -34,6 +36,10 @@ router.get('/pending-students', getPendingFeesStudents);
 router.get('/monthly-summary', getMonthlyFinancialSummary);
 
 router.use(isAdmin); // Restrict to admin role for direct financial edits
+
+// Custom Fee routes (Admin restricted)
+router.post('/custom', addCustomFee);
+router.delete('/custom/:studentId/:customFeeId', deleteCustomFee);
 
 // Fetch summary using classId and rollNumber
 router.get('/:classId/:rollNumber', getFeeDetails);

@@ -45,7 +45,8 @@ const recordPayment = async (req, res, next) => {
       month,
       academicYear,
       paymentMode,
-      includeTransport
+      includeTransport,
+      selectedCustomFeeIds
     } = req.body;
 
     // Log request for debugging
@@ -71,7 +72,8 @@ const recordPayment = async (req, res, next) => {
       month,
       academicYear,
       paymentMode,
-      includeTransport
+      includeTransport,
+      selectedCustomFeeIds
     });
 
     // Fetch student info first to get class and rollNumber
@@ -453,6 +455,69 @@ const getFeeReport = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Add a custom fee against a student
+ * @route   POST /api/fees/custom
+ * @access  Private (Admin)
+ */
+const addCustomFee = async (req, res, next) => {
+  try {
+    const { studentId, name, amount, remarks, academicYear } = req.body;
+
+    if (!studentId || !name || amount === undefined || amount === null) {
+      return errorResponse(res, 'Student ID, fee name, and amount are required', 400);
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount <= 0) {
+      return errorResponse(res, 'Amount must be a valid positive number', 400);
+    }
+
+    const details = await feeService.addCustomFee(studentId, {
+      name,
+      amount: parsedAmount,
+      remarks,
+      academicYear: academicYear || '2026-2027',
+      createdBy: req.user ? req.user._id : null
+    });
+
+    return successResponse(res, details, 'Custom fee added successfully', 201);
+  } catch (error) {
+    if (error.message.includes('not found')) {
+      return errorResponse(res, error.message, 404);
+    }
+    next(error);
+  }
+};
+
+/**
+ * @desc    Delete an unpaid custom fee
+ * @route   DELETE /api/fees/custom/:studentId/:customFeeId
+ * @access  Private (Admin)
+ */
+const deleteCustomFee = async (req, res, next) => {
+  try {
+    const { studentId, customFeeId } = req.params;
+    const { academicYear } = req.query;
+
+    const details = await feeService.deleteCustomFee(
+      studentId, 
+      customFeeId, 
+      academicYear || '2026-2027'
+    );
+
+    return successResponse(res, details, 'Custom fee deleted successfully');
+  } catch (error) {
+    if (error.message.includes('cannot be deleted')) {
+      return errorResponse(res, error.message, 400);
+    }
+    if (error.message.includes('not found')) {
+      return errorResponse(res, error.message, 404);
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getFeeDetails,
   recordPayment,
@@ -462,4 +527,6 @@ module.exports = {
   getMonthlyFinancialSummary,
   updateTransportFee,
   getFeeReport,
+  addCustomFee,
+  deleteCustomFee,
 };
