@@ -40,6 +40,16 @@ const AdmissionDirectForm = lazy(() => import("./pages/admission/AdmissionDirect
 const HolidayManagement = lazy(() => import("./pages/admin/HolidayManagement"));
 const TeacherHomework = lazy(() => import("./pages/teacher/TeacherHomework"));
 const AdminHomework = lazy(() => import("./pages/admin/AdminHomework"));
+const MarksEntry = lazy(() => import("./pages/MarksEntry"));
+const ExamDashboard = lazy(() => import("./pages/exams/ExamDashboard"));
+const MonthlyResults = lazy(() => import("./pages/exams/MonthlyResults"));
+const HalfYearlyResults = lazy(() => import("./pages/exams/HalfYearlyResults"));
+const AnnualResults = lazy(() => import("./pages/exams/AnnualResults"));
+const ResultAnalytics = lazy(() => import("./pages/exams/ResultAnalytics"));
+const ExamManagement = lazy(() => import("./pages/exams/ExamManagement"));
+const ExamScheduleAdmitCard = lazy(() => import("./pages/exams/ExamScheduleAdmitCard"));
+const MarksCorrectionConsole = lazy(() => import("./pages/exams/MarksCorrectionConsole"));
+
 
 const PageFallback = () => (
   <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -335,6 +345,105 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <ClassSubjectMapping />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/marks-entry"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <MarksEntry />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/exams/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <ExamDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/exams/monthly-results"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <MonthlyResults />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/exams/half-yearly-results"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <HalfYearlyResults />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/exams/annual-results"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <AnnualResults />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/exams/analytics"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <ResultAnalytics />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/exams/management"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <Layout>
+                    <ExamManagement />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/exams/schedule-admitcards"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <ExamScheduleAdmitCard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/academic/exams/corrections"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                  <Layout>
+                    <MarksCorrectionConsole />
                   </Layout>
                 </ProtectedRoute>
               }

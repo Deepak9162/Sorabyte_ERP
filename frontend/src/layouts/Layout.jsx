@@ -19,6 +19,8 @@ import {
   KeyRound,
   UserPlus,
   Search,
+  Award,
+  HelpCircle,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -90,6 +92,51 @@ const routeHeaderConfig = {
     category: "Academic Setup",
     title: "Class Mappings",
     description: "Map subjects to classes and assign class teachers.",
+  },
+  "/academic/marks-entry": {
+    category: "Academic Examination Console",
+    title: "Marks Entry Console",
+    description: "Enter, validate, and bulk-save class examination marks.",
+  },
+  "/academic/exams/dashboard": {
+    category: "Academic Examination Console",
+    title: "Examinations Dashboard",
+    description: "Overview of school examinations, progress, and quick reporting shortcuts.",
+  },
+  "/academic/exams/monthly-results": {
+    category: "Reports & Analytics",
+    title: "Monthly Results Matrix",
+    description: "Class-wise monthly examination performance matrix and ranking.",
+  },
+  "/academic/exams/half-yearly-results": {
+    category: "Reports & Analytics",
+    title: "Half Yearly Examination Results",
+    description: "Class summary matrix and individual student half-yearly marksheets.",
+  },
+  "/academic/exams/annual-results": {
+    category: "Reports & Analytics",
+    title: "Annual Examination Results",
+    description: "Final annual class summary matrix and printable student marksheets.",
+  },
+  "/academic/exams/analytics": {
+    category: "Reports & Analytics",
+    title: "Academic Result Analytics",
+    description: "Class performance metrics, subject averages, top performers & academic support insights.",
+  },
+  "/academic/exams/management": {
+    category: "System Administration",
+    title: "Exam Setup & Administration",
+    description: "Configure academic examinations, target classes, subjects, max/pass marks, and schedules.",
+  },
+  "/academic/exams/schedule-admitcards": {
+    category: "Academic Examination Console",
+    title: "Exam Date Sheet & Admit Cards",
+    description: "Manage subject date sheets, publish exam schedules, and print student admit cards.",
+  },
+  "/academic/exams/corrections": {
+    category: "Academic Examination Console",
+    title: "Marks Correction Queue",
+    description: "Review, approve, or reject student marks correction and rechecking requests.",
   },
   "/academic/timetable": {
     category: "Academic Setup",
@@ -262,6 +309,55 @@ const Layout = ({ children }) => {
       path: "/attendance",
       label: "Mark Attendance",
       icon: CalendarCheck,
+      roles: ["admin", "teacher"],
+    },
+    {
+      id: "exam-dashboard",
+      path: "/academic/exams/dashboard",
+      label: "Exam Dashboard",
+      icon: Award,
+      roles: ["admin", "teacher"],
+    },
+    {
+      id: "marks-entry",
+      path: "/academic/marks-entry",
+      label: "Marks Entry",
+      icon: BookOpen,
+      roles: ["admin", "teacher"],
+    },
+    {
+      id: "monthly-results",
+      path: "/academic/exams/monthly-results",
+      label: "Monthly Results",
+      icon: BarChart3,
+      roles: ["admin", "teacher"],
+    },
+    {
+      id: "half-yearly-results",
+      path: "/academic/exams/half-yearly-results",
+      label: "Half Yearly Results",
+      icon: Award,
+      roles: ["admin", "teacher"],
+    },
+    {
+      id: "annual-results",
+      path: "/academic/exams/annual-results",
+      label: "Annual Results",
+      icon: BookOpen,
+      roles: ["admin", "teacher"],
+    },
+    {
+      id: "schedule-admitcards",
+      path: "/academic/exams/schedule-admitcards",
+      label: "Date Sheet & Admit Cards",
+      icon: Calendar,
+      roles: ["admin", "teacher"],
+    },
+    {
+      id: "corrections",
+      path: "/academic/exams/corrections",
+      label: "Marks Correction Queue",
+      icon: HelpCircle,
       roles: ["admin", "teacher"],
     },
     {
