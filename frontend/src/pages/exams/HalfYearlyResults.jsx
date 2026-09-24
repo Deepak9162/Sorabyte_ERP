@@ -108,7 +108,20 @@ const HalfYearlyResults = () => {
     fetchReport();
   }, [selectedClassId, selectedExamId]);
 
-  // Filter student rows by search query
+  // ─────────────────────────────────────────────────────
+  // ROLL NUMBER SORT HELPER
+  // Converts a roll number value (may be String, Number, null, empty)
+  // to a finite integer for numeric comparison, or null for invalid values.
+  // ─────────────────────────────────────────────────────
+  const getNumericRoll = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // Filter student rows by search query & sort by roll number ascending.
+  // Rank is assigned by the BACKEND (by percentage desc) and is preserved here —
+  // we only change DISPLAY ORDER to roll-number ascending.
   const filteredStudentRows = useMemo(() => {
     if (!report || !report.studentRows) return [];
     let list = [...report.studentRows];
@@ -123,8 +136,21 @@ const HalfYearlyResults = () => {
       );
     }
 
-    list.sort((a, b) => b.summary.totalMarksObtained - a.summary.totalMarksObtained);
-    return list.map((s, idx) => ({ ...s, rank: idx + 1 }));
+    // Sort by ROLL NUMBER ASCENDING (numeric-aware to prevent '1,10,11,2' ordering).
+    // Invalid / missing rolls are placed at the end.
+    // Duplicate rolls are given a stable secondary sort by name.
+    list.sort((a, b) => {
+      const rollA = getNumericRoll(a.rollNumber);
+      const rollB = getNumericRoll(b.rollNumber);
+      if (rollA === null && rollB === null) return (a.fullName || '').localeCompare(b.fullName || '');
+      if (rollA === null) return 1;
+      if (rollB === null) return -1;
+      if (rollA !== rollB) return rollA - rollB;
+      return (a.fullName || '').localeCompare(b.fullName || '');
+    });
+
+    // Rank values come from the backend (percentage-based). Preserve them.
+    return list;
   }, [report, searchQuery]);
 
   const [downloadingBulkPdf, setDownloadingBulkPdf] = useState(false);

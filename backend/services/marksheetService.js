@@ -15,6 +15,51 @@ const ExamStudentDetail = require('../models/ExamStudentDetail');
 const InstituteSettings = require('../models/InstituteSettings');
 const { calculateSubjectResult, calculateOverallResult } = require('../utils/resultCalculator');
 
+// ─────────────────────────────────────────────────────────────────
+// ROLL NUMBER ORDERING UTILITY
+// Numeric-aware comparator for student roll numbers.
+// Roll numbers are stored as String in the schema, so we must parse
+// them to integers before comparing. Missing / invalid rolls sort last.
+// Duplicate rolls use fullName as a stable tiebreaker.
+// ─────────────────────────────────────────────────────────────────
+/**
+ * Parse a roll number value to a finite integer for numeric comparison.
+ * Returns null for null / undefined / empty / non-numeric values.
+ * @param {*} value - roll number (String | Number | null | undefined)
+ * @returns {number|null}
+ */
+const getNumericRoll = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * Comparator that sorts students by roll number ascending (numeric),
+ * with null / invalid rolls placed at the end.
+ * Uses fullName as a stable secondary sort key to handle duplicates.
+ * @param {Object} a - student-like object with .rollNumber and .fullName
+ * @param {Object} b
+ * @returns {number}
+ */
+const rollNumberComparator = (a, b) => {
+  const rollA = getNumericRoll(a.rollNumber);
+  const rollB = getNumericRoll(b.rollNumber);
+
+  // Both null → tiebreak by name
+  if (rollA === null && rollB === null) {
+    return (a.fullName || '').localeCompare(b.fullName || '');
+  }
+  // Null rolls go to the end
+  if (rollA === null) return 1;
+  if (rollB === null) return -1;
+
+  if (rollA !== rollB) return rollA - rollB;
+
+  // Equal numeric roll (duplicate): tiebreak by name for stability
+  return (a.fullName || '').localeCompare(b.fullName || '');
+};
+
 class MarksheetService {
   /**
    * Fast Class-Subject Roster & Existing Marks Loader for Marks Entry Console
@@ -398,11 +443,16 @@ class MarksheetService {
       };
     });
 
-    // Assign rank by percentage descending
+    // ── Step 1: Assign academic rank by percentage descending (DO NOT change this logic) ──
     studentRows.sort((a, b) => b.summary.percentage - a.summary.percentage);
     studentRows.forEach((row, idx) => {
       row.rank = idx + 1;
     });
+
+    // ── Step 2: Re-sort by ROLL NUMBER ASCENDING for display / download order ──
+    // Rank values are already embedded in each row, so ordering by roll does NOT
+    // change academic ranks — only the presentation order changes.
+    studentRows.sort(rollNumberComparator);
 
     return {
       exam: {
@@ -591,14 +641,20 @@ class MarksheetService {
    * Bulk Fetch All Student Marksheet Payload Data for an entire Class
    */
   async getBulkClassMarksheetData(classId, examId) {
+    // Fetch students with rollNumber & fullName so we can sort numerically.
+    // NOTE: MongoDB .sort({ rollNumber: 1 }) on a String field produces lexicographic
+    // order ("1","10","11","2"…) which is WRONG for numeric rolls. We therefore
+    // fetch all and apply numeric sort in JavaScript.
     const students = await Student.find({ class: classId, status: 'Active' })
-      .select('_id')
-      .sort({ rollNumber: 1, fullName: 1 })
+      .select('_id rollNumber fullName')
       .lean();
 
     if (!students || students.length === 0) {
       throw new Error('No active students found in this class');
     }
+
+    // Sort by numeric roll ascending; invalid/missing rolls go to the end
+    students.sort(rollNumberComparator);
 
     const marksheetPromises = students.map((s) => this.getStudentResult(s._id, examId));
     return await Promise.all(marksheetPromises);
