@@ -489,3 +489,155 @@
     page-break-after: auto;
   }
 }
+
+/* Responsive preview shell only. The official .marksheet-document remains fixed A4. */
+.marksheet-preview-viewport {
+  width: 100%;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 6px 0 12px;
+}
+
+.marksheet-preview-stage {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.marksheet-preview-transform {
+  width: 210mm;
+  height: 297mm;
+  transform-origin: top left;
+  will-change: transform;
+}
+
+.marksheet-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 18px;
+}
+
+.marksheet-preview-toolbar__title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+}
+
+.marksheet-preview-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.marksheet-preview-action {
+  min-height: 34px;
+  padding: 7px 11px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 120ms ease, background-color 120ms ease, opacity 120ms ease;
+}
+
+.marksheet-preview-action:active {
+  transform: scale(0.96);
+}
+
+.marksheet-preview-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.marksheet-preview-action--secondary {
+  color: #fff;
+  background: rgba(255,255,255,0.10);
+}
+
+.marksheet-preview-action--secondary:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+.marksheet-preview-action--download {
+  background: #fbbf24;
+  color: #172033;
+}
+
+.marksheet-preview-action--download:hover {
+  background: #f59e0b;
+}
+
+.marksheet-preview-action--print {
+  background: #4f46e5;
+  color: #fff;
+}
+
+.marksheet-preview-action--print:hover {
+  background: #4338ca;
+}
+
+.marksheet-preview-action--close {
+  background: #e11d48;
+  color: #fff;
+}
+
+.marksheet-preview-action--close:hover {
+  background: #be123c;
+}
+
+@media screen and (max-width: 640px) {
+  .marksheet-preview-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 10px 9px;
+  }
+
+  .marksheet-preview-toolbar__title {
+    padding: 0 2px;
+  }
+
+  .marksheet-preview-toolbar__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 38px 38px;
+    gap: 7px;
+  }
+
+  .marksheet-preview-action {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px;
+    border-radius: 10px;
+  }
+
+  .marksheet-preview-action--download {
+    padding-inline: 10px;
+  }
+
+  .marksheet-preview-viewport {
+    padding: 8px 0 20px;
+  }
+}
+
+@media print {
+  .marksheet-preview-viewport,
+  .marksheet-preview-stage,
+  .marksheet-preview-transform {
+    width: 210mm !important;
+    height: 297mm !important;
+    overflow: visible !important;
+    transform: none !important;
+    padding: 0 !important;
+  }
+}

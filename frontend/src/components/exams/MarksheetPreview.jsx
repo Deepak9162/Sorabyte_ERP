@@ -20,6 +20,8 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
   const [printingPdf, setPrintingPdf] = useState(false);
   const { addToast } = useToast();
   const documentRef = useRef(null);
+  const previewViewportRef = useRef(null);
+  const [previewScale, setPreviewScale] = useState(1);
 
   // Version History Modal States
   const [showVersionModal, setShowVersionModal] = useState(false);
@@ -80,6 +82,31 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
   };
 
   const activeData = selectedVersionData || data;
+
+  // Keep the authoritative marksheet fixed at A4 internally, and scale only
+  // its preview shell on smaller screens. This preserves Preview/PDF parity
+  // while making the full page readable and centered on phones.
+  useEffect(() => {
+    const viewport = previewViewportRef.current;
+    if (!viewport || !activeData) return undefined;
+
+    const A4_WIDTH_PX = (210 / 25.4) * 96;
+    const updateScale = () => {
+      const availableWidth = Math.max(0, viewport.clientWidth - 12);
+      const nextScale = Math.min(1, availableWidth / A4_WIDTH_PX);
+      setPreviewScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(viewport);
+    window.addEventListener('orientationchange', updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('orientationchange', updateScale);
+    };
+  }, [activeData]);
 
   /**
    * Generates a high-fidelity A4 jsPDF instance from the authoritative Marksheet DOM element.
@@ -251,79 +278,98 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
   }
 
   const previewContent = (
-    <div className="marksheet-preview-wrapper my-2 mx-auto overflow-auto print:overflow-visible print:m-0">
-      <MarksheetDocument
-        ref={documentRef}
-        data={activeData}
-      />
+    <div
+      ref={previewViewportRef}
+      className="marksheet-preview-viewport print:overflow-visible print:m-0"
+    >
+      <div
+        className="marksheet-preview-stage"
+        style={{
+          width: `${((210 / 25.4) * 96) * previewScale}px`,
+          height: `${((297 / 25.4) * 96) * previewScale}px`,
+        }}
+      >
+        <div
+          className="marksheet-preview-transform"
+          style={{ transform: `scale(${previewScale})` }}
+        >
+          <MarksheetDocument
+            ref={documentRef}
+            data={activeData}
+          />
+        </div>
+      </div>
     </div>
   );
 
   // If rendered inside Modal context (when onClose is provided)
   if (onClose) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 print:static print:bg-transparent print:p-0 font-serif">
-        <div className="bg-slate-100/95 rounded-2xl border border-slate-300 max-w-5xl w-full max-h-[96vh] flex flex-col shadow-2xl overflow-hidden print:max-w-none print:max-h-none print:shadow-none print:border-none print:bg-white print:rounded-none">
+      <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 print:static print:bg-transparent print:p-0 font-serif">
+        <div className="bg-slate-100/95 rounded-none sm:rounded-2xl border-0 sm:border border-slate-300 max-w-5xl w-full h-[100dvh] sm:h-auto sm:max-h-[96vh] flex flex-col shadow-2xl overflow-hidden print:max-w-none print:max-h-none print:shadow-none print:border-none print:bg-white print:rounded-none">
           
-          {/* Sticky Header Navigation Bar (Always Visible at Top, Hidden in Print) */}
-          <div className="flex items-center justify-between gap-3 bg-[#0F2552] text-white p-3.5 sm:px-6 z-30 shrink-0 shadow-md print:hidden font-sans">
-            <div className="flex items-center gap-2.5">
-              <Award className="w-5 h-5 text-amber-400" />
-              <div>
-                <h2 className="text-sm font-black text-white tracking-wide uppercase">
-                  LITTLE FLOWER ENGLISH SCHOOL • MARKSHEET PREVIEW
+          {/* Compact responsive toolbar. Official A4 document itself stays unchanged. */}
+          <div className="marksheet-preview-toolbar bg-[#0F2552] text-white z-30 shrink-0 shadow-md print:hidden font-sans">
+            <div className="marksheet-preview-toolbar__title">
+              <Award className="w-5 h-5 text-amber-400 shrink-0" />
+              <div className="min-w-0">
+                <h2 className="text-xs sm:text-sm font-black text-white tracking-wide uppercase truncate">
+                  <span className="sm:hidden">LFES • Marksheet Preview</span>
+                  <span className="hidden sm:inline">LITTLE FLOWER ENGLISH SCHOOL • MARKSHEET PREVIEW</span>
                 </h2>
-                <p className="text-[11px] text-slate-300 font-medium">
-                  Official Academic Report Card • Session {activeData?.exam?.session || '2026-2027'}
+                <p className="text-[10px] sm:text-[11px] text-slate-300 font-medium truncate">
+                  Official Report Card • Session {activeData?.exam?.session || '2026-2027'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="marksheet-preview-toolbar__actions">
               <button
                 onClick={fetchVersionHistory}
                 disabled={loadingVersions}
-                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                className="marksheet-preview-action marksheet-preview-action--secondary"
                 title="View Audit Version History"
+                aria-label="Version history"
               >
-                <History className={`w-3.5 h-3.5 text-amber-300 ${loadingVersions ? 'animate-spin' : ''}`} />
+                <History className={`w-4 h-4 text-amber-300 ${loadingVersions ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Version History</span>
               </button>
 
               <button
                 onClick={handleDownloadPdf}
                 disabled={downloadingPdf}
-                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                className="marksheet-preview-action marksheet-preview-action--download"
                 title="Download Official Marksheet PDF"
               >
-                <Download className={`w-3.5 h-3.5 ${downloadingPdf ? 'animate-bounce' : ''}`} />
-                <span>{downloadingPdf ? 'Downloading PDF...' : 'Download PDF'}</span>
+                <Download className={`w-4 h-4 ${downloadingPdf ? 'animate-bounce' : ''}`} />
+                <span>{downloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
               </button>
 
               <button
                 onClick={handlePrintPdf}
                 disabled={printingPdf}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                className="marksheet-preview-action marksheet-preview-action--print"
                 title="Print Official Marksheet PDF"
+                aria-label="Print marksheet"
               >
-                <Printer className={`w-3.5 h-3.5 ${printingPdf ? 'animate-spin' : ''}`} />
+                <Printer className={`w-4 h-4 ${printingPdf ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">{printingPdf ? 'Printing...' : 'Print'}</span>
               </button>
 
-              {/* Big Red Close Button */}
               <button
                 onClick={onClose}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black flex items-center gap-1 cursor-pointer active:scale-95 transition-all shadow-sm ml-2"
+                className="marksheet-preview-action marksheet-preview-action--close"
                 title="Close Marksheet Preview"
+                aria-label="Close marksheet preview"
               >
                 <X className="w-4 h-4" />
-                <span>CLOSE</span>
+                <span className="hidden sm:inline">Close</span>
               </button>
             </div>
           </div>
 
           {/* Scrollable Marksheet Body */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar print:overflow-visible print:p-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-6 custom-scrollbar print:overflow-visible print:p-0">
             {previewContent}
           </div>
         </div>
