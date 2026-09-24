@@ -474,13 +474,21 @@ class MarksheetService {
    */
   async getStudentResult(studentId, examId) {
     const student = await Student.findById(studentId)
-      .populate('class', 'name section teacher')
+      .populate({
+        path: 'class',
+        select: 'name section teacher',
+        populate: { path: 'teacher', select: 'firstName lastName' },
+      })
       .lean();
 
     if (!student) throw new Error('Student not found');
 
     const exam = await Exam.findById(examId)
-      .populate('class', 'name section')
+      .populate({
+        path: 'class',
+        select: 'name section teacher',
+        populate: { path: 'teacher', select: 'firstName lastName' },
+      })
       .populate('subjectsConfig.subject', 'name type')
       .lean();
 
@@ -570,6 +578,19 @@ class MarksheetService {
     // Fetch student-level detail (remarks & co-scholastic grades)
     const studentDetail = await ExamStudentDetail.findOne({ exam: examId, student: studentId }).lean();
 
+    const instituteSettings = await InstituteSettings.findOne()
+      .select('principalName directorName')
+      .lean();
+
+    const classTeacher =
+      exam?.class?.teacher ||
+      student?.class?.teacher ||
+      null;
+
+    const classTeacherName = classTeacher
+      ? [classTeacher.firstName, classTeacher.lastName].filter(Boolean).join(' ').trim()
+      : '';
+
     // Default co-scholastic categories if none saved
     const defaultCoScholastic = [
       { category: 'Discipline & Conduct', grade: 'A+' },
@@ -583,11 +604,11 @@ class MarksheetService {
       ? studentDetail.coScholasticGrades
       : defaultCoScholastic;
 
+    // Official marksheet remarks must only contain an explicitly saved teacher remark.
+    // Leave the printable line blank when no authoritative remark exists.
     const teacherRemarks = (studentDetail && studentDetail.teacherRemarks)
       ? studentDetail.teacherRemarks
-      : (aggregateSummary.overallStatus === 'Pass'
-          ? 'Excellent academic performance and consistent progress. Keep up the good work!'
-          : 'Needs improvement in core subjects. Additional guidance and practice recommended.');
+      : '';
 
     return {
       institute: {
@@ -630,8 +651,9 @@ class MarksheetService {
         attendancePercentage: `${attendancePercentage}%`,
       },
       signatures: {
-        classTeacher: 'Class Teacher Signature',
-        principal: 'Director / Principal Signature',
+        classTeacher: classTeacherName,
+        director: instituteSettings?.directorName || 'Chandra Mohan Tiwari',
+        principal: instituteSettings?.principalName || 'Chandra Mohan Tiwari',
         dateGenerated: new Date().toISOString(),
       },
     };

@@ -1,342 +1,318 @@
 import React, { forwardRef } from 'react';
 import schoolLogo from '../../assets/schoollogo.png';
+import './MarksheetDocument.css';
+
+const NAVY = '#08295B';
+
+const CertificateCorner = ({ position }) => (
+  <svg
+    className={`certificate-corner certificate-corner--${position}`}
+    viewBox="0 0 64 64"
+    aria-hidden="true"
+  >
+    <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 34V2h32" />
+      <path d="M6 30V6h24" />
+      <path d="M3 14c8 0 11-4 14-11 1 8 5 11 13 12-8 2-11 6-12 14-3-7-7-11-15-11" />
+      <path d="M10 9c3 3 5 7 5 12M8 16c5-1 9 0 13 4" />
+      <path d="M18 3c1 5 4 8 9 10M3 22c5 1 8 4 10 9" />
+      <path d="M28 5c4 2 7 5 9 9-5-1-9-3-12-7" />
+      <path d="M5 28c5 2 8 5 9 10-5-2-8-5-9-10" />
+      <circle cx="18" cy="17" r="1.4" fill="currentColor" stroke="none" />
+    </g>
+  </svg>
+);
+
+const ExamTitleFrame = ({ children }) => (
+  <div className="exam-title-frame">
+    <span className="exam-title-text">{children}</span>
+  </div>
+);
+
+const FooterOrnament = () => (
+  <svg className="footer-ornament" viewBox="0 0 120 34" aria-hidden="true">
+    <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 17h29c8 0 12-4 17-12 5 8 9 12 17 12h49" />
+      <path d="M4 17h29c8 0 12 4 17 12 5-8 9-12 17-12h49" />
+      <path d="M50 5c3 8 6 12 10 12-4 0-7 4-10 12-3-8-6-12-10-12 4 0 7-4 10-12Z" />
+      <path d="M70 9c3 5 7 8 12 8-5 0-9 3-12 8-3-5-7-8-12-8 5 0 9-3 12-8Z" />
+    </g>
+  </svg>
+);
+
+const formatDate = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(d);
+};
+
+const normalizeSession = (value) => {
+  if (!value) return '';
+  const s = String(value).trim();
+  const compact = s.match(/^(\d{4})\s*[-/]\s*(\d{2})$/);
+  if (compact) return `${compact[1]} - 20${compact[2]}`;
+  const full = s.match(/^(\d{4})\s*[-/]\s*(\d{4})$/);
+  if (full) return `${full[1]} - ${full[2]}`;
+  return s.replace(/-/g, ' - ');
+};
+
+const displayMark = (subject) => {
+  if (subject?.isAbsent) return 'ABS';
+  const value = subject?.marksObtained;
+  return value === null || value === undefined || value === '' ? '—' : value;
+};
+
+const numericMark = (subject) => {
+  if (subject?.isAbsent) return 0;
+  const n = Number(subject?.marksObtained);
+  return Number.isFinite(n) ? n : 0;
+};
 
 /**
- * MarksheetDocument
- * 
- * Single Authoritative Visual Source of Truth for LFES Marksheet.
- * Shared across:
- * 1. Screen Preview Modal
- * 2. High-Fidelity A4 PDF Generation (html2canvas-pro + jsPDF)
- * 3. Browser Print Media (@media print)
+ * Single authoritative A4 marksheet DOM for preview, individual PDF,
+ * bulk PDF and print. Visual-only component: no result business logic is changed.
  */
 const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-document-root' }, ref) => {
   if (!data) return null;
 
-  const { student, exam, subjects, aggregate, attendance, signatures } = data;
+  const {
+    student = {},
+    exam = {},
+    subjects = [],
+    aggregate = {},
+    attendance = {},
+    signatures = {},
+    institute = {},
+    school = {},
+    teacherRemarks = '',
+  } = data;
 
-  // Calculate totals
-  const totalMax = subjects ? subjects.reduce((sum, s) => sum + (s.maxMarks || 100), 0) : 0;
-  const totalPass = subjects ? subjects.reduce((sum, s) => sum + (s.passMarks || 33), 0) : 0;
-  const totalObtained = subjects ? subjects.reduce((sum, s) => sum + (s.isAbsent ? 0 : (s.marksObtained || 0)), 0) : 0;
-  const totalHalfObtained = subjects ? subjects.reduce((sum, s) => {
-    if (s.halfYearlyMarks !== undefined) return sum + s.halfYearlyMarks;
-    if (s.isAbsent) return sum;
-    return sum + Math.round((s.marksObtained || 0) * 0.9);
-  }, 0) : 0;
+  const schoolData = { ...institute, ...school };
+  const examType = String(exam.examType || '').toUpperCase();
+  const examTitle = examType === 'ANNUAL' ? 'ANNUAL EXAMINATION' : 'HALF YEARLY EXAMINATION';
+
+  const totalMax = aggregate.totalMaxMarks ?? aggregate.totalMaximumMarks ??
+    subjects.reduce((sum, s) => sum + (Number(s.maxMarks) || 0), 0);
+  const totalPass = subjects.reduce((sum, s) => sum + (Number(s.passMarks) || 0), 0);
+  const totalObtained = aggregate.totalMarksObtained ?? aggregate.totalObtainedMarks ??
+    subjects.reduce((sum, s) => sum + numericMark(s), 0);
+
+  const registrationNo = schoolData.registrationNo || schoolData.regdNo || '21812312026441431503';
+  const udiseCode = schoolData.udiseCode || schoolData.udise || '10164102145';
+  const schoolName = schoolData.schoolName || 'Little Flower English School';
+  const schoolLocation = schoolData.location || schoolData.cityLine || 'Tarwara Road, Dindayalpur - 841506';
+  const classTeacherName = signatures.classTeacher || '';
+  const directorName = signatures.director || schoolData.directorName || 'Chandra Mohan Tiwari';
+  const principalName = signatures.principal || schoolData.principalName || 'Chandra Mohan Tiwari';
+  const website = schoolData.website || 'www.lfessiwan.in';
+  const slogan = schoolData.slogan || 'A STEP TOWARDS A BRIGHTER FUTURE';
+  const session = normalizeSession(exam.session || schoolData.academicSession);
+  const attendanceText = attendance.attendancePercentage ?? '';
 
   return (
     <div
       ref={ref}
       id={id}
-      className={`marksheet-print-area marksheet-document bg-white text-[#0F2552] relative overflow-hidden box-border mx-auto ${className}`}
-      style={{
-        width: '100%',
-        maxWidth: '820px',
-        WebkitPrintColorAdjust: 'exact',
-        printColorAdjust: 'exact',
-      }}
+      className={`marksheet-print-area marksheet-document ${className}`}
+      style={{ color: NAVY }}
     >
-      {/* Double Border Outer Frame */}
-      <div className="border-2 border-[#0F2552] p-1.5 relative bg-white">
-        <div className="border border-[#C5A059] p-4 sm:p-7 relative space-y-4 bg-[#FAF9F5]/40">
-          
-          {/* Corner Decorative Ornaments */}
-          <div className="absolute top-1 left-1 w-4 h-4 border-t-2 border-l-2 border-[#C5A059]"></div>
-          <div className="absolute top-1 right-1 w-4 h-4 border-t-2 border-r-2 border-[#C5A059]"></div>
-          <div className="absolute bottom-1 left-1 w-4 h-4 border-b-2 border-l-2 border-[#C5A059]"></div>
-          <div className="absolute bottom-1 right-1 w-4 h-4 border-b-2 border-r-2 border-[#C5A059]"></div>
+      <div className="marksheet-document__frame-outer" />
+      <div className="marksheet-document__frame-inner" />
+      <CertificateCorner position="tl" />
+      <CertificateCorner position="tr" />
+      <CertificateCorner position="bl" />
+      <CertificateCorner position="br" />
 
-          {/* 1. Header Registration & Logo Line */}
-          <div className="flex items-center justify-between text-xs font-black text-slate-800 font-serif pt-1">
-            <div>
-              <span>Regd No - 21812312026414131503.</span>
-            </div>
-
-            {/* School Emblem Logo */}
-            <div className="flex-shrink-0">
-              <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-full border-2 border-[#0F2552] bg-white p-1 flex items-center justify-center shadow-xs overflow-hidden">
-                <img
-                  src={schoolLogo}
-                  alt="LFES Logo"
-                  className="w-full h-full object-contain"
-                  crossOrigin="anonymous"
-                />
-              </div>
-            </div>
-
-            <div>
-              <span>Udise Code- 10164102145</span>
-            </div>
-          </div>
-
-          {/* 2. School Title & Subtitle */}
-          <div className="text-center space-y-1.5 pt-1">
-            <h1
-              className="text-3xl sm:text-4xl font-black tracking-wide text-[#0F2552] uppercase font-serif"
-              style={{ fontFamily: "'Cinzel', 'Playfair Display', 'Times New Roman', serif" }}
-            >
-              LITTLE FLOWER ENGLISH SCHOOL
-            </h1>
-            <p className="text-xs sm:text-sm font-extrabold tracking-widest text-[#0F2552] uppercase">
-              SIWAN BIHAR- 841506
-            </p>
-          </div>
-
-          {/* 3. Sanskrit Motto Box */}
-          <div className="flex justify-center pt-1.5">
-            <div className="bg-[#0F2552] px-10 py-1.5 rounded-sm border border-[#C5A059] shadow-xs">
-              <span className="text-amber-300 font-extrabold text-sm sm:text-base tracking-widest font-sans">
-                "ज्ञानं परमं बलम्"
-              </span>
-            </div>
-          </div>
-
-          {/* 4. Student Info Section (Dotted Underline Fields) */}
-          <div className="grid grid-cols-12 gap-y-3.5 gap-x-6 text-xs sm:text-sm pt-3 font-serif">
-            {/* Left Column (7 cols / ~58%) */}
-            <div className="col-span-7 space-y-2.5">
-              <div className="flex items-end">
-                <span className="font-extrabold text-[#0F2552] whitespace-nowrap min-w-[120px]">
-                  Student's Name :
-                </span>
-                <span className="flex-1 font-bold text-slate-900 border-b border-dotted border-slate-500 pb-0.5 px-2 uppercase tracking-wide truncate">
-                  {student?.fullName || 'ANYA TIWARI'}
-                </span>
-              </div>
-
-              <div className="flex items-end">
-                <span className="font-extrabold text-[#0F2552] whitespace-nowrap min-w-[120px]">
-                  Father's Name :
-                </span>
-                <span className="flex-1 font-bold text-slate-900 border-b border-dotted border-slate-500 pb-0.5 px-2 uppercase tracking-wide truncate">
-                  {student?.fatherName || 'RANJEET TIWARI'}
-                </span>
-              </div>
-
-              <div className="flex items-end">
-                <span className="font-extrabold text-[#0F2552] whitespace-nowrap min-w-[120px]">
-                  Address :
-                </span>
-                <span className="flex-1 font-bold text-slate-900 border-b border-dotted border-slate-500 pb-0.5 px-2 uppercase tracking-wide truncate">
-                  {student?.address || 'VILL- SIKATIYA, POST -KHAWASPUR 841416'}
-                </span>
-              </div>
-            </div>
-
-            {/* Right Column (5 cols / ~42%) */}
-            <div className="col-span-5 space-y-2.5">
-              <div className="flex items-end">
-                <span className="font-extrabold text-[#0F2552] whitespace-nowrap min-w-[90px]">
-                  Class :
-                </span>
-                <span className="flex-1 font-bold text-slate-900 border-b border-dotted border-slate-500 pb-0.5 px-2 text-center uppercase truncate">
-                  {student?.class || 'ONE'}
-                </span>
-              </div>
-
-              <div className="flex items-end">
-                <span className="font-extrabold text-[#0F2552] whitespace-nowrap min-w-[90px]">
-                  Roll No :
-                </span>
-                <span className="flex-1 font-bold text-slate-900 border-b border-dotted border-slate-500 pb-0.5 px-2 text-center">
-                  {student?.rollNumber || '25'}
-                </span>
-              </div>
-
-              <div className="flex items-end">
-                <span className="font-extrabold text-[#0F2552] whitespace-nowrap min-w-[90px]">
-                  Session :
-                </span>
-                <span className="flex-1 font-bold text-slate-900 border-b border-dotted border-slate-500 pb-0.5 px-2 text-center">
-                  {exam?.session || '2025-26'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* 5. Subject & Marks Table with Background Emblem Watermark */}
-          <div className="relative pt-2">
-            {/* Background Watermark */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] pointer-events-none z-0">
-              <img
-                src={schoolLogo}
-                alt="LFES Watermark"
-                className="w-64 h-64 object-contain"
-                crossOrigin="anonymous"
-              />
-            </div>
-
-            <table className="w-full text-left border-collapse text-xs relative z-10 border border-slate-300">
-              <thead>
-                <tr className="bg-[#0F2552] text-white font-extrabold text-[11px] uppercase tracking-wider">
-                  <th className="py-2.5 px-3 border border-[#0F2552] w-[35%]">SUBJECT</th>
-                  <th className="py-2.5 px-2 border border-[#0F2552] text-center w-[13%]">FULL MARKS</th>
-                  <th className="py-2.5 px-2 border border-[#0F2552] text-center w-[13%]">PASS MARKS</th>
-                  <th className="py-2.5 px-2 border border-[#0F2552] text-center w-[15%]">
-                    HALF YEARLY MARKS OBTAINED
-                  </th>
-                  <th className="py-2.5 px-2 border border-[#0F2552] text-center w-[15%]">
-                    ANNUAL EXAM MARKS OBTAINED
-                  </th>
-                  <th className="py-2.5 px-2 border border-[#0F2552] text-center w-[14%]">GRAND TOTAL</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-300 font-serif">
-                {subjects && subjects.length > 0 ? (
-                  subjects.map((sub, idx) => (
-                    <tr key={sub.subjectId || idx} className="bg-white/80 hover:bg-slate-50/80">
-                      <td className="py-2 px-3 border border-slate-300 font-bold text-[#0F2552]">
-                        {sub.subjectName}
-                      </td>
-                      <td className="py-2 px-2 border border-slate-300 text-center font-semibold">
-                        {sub.maxMarks || 100}
-                      </td>
-                      <td className="py-2 px-2 border border-slate-300 text-center font-semibold text-slate-700">
-                        {sub.passMarks || 33}
-                      </td>
-                      <td className="py-2 px-2 border border-slate-300 text-center font-bold text-slate-900">
-                        {sub.halfYearlyMarks !== undefined ? sub.halfYearlyMarks : (sub.isAbsent ? 'ABS' : Math.round((sub.marksObtained || 0) * 0.9))}
-                      </td>
-                      <td className="py-2 px-2 border border-slate-300 text-center font-bold text-slate-900">
-                        {sub.isAbsent ? 'ABSENT' : sub.marksObtained}
-                      </td>
-                      <td className="py-2 px-2 border border-slate-300 text-center font-black text-[#0F2552]">
-                        {sub.grandTotal !== undefined ? sub.grandTotal : ((sub.isAbsent ? 0 : (sub.marksObtained || 0)) + Math.round((sub.marksObtained || 0) * 0.9))}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="py-4 text-center text-slate-400 italic">
-                      No subject evaluation records available
-                    </td>
-                  </tr>
-                )}
-
-                {/* Table Summary Total Row */}
-                <tr className="bg-slate-100 font-black border-t-2 border-[#0F2552] text-slate-900 text-xs">
-                  <td className="py-2.5 px-3 border border-slate-300 font-black text-[#0F2552]">
-                    TOTAL
-                  </td>
-                  <td className="py-2.5 px-2 border border-slate-300 text-center">{totalMax}</td>
-                  <td className="py-2.5 px-2 border border-slate-300 text-center">{totalPass}</td>
-                  <td className="py-2.5 px-2 border border-slate-300 text-center">
-                    {totalHalfObtained}
-                  </td>
-                  <td className="py-2.5 px-2 border border-slate-300 text-center">{totalObtained}</td>
-                  <td className="py-2.5 px-2 border border-slate-300 text-center text-[#0F2552]">
-                    {totalObtained + totalHalfObtained}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* 6. Gold Performance Summary Box */}
-          <div className="border border-[#C5A059] bg-[#FAF9F5] p-3 rounded-sm text-xs font-serif shadow-2xs">
-            <div className="grid grid-cols-4 gap-4 text-center">
-              <div className="space-y-1">
-                <span className="block text-[11px] font-extrabold text-[#0F2552] uppercase tracking-wider">
-                  TOTAL Percentage
-                </span>
-                <div className="border-b border-dotted border-slate-500 pb-0.5 inline-block px-4">
-                  <span className="font-extrabold text-sm text-slate-900">
-                    {aggregate?.percentage || '77'} %
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <span className="block text-[11px] font-extrabold text-[#0F2552] uppercase tracking-wider">
-                  GRADE
-                </span>
-                <div className="border-b border-dotted border-slate-500 pb-0.5 inline-block px-4">
-                  <span className="font-extrabold text-sm text-[#0F2552]">
-                    {aggregate?.grade || 'A'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <span className="block text-[11px] font-extrabold text-[#0F2552] uppercase tracking-wider">
-                  DIVISION
-                </span>
-                <div className="border-b border-dotted border-slate-500 pb-0.5 inline-block px-4">
-                  <span className="font-extrabold text-sm text-slate-900">
-                    {aggregate?.division || 'First'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <span className="block text-[11px] font-extrabold text-[#0F2552] uppercase tracking-wider">
-                  ANNUAL ATTENDANCE
-                </span>
-                <div className="border-b border-dotted border-slate-500 pb-0.5 inline-block px-4">
-                  <span className="font-extrabold text-sm text-slate-900">
-                    {attendance?.attendancePercentage || '71 %'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 7. Signatures Block */}
-          <div className="pt-8 pb-3 grid grid-cols-3 gap-4 text-center text-xs font-serif">
-            {/* Class Teacher Signature */}
-            <div className="space-y-2">
-              <div className="h-10 flex items-end justify-center">
-                <span className="font-script italic text-base text-slate-800 font-bold tracking-wide">
-                  {signatures?.classTeacher || 'Neha Kumari'}
-                </span>
-              </div>
-              <div className="border-t border-slate-800 pt-1">
-                <span className="font-extrabold text-[#0F2552]">Class Teacher</span>
-              </div>
-            </div>
-
-            {/* Director Signature */}
-            <div className="space-y-2">
-              <div className="h-10 flex items-end justify-center">
-                <span className="font-script italic text-base text-slate-800 font-bold tracking-wide">
-                  {signatures?.director || 'Chandra Mohan Tiwari'}
-                </span>
-              </div>
-              <div className="border-t border-slate-800 pt-1">
-                <span className="font-extrabold text-[#0F2552]">Director</span>
-              </div>
-            </div>
-
-            {/* Principal Signature & Stamp */}
-            <div className="space-y-2 relative">
-              <div className="h-10 flex items-end justify-center relative">
-                <span className="font-script italic text-base text-slate-900 font-bold tracking-wide z-10">
-                  {signatures?.principal || 'Chandra Mohan Tiwari'}
-                </span>
-                {/* Stamp Graphic Overlay */}
-                <div className="absolute bottom-0 w-24 h-12 border-2 border-indigo-900/40 rounded-full flex flex-col items-center justify-center transform -rotate-6 pointer-events-none opacity-80">
-                  <span className="text-[7px] font-black text-indigo-950 uppercase tracking-tighter">Principal</span>
-                  <span className="text-[6px] text-indigo-900 text-center leading-tight font-bold">Little Flower English School<br/>Dindayalpur (Siwan)</span>
-                </div>
-              </div>
-              <div className="border-t border-slate-800 pt-1">
-                <span className="font-extrabold text-[#0F2552]">Principal</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 8. Footer Bottom Separator & Website */}
-          <div className="text-center pt-1 space-y-0.5 text-slate-700 font-serif">
-            <div className="text-amber-600 text-xs tracking-widest font-sans">
-              ❖ ◆ ❖
-            </div>
-            <p className="text-[11px] font-bold text-slate-600">
-              www.lfessiwan.in
-            </p>
-          </div>
-
+      <div className="marksheet-document__content">
+        <div className="marksheet-meta">
+          <span>Regd No - {registrationNo}</span>
+          <span>Udise Code - {udiseCode}</span>
         </div>
+
+        <div className="marksheet-logo-row">
+          <img
+            className="marksheet-logo"
+            src={schoolLogo}
+            alt="Little Flower English School logo"
+            crossOrigin="anonymous"
+          />
+        </div>
+
+        <h1 className="marksheet-school-name">{schoolName}</h1>
+        <div className="marksheet-location">{schoolLocation}</div>
+
+        <div className="marksheet-motto-row">
+          <span className="marksheet-motto-line" />
+          <div className="marksheet-motto-box">"ज्ञानं परमं बलम्"</div>
+          <span className="marksheet-motto-line" />
+        </div>
+
+        <div className="exam-heading-wrap">
+          <ExamTitleFrame>{examTitle}</ExamTitleFrame>
+        </div>
+        <div className="marksheet-session">ACADEMIC SESSION : {session}</div>
+
+        <section className="student-info-box" aria-label="Student information">
+          <div className="student-info-left">
+            <div className="student-info-row">
+              <span className="student-info-label">Student’s Name</span>
+              <span className="student-info-colon">:</span>
+              <span className="student-info-value">{student.fullName || ''}</span>
+            </div>
+            <div className="student-info-row">
+              <span className="student-info-label">Father’s Name</span>
+              <span className="student-info-colon">:</span>
+              <span className="student-info-value">{student.fatherName || ''}</span>
+            </div>
+            <div className="student-info-row">
+              <span className="student-info-label">Date of Birth</span>
+              <span className="student-info-colon">:</span>
+              <span className="student-info-value">{formatDate(student.dob || student.dateOfBirth)}</span>
+            </div>
+            <div className="student-info-row">
+              <span className="student-info-label">Address</span>
+              <span className="student-info-colon">:</span>
+              <span className="student-info-value student-info-value--address">{student.address || ''}</span>
+            </div>
+          </div>
+
+          <div className="student-info-right">
+            <div className="student-info-row">
+              <span className="student-info-label">Class</span>
+              <span className="student-info-colon">:</span>
+              <span className="student-info-value">{student.class || ''}</span>
+            </div>
+            <div className="student-info-row">
+              <span className="student-info-label">Section</span>
+              <span className="student-info-colon">:</span>
+              <span className="student-info-value">{student.section || ''}</span>
+            </div>
+            <div className="student-info-row">
+              <span className="student-info-label">Roll No</span>
+              <span className="student-info-colon">:</span>
+              <span className="student-info-value">{student.rollNumber ?? ''}</span>
+            </div>
+            <div className="student-info-row">
+              <span className="student-info-label">Session</span>
+              <span className="student-info-colon">:</span>
+              <span className="student-info-value">{session}</span>
+            </div>
+          </div>
+        </section>
+
+        <div className="marksheet-table-wrap">
+          <table className="marksheet-table" aria-label="Subject marks">
+            <colgroup>
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '30%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '17%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>S. NO.</th>
+                <th>SUBJECT</th>
+                <th>FULL<br />MARKS</th>
+                <th>PASS<br />MARKS</th>
+                <th>MARKS<br />OBTAINED</th>
+                <th>REMARKS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subjects.length > 0 ? subjects.map((sub, idx) => (
+                <tr key={sub.subjectId || sub.subjectName || idx}>
+                  <td>{idx + 1}</td>
+                  <td className="subject-cell">{sub.subjectName || ''}</td>
+                  <td>{sub.maxMarks ?? ''}</td>
+                  <td>{sub.passMarks ?? ''}</td>
+                  <td>{displayMark(sub)}</td>
+                  <td>{sub.remarks ? sub.remarks : '—'}</td>
+                </tr>
+              )) : (
+                <tr>
+                  <td>1</td>
+                  <td className="subject-cell">—</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>—</td>
+                </tr>
+              )}
+              <tr className="total-row">
+                <td colSpan="2">TOTAL</td>
+                <td>{totalMax}</td>
+                <td>{totalPass}</td>
+                <td>{totalObtained}</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <section className="result-summary" aria-label="Result summary">
+          <div className="result-summary-item">
+            <span className="result-summary-label">TOTAL PERCENTAGE</span>
+            <span className="result-summary-value">{aggregate.percentage ?? ''}{aggregate.percentage !== undefined ? '%' : ''}</span>
+          </div>
+          <div className="result-summary-item">
+            <span className="result-summary-label">GRADE</span>
+            <span className="result-summary-value">{aggregate.grade || aggregate.overallGrade || ''}</span>
+          </div>
+          <div className="result-summary-item">
+            <span className="result-summary-label">DIVISION</span>
+            <span className="result-summary-value">{aggregate.division || ''}</span>
+          </div>
+          <div className="result-summary-item">
+            <span className="result-summary-label">ANNUAL ATTENDANCE</span>
+            <span className="result-summary-value">{attendanceText}</span>
+          </div>
+        </section>
+
+        <div className="marksheet-remarks">
+          <span>REMARKS :</span>
+          <span className="marksheet-remarks-line">{teacherRemarks || ''}</span>
+        </div>
+
+        <section className="signature-area" aria-label="Authorized signatures">
+          <div className="signature-block">
+            <div className="signature-space" />
+            <div className="signature-line">
+              {classTeacherName && (
+                <span className="signature-person-name">{classTeacherName}</span>
+              )}
+              <span className="signature-role">Class Teacher</span>
+            </div>
+          </div>
+
+          <div className="signature-block">
+            <div className="signature-space" />
+            <div className="signature-line">
+              <span className="signature-director-name">{directorName}</span>
+              <span className="signature-role">Director</span>
+            </div>
+          </div>
+
+          <div className="signature-block">
+            <div className="signature-space" />
+            <div className="signature-line">
+              <span className="signature-person-name">{principalName}</span>
+              <span className="signature-role">Principal</span>
+            </div>
+          </div>
+        </section>
+
+        <footer className="marksheet-footer">
+          <FooterOrnament />
+          <div className="marksheet-website">{website}</div>
+          <div className="marksheet-slogan">{slogan}</div>
+        </footer>
       </div>
     </div>
   );

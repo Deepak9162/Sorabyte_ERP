@@ -190,6 +190,26 @@ const AnnualResults = () => {
         const docElement = document.getElementById(`annual-bulk-student-doc-${i}`);
         if (!docElement) continue;
 
+        const images = Array.from(docElement.querySelectorAll('img'));
+        await Promise.all(
+          images.map(async (img) => {
+            if (img.complete && img.naturalWidth > 0) return;
+            if (typeof img.decode === 'function') {
+              try {
+                await img.decode();
+                return;
+              } catch {
+                // Continue with load/error listeners.
+              }
+            }
+            await new Promise((resolve) => {
+              const done = () => resolve();
+              img.addEventListener('load', done, { once: true });
+              img.addEventListener('error', done, { once: true });
+            });
+          })
+        );
+
         const canvas = await html2canvas(docElement, {
           scale: 2.5,
           useCORS: true,
@@ -216,24 +236,7 @@ const AnnualResults = () => {
       addToast(`All ${studentsData.length} Class Marksheets PDF downloaded successfully!`, 'success');
     } catch (err) {
       console.error('Failed to download Bulk Marksheets PDF:', err);
-      // Graceful fallback to backend stream if client rendering fails
-      try {
-        const res = await api.get(`/exams/marksheets/class/${selectedClassId}/${selectedExamId}/bulk-pdf`, {
-          responseType: 'blob',
-        });
-        const blob = new Blob([res.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `Class_Annual_Marksheets_LFES.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        addToast('All Class Marksheets PDF downloaded successfully!', 'success');
-      } catch (fallbackErr) {
-        addToast('Failed to download Class Marksheets PDF', 'error');
-      }
+      addToast('Failed to generate Class Marksheets PDF', 'error');
     } finally {
       setBulkRenderList(null);
       setDownloadingBulkPdf(false);
@@ -665,11 +668,17 @@ const AnnualResults = () => {
           OFFSCREEN BULK MARKSHEET CAPTURE HOST
       ────────────────────────────────────────────── */}
       {bulkRenderList && bulkRenderList.length > 0 && (
-        <div className="fixed top-0 left-0 -z-50 pointer-events-none opacity-0 overflow-hidden w-[820px] bg-white">
+        <div
+          className="fixed top-0 pointer-events-none bg-white"
+          style={{ left: '-10000px', width: '210mm' }}
+          aria-hidden="true"
+        >
           {bulkRenderList.map((stData, idx) => (
-            <div key={stData.student?._id || idx} id={`annual-bulk-student-doc-${idx}`} className="w-[820px] bg-white p-4">
-              <MarksheetDocument data={stData} />
-            </div>
+            <MarksheetDocument
+              key={stData.student?._id || idx}
+              id={`annual-bulk-student-doc-${idx}`}
+              data={stData}
+            />
           ))}
         </div>
       )}

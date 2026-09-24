@@ -10,6 +10,16 @@ const instituteSettingsSchema = new mongoose.Schema({
     default: 10,
     min: 1,
     max: 28
+  },
+  principalName: {
+    type: String,
+    trim: true,
+    default: 'Chandra Mohan Tiwari',
+  },
+  directorName: {
+    type: String,
+    trim: true,
+    default: 'Chandra Mohan Tiwari',
   }
 }, { timestamps: true });
 

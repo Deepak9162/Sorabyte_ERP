@@ -101,7 +101,27 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
       await document.fonts.ready;
     }
 
-    // High quality canvas capture with 2.5x scale factor for crisp vector-like text
+    const images = Array.from(element.querySelectorAll('img'));
+    await Promise.all(
+      images.map(async (img) => {
+        if (img.complete && img.naturalWidth > 0) return;
+        if (typeof img.decode === 'function') {
+          try {
+            await img.decode();
+            return;
+          } catch {
+            // Fall through to load/error listeners for older/cross-origin browsers.
+          }
+        }
+        await new Promise((resolve) => {
+          const done = () => resolve();
+          img.addEventListener('load', done, { once: true });
+          img.addEventListener('error', done, { once: true });
+        });
+      })
+    );
+
+    // High quality canvas capture with 2.5x scale factor for crisp print output
     const canvas = await html2canvas(element, {
       scale: 2.5,
       useCORS: true,
@@ -150,24 +170,7 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
       addToast('Official Marksheet PDF downloaded successfully!', 'success');
     } catch (err) {
       console.error('Failed to generate/download PDF:', err);
-      // Graceful fallback to backend endpoint if DOM generation fails
-      try {
-        const res = await api.get(`/exams/marksheets/student/${studentId}/${examId}/pdf`, {
-          responseType: 'blob',
-        });
-        const blob = new Blob([res.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `LFES_Marksheet_${studentId}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        addToast('Official Marksheet PDF downloaded successfully!', 'success');
-      } catch (fallbackErr) {
-        addToast('Failed to download Marksheet PDF. Please try again.', 'error');
-      }
+      addToast('Failed to generate the official marksheet PDF. Please try again.', 'error');
     } finally {
       setDownloadingPdf(false);
     }
@@ -197,7 +200,7 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
           try {
             iframe.contentWindow.focus();
             iframe.contentWindow.print();
-          } catch (e) {
+          } catch {
             window.print();
           }
           setTimeout(() => {
@@ -248,11 +251,10 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
   }
 
   const previewContent = (
-    <div className="marksheet-preview-wrapper p-2 sm:p-4 my-2 max-w-4xl mx-auto print:p-0 print:m-0 print:max-w-none">
+    <div className="marksheet-preview-wrapper my-2 mx-auto overflow-auto print:overflow-visible print:m-0">
       <MarksheetDocument
         ref={documentRef}
         data={activeData}
-        className="shadow-xl rounded-xl print:shadow-none print:rounded-none"
       />
     </div>
   );
