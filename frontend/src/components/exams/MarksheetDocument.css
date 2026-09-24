@@ -27,40 +27,25 @@
   print-color-adjust: exact;
 }
 
-.marksheet-document__frame-outer {
+.certificate-border {
   position: absolute;
-  inset: 3.8mm;
-  border: 0.28mm solid var(--lfes-navy);
+  inset: 0;
+  width: 210mm;
+  height: 297mm;
+  object-fit: fill;
+  z-index: 3;
   pointer-events: none;
-}
-
-.marksheet-document__frame-inner {
-  position: absolute;
-  inset: 5.15mm;
-  border: 0.16mm solid var(--lfes-navy);
-  pointer-events: none;
+  display: block;
+  user-select: none;
 }
 
 .marksheet-document__content {
   position: absolute;
-  inset: 7.2mm 9mm 6.8mm;
+  inset: 10.8mm 9mm 6.8mm;
   display: flex;
   flex-direction: column;
+  z-index: 4;
 }
-
-.certificate-corner {
-  position: absolute;
-  width: 13.5mm;
-  height: 13.5mm;
-  color: var(--lfes-navy);
-  z-index: 3;
-  pointer-events: none;
-}
-
-.certificate-corner--tl { top: 2.7mm; left: 2.7mm; }
-.certificate-corner--tr { top: 2.7mm; right: 2.7mm; transform: scaleX(-1); }
-.certificate-corner--bl { bottom: 2.7mm; left: 2.7mm; transform: scaleY(-1); }
-.certificate-corner--br { bottom: 2.7mm; right: 2.7mm; transform: scale(-1); }
 
 .marksheet-meta {
   display: flex;
@@ -69,14 +54,16 @@
   font-size: 9.4pt;
   line-height: 1.1;
   font-weight: 600;
-  padding: 2.2mm 1.8mm 0;
-  min-height: 8mm;
+  /* The PNG border's top rule sits lower than the previous CSS/SVG frame.
+     Keep both metadata labels fully below that rule and away from the ornaments. */
+  padding: 1.4mm 7.5mm 0;
+  min-height: 7.4mm;
 }
 
 .marksheet-logo-row {
   display: flex;
   justify-content: center;
-  margin-top: -1.7mm;
+  margin-top: -1.2mm;
 }
 
 .marksheet-logo {
@@ -425,8 +412,10 @@
 .marksheet-footer {
   margin-top: auto;
   position: relative;
-  min-height: 13mm;
+  min-height: 16mm;
   text-align: center;
+  /* Lift all footer content above the PNG border and bottom ornaments. */
+  transform: translateY(-3.2mm);
 }
 
 .footer-ornament {
@@ -445,8 +434,8 @@
 
 .marksheet-slogan {
   position: absolute;
-  right: 0.7mm;
-  bottom: 0.1mm;
+  right: 2.2mm;
+  bottom: 1.6mm;
   font-size: 7.2pt;
   font-weight: 700;
   letter-spacing: 0.18mm;

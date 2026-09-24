@@ -4,23 +4,14 @@ import './MarksheetDocument.css';
 
 const NAVY = '#08295B';
 
-const CertificateCorner = ({ position }) => (
-  <svg
-    className={`certificate-corner certificate-corner--${position}`}
-    viewBox="0 0 64 64"
+const CertificateBorder = () => (
+  <img
+    className="certificate-border"
+    src="/assets/marksheet_Border.png"
+    alt=""
     aria-hidden="true"
-  >
-    <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 34V2h32" />
-      <path d="M6 30V6h24" />
-      <path d="M3 14c8 0 11-4 14-11 1 8 5 11 13 12-8 2-11 6-12 14-3-7-7-11-15-11" />
-      <path d="M10 9c3 3 5 7 5 12M8 16c5-1 9 0 13 4" />
-      <path d="M18 3c1 5 4 8 9 10M3 22c5 1 8 4 10 9" />
-      <path d="M28 5c4 2 7 5 9 9-5-1-9-3-12-7" />
-      <path d="M5 28c5 2 8 5 9 10-5-2-8-5-9-10" />
-      <circle cx="18" cy="17" r="1.4" fill="currentColor" stroke="none" />
-    </g>
-  </svg>
+    crossOrigin="anonymous"
+  />
 );
 
 const ExamTitleFrame = ({ children }) => (
@@ -121,12 +112,7 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
       className={`marksheet-print-area marksheet-document ${className}`}
       style={{ color: NAVY }}
     >
-      <div className="marksheet-document__frame-outer" />
-      <div className="marksheet-document__frame-inner" />
-      <CertificateCorner position="tl" />
-      <CertificateCorner position="tr" />
-      <CertificateCorner position="bl" />
-      <CertificateCorner position="br" />
+      <CertificateBorder />
 
       <div className="marksheet-document__content">
         <div className="marksheet-meta">
