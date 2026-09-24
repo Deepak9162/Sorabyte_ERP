@@ -5,6 +5,17 @@
 
 const TIMEZONE = 'Asia/Kolkata';
 
+// Reuse one Intl formatter instance instead of constructing a new formatter
+// for every date conversion. This function is called thousands of times by
+// attendance/absence analytics, so formatter reuse removes a large CPU cost
+// without changing any date/time business rules or output.
+const DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
 /**
  * Returns today's date string in YYYY-MM-DD format for Asia/Kolkata
  */
@@ -23,14 +34,7 @@ const formatDateString = (dateInput) => {
   if (isNaN(date.getTime())) return null;
 
   try {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-
-    const parts = formatter.formatToParts(date);
+    const parts = DATE_FORMATTER.formatToParts(date);
     const year = parts.find(p => p.type === 'year')?.value;
     const month = parts.find(p => p.type === 'month')?.value;
     const day = parts.find(p => p.type === 'day')?.value;
