@@ -126,13 +126,22 @@ export const generateBulkMarksheetPdf = async ({
     const captures = await Promise.all(
       batchIndexes.map(async (index) => {
         const pageStart = performance.now();
-        const canvas = await html2canvas(elements[index], {
+        const element = elements[index];
+        const logicalWidth = element.offsetWidth;
+        const logicalHeight = element.offsetHeight;
+
+        const canvas = await html2canvas(element, {
           scale: captureScale,
           useCORS: true,
           backgroundColor: '#ffffff',
           logging: false,
           allowTaint: true,
+          width: logicalWidth,
+          height: logicalHeight,
           windowWidth: 1024,
+          windowHeight: 1400,
+          scrollX: 0,
+          scrollY: 0,
           imageTimeout: 0,
         });
         return {

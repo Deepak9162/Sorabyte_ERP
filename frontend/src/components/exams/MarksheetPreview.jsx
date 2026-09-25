@@ -20,6 +20,7 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
   const [printingPdf, setPrintingPdf] = useState(false);
   const { addToast } = useToast();
   const documentRef = useRef(null);
+  const pdfDocumentRef = useRef(null);
   const previewViewportRef = useRef(null);
   const [previewScale, setPreviewScale] = useState(1);
 
@@ -118,12 +119,18 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
    * - Deterministic A4 portrait dimensions (210mm x 297mm)
    */
   const generateMarksheetPdf = async () => {
-    const element = documentRef.current;
+    // IMPORTANT: never capture the responsive preview tree. On phones that tree
+    // lives under a transform: scale(...) wrapper. Capture the dedicated,
+    // unscaled A4 render source instead so viewport width/orientation cannot
+    // influence the PDF layout.
+    const element = pdfDocumentRef.current;
     if (!element) {
-      throw new Error('Marksheet document element not found');
+      throw new Error('Fixed A4 marksheet PDF source not found');
     }
 
-    // Ensure all web fonts and images are completely loaded
+    // Let React/layout settle, then wait deterministically for fonts + images.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
     if (document.fonts && document.fonts.ready) {
       await document.fonts.ready;
     }
@@ -148,17 +155,26 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
       })
     );
 
-    // High quality canvas capture with 2.5x scale factor for crisp print output
+    // The source is always the original fixed 210mm × 297mm node.
+    // Explicit capture dimensions + a desktop-sized virtual viewport prevent
+    // mobile media/viewport geometry from compressing the A4 layout.
+    const logicalWidth = element.offsetWidth;
+    const logicalHeight = element.offsetHeight;
+
     const canvas = await html2canvas(element, {
       scale: 2.5,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
       allowTaint: true,
+      width: logicalWidth,
+      height: logicalHeight,
       windowWidth: 1024,
+      windowHeight: 1400,
+      scrollX: 0,
+      scrollY: 0,
+      imageTimeout: 0,
     });
-
-    const imgData = canvas.toDataURL('image/png');
 
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -171,7 +187,14 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
     const finalHeight = Math.min(pdfHeight, 297);
 
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalHeight, undefined, 'FAST');
+    // Pass the canvas directly to jsPDF. This avoids a second large base64
+    // allocation on memory-constrained mobile browsers without changing layout.
+    pdf.addImage(canvas, 'PNG', 0, 0, pdfWidth, finalHeight, undefined, 'FAST');
+
+    // Release the backing store after jsPDF has embedded the page.
+    canvas.width = 1;
+    canvas.height = 1;
+
     return pdf;
   };
 
@@ -277,6 +300,16 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
     );
   }
 
+  const pdfRenderSource = (
+    <div className="marksheet-pdf-render-host" aria-hidden="true">
+      <MarksheetDocument
+        ref={pdfDocumentRef}
+        id="marksheet-pdf-source"
+        data={activeData}
+      />
+    </div>
+  );
+
   const previewContent = (
     <div
       ref={previewViewportRef}
@@ -375,6 +408,8 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
         </div>
 
         {/* Version History Modal */}
+        {pdfRenderSource}
+
         {showVersionModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 print:hidden">
             <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
@@ -434,7 +469,12 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
   }
 
   // Normal inline render (if not a modal)
-  return previewContent;
+  return (
+    <>
+      {previewContent}
+      {pdfRenderSource}
+    </>
+  );
 };
 
 export default MarksheetPreview;

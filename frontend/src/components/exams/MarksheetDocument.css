@@ -24,7 +24,9 @@
   height: 297mm;
   min-width: 210mm;
   min-height: 297mm;
-  max-width: none;
+  max-width: 210mm;
+  max-height: 297mm;
+  flex: 0 0 auto;
   margin: 0 auto;
   background: var(--lfes-paper);
   color: var(--lfes-navy);
@@ -646,6 +648,36 @@
   }
 }
 
+/* Dedicated PDF source: fixed A4, off-screen, never transformed by the
+   responsive preview. It must remain laid out/renderable for html2canvas, so
+   do not use display:none / visibility:hidden / opacity:0 here. */
+.marksheet-pdf-render-host {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 210mm;
+  height: 297mm;
+  min-width: 210mm;
+  min-height: 297mm;
+  overflow: visible;
+  pointer-events: none;
+  transform: none !important;
+  zoom: 1 !important;
+  background: #fff;
+  z-index: -1;
+}
+
+.marksheet-pdf-render-host .marksheet-document {
+  width: 210mm !important;
+  height: 297mm !important;
+  min-width: 210mm !important;
+  min-height: 297mm !important;
+  max-width: 210mm !important;
+  margin: 0 !important;
+  transform: none !important;
+  zoom: 1 !important;
+}
+
 /* Responsive preview shell only. The official .marksheet-document remains fixed A4. */
 .marksheet-preview-viewport {
   width: 100%;
@@ -787,6 +819,10 @@
 }
 
 @media print {
+  .marksheet-pdf-render-host {
+    display: none !important;
+  }
+
   .marksheet-preview-viewport,
   .marksheet-preview-stage,
   .marksheet-preview-transform {
