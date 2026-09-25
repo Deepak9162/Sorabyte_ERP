@@ -17,7 +17,8 @@ import {
 import api from '../../services/api';
 import MarksheetPreview from '../../components/exams/MarksheetPreview';
 import MarksheetDocument from '../../components/exams/MarksheetDocument';
-import { generateBulkMarksheetPdf } from '../../utils/bulkMarksheetPdf';
+import html2canvas from 'html2canvas-pro';
+import { jsPDF } from 'jspdf';
 import { useToast } from '../../context/ToastContext';
 
 const AnnualResults = () => {
@@ -157,18 +158,13 @@ const AnnualResults = () => {
   const [bulkRenderList, setBulkRenderList] = useState(null);
 
   const handleDownloadBulkPdf = async () => {
-    if (!selectedClassId || !selectedExamId || downloadingBulkPdf) return;
-
-    const totalStart = performance.now();
+    if (!selectedClassId || !selectedExamId) return;
     try {
       setDownloadingBulkPdf(true);
-      setBulkProgress('Preparing marksheet data...');
+      setBulkProgress('Loading class marksheet data...');
 
-      const dataStart = performance.now();
       const res = await api.get(`/exams/marksheets/class/${selectedClassId}/${selectedExamId}/bulk-data`);
       const studentsData = res.data?.data;
-      const dataFetchMs = performance.now() - dataStart;
-
       if (!studentsData || studentsData.length === 0) {
         throw new Error('No marksheet records found for this class');
       }
@@ -176,26 +172,67 @@ const AnnualResults = () => {
       setBulkRenderList(studentsData);
       setBulkProgress(`Rendering ${studentsData.length} marksheets...`);
 
-      const metrics = await generateBulkMarksheetPdf({
-        count: studentsData.length,
-        getElement: (index) => document.getElementById(`annual-bulk-student-doc-${index}`),
-        fileName: 'Class_Annual_Marksheets_LFES.pdf',
-        captureScale: 2,
-        concurrency: 2,
-        onProgress: (completed, total) => {
-          setBulkProgress(`Creating PDF ${completed} / ${total}...`);
-        },
-      });
-
-      if (import.meta.env.DEV) {
-        console.info('[LFES Annual Bulk PDF]', {
-          dataFetchMs: Math.round(dataFetchMs),
-          pdfPipelineMs: Math.round(metrics.totalMs),
-          totalMs: Math.round(performance.now() - totalStart),
-          pages: studentsData.length,
-        });
+      // Wait for React to render into DOM and fonts to load
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
       }
 
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true,
+      });
+
+      for (let i = 0; i < studentsData.length; i++) {
+        setBulkProgress(`Generating Marksheet PDF (${i + 1} of ${studentsData.length})...`);
+        const docElement = document.getElementById(`annual-bulk-student-doc-${i}`);
+        if (!docElement) continue;
+
+        const images = Array.from(docElement.querySelectorAll('img'));
+        await Promise.all(
+          images.map(async (img) => {
+            if (img.complete && img.naturalWidth > 0) return;
+            if (typeof img.decode === 'function') {
+              try {
+                await img.decode();
+                return;
+              } catch {
+                // Continue with load/error listeners.
+              }
+            }
+            await new Promise((resolve) => {
+              const done = () => resolve();
+              img.addEventListener('load', done, { once: true });
+              img.addEventListener('error', done, { once: true });
+            });
+          })
+        );
+
+        const canvas = await html2canvas(docElement, {
+          scale: 2.5,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          allowTaint: true,
+          windowWidth: 1024,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdfWidth = 210;
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        const finalHeight = Math.min(pdfHeight, 297);
+
+        if (i > 0) {
+          pdf.addPage('a4', 'portrait');
+        }
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalHeight, undefined, 'FAST');
+      }
+
+      const fileName = `Class_Annual_Marksheets_LFES.pdf`;
+      pdf.save(fileName);
       addToast(`All ${studentsData.length} Class Marksheets PDF downloaded successfully!`, 'success');
     } catch (err) {
       console.error('Failed to download Bulk Marksheets PDF:', err);
