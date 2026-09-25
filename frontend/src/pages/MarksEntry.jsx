@@ -20,6 +20,7 @@ import {
   Download,
   Upload,
   FileSpreadsheet,
+  Pencil,
   X,
 } from 'lucide-react';
 import api from '../services/api';
@@ -50,6 +51,7 @@ const MarksEntry = () => {
   const [rosterLoading, setRosterLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isModifyMode, setIsModifyMode] = useState(false);
 
   // Unsaved Changes Protection
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -420,6 +422,8 @@ const MarksEntry = () => {
           }))
         );
         setHasUnsavedChanges(false);
+        setIsModifyMode(false);
+        inputRefs.current = {};
       }
     } catch (err) {
       console.error('Failed to fetch class roster:', err);
@@ -462,12 +466,60 @@ const MarksEntry = () => {
   const maxMarks = rosterData?.subjectConfig?.maxMarks || 100;
   const passMarks = rosterData?.subjectConfig?.passMarks || 33;
 
+  const hasPersistedMarks = useMemo(
+    () => studentRows.some((row) => row.isSaved),
+    [studentRows]
+  );
+  const hasUnpersistedRows = useMemo(
+    () => studentRows.some((row) => !row.isSaved),
+    [studentRows]
+  );
+
+  const canEditRow = (row) => !isReadOnly && (!row.isSaved || isModifyMode);
+
+  useEffect(() => {
+    setHasUnsavedChanges(studentRows.some((row) => row.isDirty));
+  }, [studentRows]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const handleEnterModifyMode = () => {
+    if (isReadOnly || isSaving || hasUnsavedChanges) return;
+    setIsModifyMode(true);
+  };
+
+  const handleCancelModify = () => {
+    if (isSaving) return;
+    setStudentRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        marksObtained: row.originalMarks ?? '',
+        isAbsent: !!row.originalAbsent,
+        remarks: row.originalRemarks || '',
+        isDirty: false,
+        isInvalid: false,
+        errorMessage: '',
+      }))
+    );
+    setIsModifyMode(false);
+    setHasUnsavedChanges(false);
+    inputRefs.current = {};
+  };
+
   const handleMarkChange = (studentId, val) => {
     setStudentRows((prev) =>
       prev.map((row) => {
-        if (row.studentId !== studentId) return row;
+        if (row.studentId !== studentId || !canEditRow(row)) return row;
 
-        let num = val.trim();
+        const num = val.trim();
         let isInvalid = false;
         let errMsg = '';
 
@@ -485,54 +537,66 @@ const MarksEntry = () => {
           }
         }
 
+        const nextAbsent = false;
+        const originalMarks = row.originalMarks ?? '';
         const isDirty =
-          num !== row.originalMarks.toString() ||
-          row.isAbsent !== row.originalAbsent ||
-          row.remarks !== row.originalRemarks;
+          num !== String(originalMarks) ||
+          nextAbsent !== !!row.originalAbsent ||
+          (row.remarks || '') !== (row.originalRemarks || '');
 
         return {
           ...row,
           marksObtained: num,
-          isAbsent: false, // reset absent if user enters marks
+          isAbsent: nextAbsent,
           isInvalid,
           errorMessage: errMsg,
           isDirty,
         };
       })
     );
-    setHasUnsavedChanges(true);
   };
 
   const handleAbsentToggle = (studentId) => {
     setStudentRows((prev) =>
       prev.map((row) => {
-        if (row.studentId !== studentId) return row;
+        if (row.studentId !== studentId || !canEditRow(row)) return row;
         const nextAbsent = !row.isAbsent;
+        const nextMarks = nextAbsent ? '' : row.marksObtained;
+        const originalMarks = row.originalMarks ?? '';
+        const isDirty =
+          nextMarks !== String(originalMarks) ||
+          nextAbsent !== !!row.originalAbsent ||
+          (row.remarks || '') !== (row.originalRemarks || '');
+
         return {
           ...row,
           isAbsent: nextAbsent,
-          marksObtained: nextAbsent ? '' : row.marksObtained,
+          marksObtained: nextMarks,
           isInvalid: false,
           errorMessage: '',
-          isDirty: true,
+          isDirty,
         };
       })
     );
-    setHasUnsavedChanges(true);
   };
 
   const handleRemarksChange = (studentId, remarksVal) => {
     setStudentRows((prev) =>
       prev.map((row) => {
-        if (row.studentId !== studentId) return row;
+        if (row.studentId !== studentId || !canEditRow(row)) return row;
+        const originalMarks = row.originalMarks ?? '';
+        const isDirty =
+          String(row.marksObtained ?? '') !== String(originalMarks) ||
+          !!row.isAbsent !== !!row.originalAbsent ||
+          remarksVal !== (row.originalRemarks || '');
+
         return {
           ...row,
           remarks: remarksVal,
-          isDirty: true,
+          isDirty,
         };
       })
     );
-    setHasUnsavedChanges(true);
   };
 
   // ──────────────────────────────────────────────
@@ -540,26 +604,20 @@ const MarksEntry = () => {
   // ──────────────────────────────────────────────
   const handleKeyDown = (e, index) => {
     const visibleRows = filteredStudentRows;
-    if (e.key === 'Enter' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      const nextIdx = index + 1;
-      if (nextIdx < visibleRows.length) {
-        const nextId = visibleRows[nextIdx].studentId;
-        if (inputRefs.current[nextId]) {
-          inputRefs.current[nextId].focus();
-          inputRefs.current[nextId].select();
-        }
+    const direction = (e.key === 'Enter' || e.key === 'ArrowDown') ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+    if (!direction) return;
+
+    e.preventDefault();
+    let nextIdx = index + direction;
+    while (nextIdx >= 0 && nextIdx < visibleRows.length) {
+      const nextId = visibleRows[nextIdx].studentId;
+      const nextInput = inputRefs.current[nextId];
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.select();
+        break;
       }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      const prevIdx = index - 1;
-      if (prevIdx >= 0) {
-        const prevId = visibleRows[prevIdx].studentId;
-        if (inputRefs.current[prevId]) {
-          inputRefs.current[prevId].focus();
-          inputRefs.current[prevId].select();
-        }
-      }
+      nextIdx += direction;
     }
   };
 
@@ -632,9 +690,15 @@ const MarksEntry = () => {
       return;
     }
 
-    // Filter only rows that are valid and have marks entered or are marked absent
+    // Submit only rows that are legitimately editable in the current mode.
+    // - NEW/PARTIAL entry: only previously-unsaved rows with entered data.
+    // - MODIFY mode: only rows that actually changed from the last persisted snapshot.
     const marksToSubmit = studentRows
-      .filter((r) => r.isAbsent || (r.marksObtained !== '' && !r.isInvalid))
+      .filter((r) => {
+        const hasEntry = r.isAbsent || (r.marksObtained !== '' && !r.isInvalid);
+        if (!hasEntry) return false;
+        return isModifyMode ? r.isDirty : !r.isSaved;
+      })
       .map((r) => ({
         studentId: r.studentId,
         marksObtained: r.isAbsent ? 0 : Number(r.marksObtained),
@@ -643,7 +707,7 @@ const MarksEntry = () => {
       }));
 
     if (marksToSubmit.length === 0) {
-      addToast('No marks entered to save', 'warning');
+      addToast(isModifyMode ? 'No marks changes to save' : 'No new marks entered to save', 'warning');
       return;
     }
 
@@ -1265,24 +1329,34 @@ const MarksEntry = () => {
                         <label className="block text-[9px] font-extrabold text-slate-400 uppercase mb-0.5">
                           Marks (Max: {maxMarks})
                         </label>
-                        <input
-                          ref={(el) => (inputRefs.current[s.studentId] = el)}
-                          type="text"
-                          disabled={s.isAbsent || isReadOnly}
-                          placeholder={s.isAbsent ? 'ABSENT' : `0-${maxMarks}`}
-                          value={s.isAbsent ? '' : s.marksObtained}
-                          onChange={(e) => handleMarkChange(s.studentId, e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(e, idx)}
-                          className={`w-full h-10 px-3 text-center font-black rounded-xl border text-base transition-all ${
-                            s.isAbsent
-                              ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                              : s.isInvalid
-                              ? 'bg-rose-50 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-500/20'
-                              : s.isDirty
-                              ? 'bg-amber-50 border-amber-400 text-amber-900 focus:ring-2 focus:ring-amber-500/20'
-                              : 'bg-white border-slate-300 text-slate-900 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500'
-                          }`}
-                        />
+                        {canEditRow(s) ? (
+                          <input
+                            ref={(el) => (inputRefs.current[s.studentId] = el)}
+                            type="text"
+                            inputMode="decimal"
+                            disabled={s.isAbsent || isSaving}
+                            placeholder={s.isAbsent ? 'ABSENT' : `0-${maxMarks}`}
+                            value={s.isAbsent ? '' : s.marksObtained}
+                            onChange={(e) => handleMarkChange(s.studentId, e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, idx)}
+                            className={`w-full h-10 px-3 text-center font-black rounded-xl border text-base transition-all ${
+                              s.isAbsent
+                                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                : s.isInvalid
+                                ? 'bg-rose-50 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-500/20'
+                                : s.isDirty
+                                ? 'bg-amber-50 border-amber-400 text-amber-900 focus:ring-2 focus:ring-amber-500/20'
+                                : 'bg-white border-slate-300 text-slate-900 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500'
+                            }`}
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-10 px-3 flex items-center justify-center text-center font-black rounded-xl border border-slate-200 bg-white text-slate-900 text-base select-none"
+                            aria-label={s.isAbsent ? 'Absent' : `Saved marks ${s.marksObtained}`}
+                          >
+                            {s.isAbsent ? 'ABSENT' : (s.marksObtained !== '' ? s.marksObtained : '—')}
+                          </div>
+                        )}
                         {s.isInvalid && (
                           <span className="block text-[9.5px] font-extrabold text-rose-600 mt-0.5">
                             {s.errorMessage}
@@ -1294,18 +1368,30 @@ const MarksEntry = () => {
                         <label className="block text-[9px] font-extrabold text-slate-400 uppercase mb-0.5 text-center">
                           Attendance
                         </label>
-                        <button
-                          type="button"
-                          disabled={isReadOnly}
-                          onClick={() => handleAbsentToggle(s.studentId)}
-                          className={`w-full h-10 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center ${
-                            s.isAbsent
-                              ? 'bg-rose-600 text-white shadow-xs'
-                              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
-                          }`}
-                        >
-                          {s.isAbsent ? 'ABSENT' : 'PRESENT'}
-                        </button>
+                        {canEditRow(s) ? (
+                          <button
+                            type="button"
+                            disabled={isSaving}
+                            onClick={() => handleAbsentToggle(s.studentId)}
+                            className={`w-full h-10 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center ${
+                              s.isAbsent
+                                ? 'bg-rose-600 text-white shadow-xs'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
+                            }`}
+                          >
+                            {s.isAbsent ? 'ABSENT' : 'PRESENT'}
+                          </button>
+                        ) : (
+                          <div
+                            className={`w-full h-10 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center select-none ${
+                              s.isAbsent
+                                ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                : 'bg-white text-slate-600 border border-slate-200'
+                            }`}
+                          >
+                            {s.isAbsent ? 'ABSENT' : 'PRESENT'}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1329,14 +1415,20 @@ const MarksEntry = () => {
                         )}
                       </div>
 
-                      <input
-                        type="text"
-                        disabled={isReadOnly}
-                        placeholder="Optional remarks..."
-                        value={s.remarks || ''}
-                        onChange={(e) => handleRemarksChange(s.studentId, e.target.value)}
-                        className="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-orange-500"
-                      />
+                      {canEditRow(s) ? (
+                        <input
+                          type="text"
+                          disabled={isSaving}
+                          placeholder="Optional remarks..."
+                          value={s.remarks || ''}
+                          onChange={(e) => handleRemarksChange(s.studentId, e.target.value)}
+                          className="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-orange-500"
+                        />
+                      ) : (
+                        <div className="w-full min-h-8 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 select-none">
+                          {s.remarks || '—'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1406,24 +1498,34 @@ const MarksEntry = () => {
                         {/* Marks Input */}
                         <td className="py-2 px-4 text-center">
                           <div className="relative">
-                            <input
-                              ref={(el) => (inputRefs.current[s.studentId] = el)}
-                              type="text"
-                              disabled={s.isAbsent || isReadOnly}
-                              placeholder={s.isAbsent ? 'ABSENT' : '0-100'}
-                              value={s.isAbsent ? '' : s.marksObtained}
-                              onChange={(e) => handleMarkChange(s.studentId, e.target.value)}
-                              onKeyDown={(e) => handleKeyDown(e, idx)}
-                              className={`w-28 h-9 text-center font-black rounded-xl border transition-all text-sm ${
-                                s.isAbsent
-                                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                                  : s.isInvalid
-                                  ? 'bg-rose-50 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-500/20'
-                                  : s.isDirty
-                                  ? 'bg-amber-50 border-amber-400 text-amber-900 focus:ring-2 focus:ring-amber-500/20'
-                                  : 'bg-white border-slate-300 text-slate-900 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500'
-                              }`}
-                            />
+                            {canEditRow(s) ? (
+                              <input
+                                ref={(el) => (inputRefs.current[s.studentId] = el)}
+                                type="text"
+                                inputMode="decimal"
+                                disabled={s.isAbsent || isSaving}
+                                placeholder={s.isAbsent ? 'ABSENT' : `0-${maxMarks}`}
+                                value={s.isAbsent ? '' : s.marksObtained}
+                                onChange={(e) => handleMarkChange(s.studentId, e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, idx)}
+                                className={`w-28 h-9 text-center font-black rounded-xl border transition-all text-sm ${
+                                  s.isAbsent
+                                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                    : s.isInvalid
+                                    ? 'bg-rose-50 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-500/20'
+                                    : s.isDirty
+                                    ? 'bg-amber-50 border-amber-400 text-amber-900 focus:ring-2 focus:ring-amber-500/20'
+                                    : 'bg-white border-slate-300 text-slate-900 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500'
+                                }`}
+                              />
+                            ) : (
+                              <div
+                                className="w-28 h-9 mx-auto flex items-center justify-center text-center font-black rounded-xl border border-slate-200 bg-white text-slate-900 text-sm select-none"
+                                aria-label={s.isAbsent ? 'Absent' : `Saved marks ${s.marksObtained}`}
+                              >
+                                {s.isAbsent ? 'ABSENT' : (s.marksObtained !== '' ? s.marksObtained : '—')}
+                              </div>
+                            )}
                             {s.isInvalid && (
                               <span className="block text-[9.5px] font-extrabold text-rose-600 mt-0.5">
                                 {s.errorMessage}
@@ -1434,18 +1536,30 @@ const MarksEntry = () => {
 
                         {/* Absent Toggle */}
                         <td className="py-3 px-4 text-center">
-                          <button
-                            type="button"
-                            disabled={isReadOnly}
-                            onClick={() => handleAbsentToggle(s.studentId)}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                              s.isAbsent
-                                ? 'bg-rose-600 text-white shadow-xs'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
-                            }`}
-                          >
-                            {s.isAbsent ? 'ABSENT' : 'PRESENT'}
-                          </button>
+                          {canEditRow(s) ? (
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => handleAbsentToggle(s.studentId)}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                s.isAbsent
+                                  ? 'bg-rose-600 text-white shadow-xs'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
+                              }`}
+                            >
+                              {s.isAbsent ? 'ABSENT' : 'PRESENT'}
+                            </button>
+                          ) : (
+                            <span
+                              className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider select-none ${
+                                s.isAbsent
+                                  ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
+                            >
+                              {s.isAbsent ? 'ABSENT' : 'PRESENT'}
+                            </span>
+                          )}
                         </td>
 
                         {/* Status Preview Badge */}
@@ -1469,14 +1583,20 @@ const MarksEntry = () => {
 
                         {/* Remarks */}
                         <td className="py-2 px-4">
-                          <input
-                            type="text"
-                            disabled={isReadOnly}
-                            placeholder="Optional remarks"
-                            value={s.remarks || ''}
-                            onChange={(e) => handleRemarksChange(s.studentId, e.target.value)}
-                            className="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-orange-500"
-                          />
+                          {canEditRow(s) ? (
+                            <input
+                              type="text"
+                              disabled={isSaving}
+                              placeholder="Optional remarks"
+                              value={s.remarks || ''}
+                              onChange={(e) => handleRemarksChange(s.studentId, e.target.value)}
+                              className="w-full h-8 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-orange-500"
+                            />
+                          ) : (
+                            <div className="w-full min-h-8 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 select-none">
+                              {s.remarks || '—'}
+                            </div>
+                          )}
                         </td>
 
                         {/* State & Correction Request Actions */}
@@ -1517,25 +1637,82 @@ const MarksEntry = () => {
           </>
         )}
 
-        {/* Bottom Save Action Bar */}
+        {/* Bottom Marks Action Bar */}
         {studentRows.length > 0 && (
-          <div className="p-4 border-t border-slate-200/80 bg-slate-50 flex items-center justify-between">
+          <div className="p-4 border-t border-slate-200/80 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs text-slate-500 font-medium">
-              Tip: Use <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold">Enter</kbd> or{' '}
-              <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold">Arrow Down</kbd> to jump quickly to the next student.
+              {isModifyMode || !hasPersistedMarks ? (
+                <>
+                  Tip: Use <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold">Enter</kbd> or{' '}
+                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-bold">Arrow Down</kbd> to jump quickly to the next editable student.
+                </>
+              ) : (
+                <span>Saved marks are locked. Use <strong>Modify Marks</strong> to make intentional changes.</span>
+              )}
             </p>
-            <button
-              onClick={handleBulkSave}
-              disabled={isSaving || !hasUnsavedChanges || rosterLoading}
-              className={`px-6 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-md active:scale-95 ${
-                hasUnsavedChanges
-                  ? 'bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white shadow-orange-600/20'
-                  : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
-              }`}
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSaving ? 'Saving Marks...' : 'Save Class Marks'}</span>
-            </button>
+
+            <div className="flex items-center justify-end gap-2 shrink-0">
+              {isReadOnly ? (
+                <span className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                  Result Locked
+                </span>
+              ) : isModifyMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCancelModify}
+                    disabled={isSaving}
+                    className="px-4 py-2.5 rounded-xl text-xs font-black bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkSave}
+                    disabled={isSaving || !hasUnsavedChanges || rosterLoading}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all shadow-md active:scale-95 ${
+                      hasUnsavedChanges && !isSaving
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white shadow-orange-600/20 cursor-pointer'
+                        : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                    }`}
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{isSaving ? 'Saving Changes...' : 'Save Changes'}</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {hasPersistedMarks && (
+                    <button
+                      type="button"
+                      onClick={handleEnterModifyMode}
+                      disabled={isSaving || rosterLoading || hasUnsavedChanges}
+                      className="px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={hasUnsavedChanges ? 'Save or discard current new entries before modifying saved marks' : 'Unlock saved marks for editing'}
+                    >
+                      <Pencil className="w-4 h-4" />
+                      <span>Modify Marks</span>
+                    </button>
+                  )}
+
+                  {(!hasPersistedMarks || hasUnpersistedRows) && (
+                    <button
+                      type="button"
+                      onClick={handleBulkSave}
+                      disabled={isSaving || !hasUnsavedChanges || rosterLoading}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all shadow-md active:scale-95 ${
+                        hasUnsavedChanges && !isSaving
+                          ? 'bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white shadow-orange-600/20 cursor-pointer'
+                          : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                      }`}
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{isSaving ? 'Saving Marks...' : 'Save Class Marks'}</span>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
