@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "LFESSchoolTitle";
+  src: url("../../assets/fonts/UnifrakturMaguntia-Book.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
 :root {
   --lfes-navy: #08295b;
   --lfes-gold: #d5a11e;
@@ -25,6 +33,67 @@
   font-family: "Playfair Display", Georgia, "Times New Roman", serif;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+
+  /* Shared adaptive vertical-density variables. */
+  --student-gap: 3.1mm;
+  --student-padding-y: 2.8mm;
+  --student-min-height: 28.5mm;
+  --student-row-height: 5.55mm;
+  --table-gap: 3.2mm;
+  --table-head-height: 11.5mm;
+  --table-row-height: 6.8mm;
+  --table-total-height: 7.4mm;
+  --table-cell-pad-y: 0.55mm;
+  --summary-gap: 3.2mm;
+  --summary-min-height: 17.8mm;
+  --summary-pad-top: 2.4mm;
+  --summary-pad-bottom: 2.1mm;
+  --remarks-gap: 3.2mm;
+  --signature-gap: 4.8mm;
+  --signature-space-height: 6.5mm;
+  --footer-min-height: 11.5mm;
+}
+
+/* 6–7 subjects: reduce non-essential vertical whitespace first. */
+.marksheet-document.marksheet-density--compact {
+  --student-gap: 2.5mm;
+  --student-padding-y: 2.3mm;
+  --student-min-height: 26mm;
+  --student-row-height: 5mm;
+  --table-gap: 2.5mm;
+  --table-head-height: 10.5mm;
+  --table-row-height: 5.7mm;
+  --table-total-height: 6.6mm;
+  --table-cell-pad-y: 0.35mm;
+  --summary-gap: 2.5mm;
+  --summary-min-height: 16.5mm;
+  --summary-pad-top: 2mm;
+  --summary-pad-bottom: 1.8mm;
+  --remarks-gap: 2.5mm;
+  --signature-gap: 3.5mm;
+  --signature-space-height: 5.2mm;
+  --footer-min-height: 10.5mm;
+}
+
+/* 8+ subjects: denser but still print-readable. */
+.marksheet-document.marksheet-density--dense {
+  --student-gap: 2mm;
+  --student-padding-y: 2mm;
+  --student-min-height: 24.5mm;
+  --student-row-height: 4.65mm;
+  --table-gap: 2mm;
+  --table-head-height: 9.6mm;
+  --table-row-height: 4.8mm;
+  --table-total-height: 5.8mm;
+  --table-cell-pad-y: 0.2mm;
+  --summary-gap: 2mm;
+  --summary-min-height: 15.2mm;
+  --summary-pad-top: 1.7mm;
+  --summary-pad-bottom: 1.5mm;
+  --remarks-gap: 2mm;
+  --signature-gap: 2.8mm;
+  --signature-space-height: 4.2mm;
+  --footer-min-height: 9.8mm;
 }
 
 .certificate-border {
@@ -57,6 +126,7 @@
 
 .marksheet-meta {
   width: 100%;
+  flex-shrink: 0;
   max-width: 100%;
   min-width: 0;
   display: flex;
@@ -82,6 +152,7 @@
 
 .marksheet-logo-row {
   display: flex;
+  flex-shrink: 0;
   justify-content: center;
   margin-top: -1.2mm;
 }
@@ -93,21 +164,33 @@
   display: block;
 }
 
-.marksheet-school-name {
-  margin: 1.2mm 0 0;
-  text-align: center;
-  white-space: nowrap;
-  color: var(--lfes-navy);
-  font-family: "Grenze Gotisch", "UnifrakturCook", "Old English Text MT", "Engravers Old English", "Lucida Blackletter", serif;
-  font-size: 38pt;
-  line-height: 0.94;
-  font-weight: 800;
-  letter-spacing: -0.18mm;
-  font-kerning: normal;
-  text-rendering: geometricPrecision;
+.marksheet-school-name-wrap {
+  width: 100%;
+  flex-shrink: 0;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0.2mm 0 -1.2mm;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  line-height: 0;
+  overflow: hidden;
+}
+
+.marksheet-school-name-image {
+  display: block;
+  width: min(90%, 142mm);
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  user-select: none;
+  margin-top: -12.2mm;
+  margin-bottom: -15mm;
 }
 
 .marksheet-location {
+  flex-shrink: 0;
   margin: 1.2mm 0 0;
   text-align: center;
   font-size: 14pt;
@@ -118,6 +201,7 @@
 
 .marksheet-motto-row {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   gap: 0;
@@ -149,6 +233,7 @@
 }
 
 .exam-heading-wrap {
+  flex-shrink: 0;
   margin: 3.4mm auto 0;
   width: 56%;
 }
@@ -191,6 +276,7 @@
 }
 
 .marksheet-session {
+  flex-shrink: 0;
   margin-top: 1.9mm;
   text-align: center;
   font-size: 10.8pt;
@@ -203,14 +289,15 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  margin-top: 3.5mm;
+  margin-top: var(--student-gap);
   border: 0.18mm solid #9bc0dd;
   border-radius: 2mm;
-  padding: 3.4mm 3.7mm 3.1mm;
+  padding: var(--student-padding-y) 3.7mm;
   display: grid;
   grid-template-columns: minmax(0, 63%) minmax(0, 37%);
-  min-height: 31.4mm;
+  min-height: var(--student-min-height);
   background: #fff;
+  flex-shrink: 0;
 }
 
 .student-info-left,
@@ -228,7 +315,7 @@
 }
 
 .student-info-row {
-  min-height: 6.2mm;
+  min-height: var(--student-row-height);
   display: grid;
   grid-template-columns: 31mm 4.8mm minmax(0, 1fr);
   align-items: end;
@@ -270,8 +357,13 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  margin-top: 4.1mm;
-  overflow: hidden;
+  height: auto;
+  max-height: none;
+  margin-top: var(--table-gap);
+  overflow: visible;
+  flex-shrink: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .marksheet-table {
@@ -290,8 +382,8 @@
 }
 
 .marksheet-table th {
-  height: 13.2mm;
-  padding: 1.2mm 1mm;
+  height: var(--table-head-height);
+  padding: var(--table-cell-pad-y) 1mm;
   background: #edf5fb;
   text-align: center;
   font-size: 9pt;
@@ -300,8 +392,8 @@
 }
 
 .marksheet-table td {
-  height: 8.2mm;
-  padding: 0.9mm 1.5mm;
+  height: var(--table-row-height);
+  padding: var(--table-cell-pad-y) 1.5mm;
   background: rgba(255,255,255,0.98);
   font-size: 9.8pt;
   line-height: 1.05;
@@ -319,18 +411,49 @@
 }
 
 .marksheet-table .total-row td {
-  height: 9.2mm;
+  height: var(--table-total-height);
   background: #edf5fb;
   font-weight: 800;
   font-size: 10.2pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.marksheet-density--compact .marksheet-table td {
+  font-size: 9.3pt;
+}
+
+.marksheet-density--compact .marksheet-table .total-row td {
+  font-size: 9.8pt;
+}
+
+.marksheet-density--dense .marksheet-table th {
+  font-size: 8.4pt;
+  line-height: 1.05;
+}
+
+.marksheet-density--dense .marksheet-table td {
+  font-size: 8.8pt;
+  line-height: 1;
+}
+
+.marksheet-density--dense .marksheet-table .total-row td {
+  font-size: 9.2pt;
+}
+
+.marksheet-density--dense .marksheet-table .subject-cell {
+  padding-left: 2.4mm;
 }
 
 .result-summary {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  margin-top: 4.4mm;
-  min-height: 20mm;
+  margin-top: var(--summary-gap);
+  min-height: var(--summary-min-height);
+  flex-shrink: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
   border: 0.18mm solid #9bc0dd;
   border-radius: 1.8mm;
   display: grid;
@@ -341,7 +464,7 @@
 
 .result-summary-item {
   position: relative;
-  padding: 3.1mm 2mm 2.6mm;
+  padding: var(--summary-pad-top) 2mm var(--summary-pad-bottom);
   text-align: center;
 }
 
@@ -377,31 +500,36 @@
   max-width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 2.2mm;
   align-items: end;
-  margin-top: 5mm;
+  margin-top: var(--remarks-gap);
+  flex-shrink: 0;
   padding: 0 0.6mm;
   font-size: 9.4pt;
   font-weight: 800;
 }
 
 .marksheet-remarks-line {
+  min-width: 0;
   min-height: 4.5mm;
   border-bottom: 0.16mm dotted #6e9ac3;
   font-size: 8.8pt;
   font-weight: 600;
+  line-height: 1.15;
   padding: 0 1mm 0.7mm;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .signature-area {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  margin-top: 7.8mm;
+  margin-top: var(--signature-gap);
+  flex-shrink: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12mm;
@@ -414,7 +542,7 @@
 }
 
 .signature-space {
-  height: 10mm;
+  height: var(--signature-space-height);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -452,7 +580,8 @@
   min-width: 0;
   margin-top: auto;
   position: relative;
-  min-height: 13mm;
+  min-height: var(--footer-min-height);
+  flex-shrink: 0;
   text-align: center;
 }
 

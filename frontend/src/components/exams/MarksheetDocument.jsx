@@ -104,12 +104,19 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
   const slogan = schoolData.slogan || 'A STEP TOWARDS A BRIGHTER FUTURE';
   const session = normalizeSession(exam.session || schoolData.academicSession);
   const attendanceText = attendance.attendancePercentage ?? '';
+  const subjectCount = subjects.length;
+  const densityMode = subjectCount >= 8
+    ? 'dense'
+    : subjectCount >= 6
+      ? 'compact'
+      : 'normal';
 
   return (
     <div
       ref={ref}
       id={id}
-      className={`marksheet-print-area marksheet-document ${className}`}
+      className={`marksheet-print-area marksheet-document marksheet-density--${densityMode} ${className}`}
+      data-subject-count={subjectCount}
       style={{ color: NAVY }}
     >
       <CertificateBorder />
@@ -129,7 +136,14 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
           />
         </div>
 
-        <h1 className="marksheet-school-name">{schoolName}</h1>
+        <div className="marksheet-school-name-wrap" aria-label={schoolName}>
+          <img
+            className="marksheet-school-name-image"
+            src="/school_name.png"
+            alt={schoolName}
+            crossOrigin="anonymous"
+          />
+        </div>
         <div className="marksheet-location">{schoolLocation}</div>
 
         <div className="marksheet-motto-row">
@@ -231,6 +245,8 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
                   <td>—</td>
                 </tr>
               )}
+            </tbody>
+            <tfoot>
               <tr className="total-row">
                 <td colSpan="2">TOTAL</td>
                 <td>{totalMax}</td>
@@ -238,7 +254,7 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
                 <td>{totalObtained}</td>
                 <td>—</td>
               </tr>
-            </tbody>
+            </tfoot>
           </table>
         </div>
 
