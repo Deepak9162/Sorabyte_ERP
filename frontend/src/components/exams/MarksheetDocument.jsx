@@ -11,6 +11,8 @@ const CertificateBorder = () => (
     alt=""
     aria-hidden="true"
     crossOrigin="anonymous"
+    loading="eager"
+    decoding="sync"
   />
 );
 
@@ -133,6 +135,8 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
             src={schoolLogo}
             alt="Little Flower English School logo"
             crossOrigin="anonymous"
+            loading="eager"
+            decoding="sync"
           />
         </div>
 
@@ -142,6 +146,8 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
             src="/school_name.png"
             alt={schoolName}
             crossOrigin="anonymous"
+            loading="eager"
+            decoding="sync"
           />
         </div>
         <div className="marksheet-location">{schoolLocation}</div>
