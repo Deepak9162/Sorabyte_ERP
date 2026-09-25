@@ -93,8 +93,12 @@ class MarksheetService {
     // Fast lean roster query
     const students = await Student.find(studentFilter)
       .select('_id fullName rollNumber admissionNumber section fatherName studentId')
-      .sort({ rollNumber: 1, fullName: 1 })
       .lean();
+
+    // rollNumber is stored as String, so MongoDB field sorting is lexicographic
+    // (e.g. 12, 13, 6). Apply the shared numeric-aware comparator after the
+    // authorized roster query so Marks Entry always receives canonical roll order.
+    students.sort(rollNumberComparator);
 
     // Fetch existing marks records in single lean query
     const existingMarks = await ExamMarks.find({
