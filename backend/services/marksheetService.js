@@ -667,23 +667,223 @@ class MarksheetService {
    * Bulk Fetch All Student Marksheet Payload Data for an entire Class
    */
   async getBulkClassMarksheetData(classId, examId) {
-    // Fetch students with rollNumber & fullName so we can sort numerically.
-    // NOTE: MongoDB .sort({ rollNumber: 1 }) on a String field produces lexicographic
-    // order ("1","10","11","2"…) which is WRONG for numeric rolls. We therefore
-    // fetch all and apply numeric sort in JavaScript.
-    const students = await Student.find({ class: classId, status: 'Active' })
-      .select('_id rollNumber fullName')
-      .lean();
+    // Bulk path: fetch every authoritative dataset once, then build all student
+    // marksheet payloads in memory. This avoids the previous N+1 implementation
+    // that called getStudentResult() (and its DB queries) once per student.
+    const [exam, students, instituteSettings] = await Promise.all([
+      Exam.findById(examId)
+        .populate({
+          path: 'class',
+          select: 'name section teacher',
+          populate: { path: 'teacher', select: 'firstName lastName' },
+        })
+        .populate('subjectsConfig.subject', 'name type')
+        .lean(),
+      Student.find({ class: classId, status: 'Active' })
+        .lean(),
+      InstituteSettings.findOne()
+        .select('principalName directorName')
+        .lean(),
+    ]);
 
+    if (!exam) throw new Error('Exam not found');
     if (!students || students.length === 0) {
       throw new Error('No active students found in this class');
     }
+    if (!exam.class || exam.class._id.toString() !== classId.toString()) {
+      throw new Error('Exam does not belong to the requested class');
+    }
 
-    // Sort by numeric roll ascending; invalid/missing rolls go to the end
     students.sort(rollNumberComparator);
+    const studentIds = students.map((s) => s._id);
 
-    const marksheetPromises = students.map((s) => this.getStudentResult(s._id, examId));
-    return await Promise.all(marksheetPromises);
+    const [allMarks, attendanceGrouped, allDetails] = await Promise.all([
+      ExamMarks.find({
+        exam: examId,
+        student: { $in: studentIds },
+      }).lean(),
+      Attendance.aggregate([
+        { $match: { student: { $in: studentIds } } },
+        {
+          $group: {
+            _id: { student: '$student', status: '$status' },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      ExamStudentDetail.find({
+        exam: examId,
+        student: { $in: studentIds },
+      }).lean(),
+    ]);
+
+    const marksByStudent = new Map();
+    allMarks.forEach((mark) => {
+      const key = mark.student.toString();
+      if (!marksByStudent.has(key)) marksByStudent.set(key, []);
+      marksByStudent.get(key).push(mark);
+    });
+
+    const attendanceByStudent = new Map();
+    attendanceGrouped.forEach((row) => {
+      const studentKey = row._id.student.toString();
+      if (!attendanceByStudent.has(studentKey)) {
+        attendanceByStudent.set(studentKey, {
+          totalWorkingDays: 0,
+          daysPresent: 0,
+          daysAbsent: 0,
+          daysLeave: 0,
+        });
+      }
+      const stats = attendanceByStudent.get(studentKey);
+      stats.totalWorkingDays += row.count;
+      if (row._id.status === 'Present' || row._id.status === 'Late') stats.daysPresent += row.count;
+      else if (row._id.status === 'Absent') stats.daysAbsent += row.count;
+      else if (row._id.status === 'Leave') stats.daysLeave += row.count;
+    });
+
+    const detailByStudent = new Map(
+      allDetails.map((detail) => [detail.student.toString(), detail])
+    );
+
+    const classTeacher =
+      exam?.class?.teacher ||
+      students[0]?.class?.teacher ||
+      null;
+    const classTeacherName = classTeacher
+      ? [classTeacher.firstName, classTeacher.lastName].filter(Boolean).join(' ').trim()
+      : '';
+
+    const defaultCoScholastic = [
+      { category: 'Discipline & Conduct', grade: 'A+' },
+      { category: 'Regularity & Punctuality', grade: 'A' },
+      { category: 'Work Education / Skills', grade: 'A' },
+      { category: 'Art & Craft Education', grade: 'A+' },
+      { category: 'Health & Physical Education', grade: 'A' },
+    ];
+
+    return students.map((student) => {
+      const studentKey = student._id.toString();
+      const marksRecords = marksByStudent.get(studentKey) || [];
+      const marksBySubject = new Map(
+        marksRecords.map((mark) => [mark.subject.toString(), mark])
+      );
+
+      const subjectBreakdown = exam.subjectsConfig.map((sc) => {
+        const subId = sc.subject._id.toString();
+        const markDoc = marksBySubject.get(subId);
+        const obtained = markDoc ? markDoc.marksObtained : 0;
+        const isAbsent = markDoc ? markDoc.isAbsent : false;
+        const status = markDoc
+          ? markDoc.status
+          : calculateSubjectResult(obtained, sc.passMarks, isAbsent);
+        const grade = calculateOverallResult([
+          {
+            maxMarks: sc.maxMarks,
+            passMarks: sc.passMarks,
+            marksObtained: obtained,
+            isAbsent,
+            status,
+          },
+        ]).grade;
+
+        return {
+          subjectId: sc.subject._id,
+          subjectName: sc.subject.name,
+          subjectType: sc.subject.type,
+          maxMarks: sc.maxMarks,
+          passMarks: sc.passMarks,
+          marksObtained: markDoc ? (isAbsent ? 'ABSENT' : obtained) : 'N/A',
+          isAbsent,
+          status,
+          grade,
+          remarks: markDoc ? markDoc.remarks : '',
+        };
+      });
+
+      const validMarksForCalc = exam.subjectsConfig.map((sc) => {
+        const markDoc = marksBySubject.get(sc.subject._id.toString());
+        const obtained = markDoc ? markDoc.marksObtained : 0;
+        const isAbsent = markDoc ? markDoc.isAbsent : false;
+        const status = markDoc
+          ? markDoc.status
+          : calculateSubjectResult(obtained, sc.passMarks, isAbsent);
+        return {
+          maxMarks: sc.maxMarks,
+          passMarks: sc.passMarks,
+          marksObtained: obtained,
+          isAbsent,
+          status,
+        };
+      });
+      const aggregateSummary = calculateOverallResult(validMarksForCalc);
+
+      const attendanceStats = attendanceByStudent.get(studentKey) || {
+        totalWorkingDays: 0,
+        daysPresent: 0,
+        daysAbsent: 0,
+        daysLeave: 0,
+      };
+      const attendancePercentage = attendanceStats.totalWorkingDays > 0
+        ? Math.round((attendanceStats.daysPresent / attendanceStats.totalWorkingDays) * 10000) / 100
+        : 0;
+
+      const studentDetail = detailByStudent.get(studentKey);
+      const coScholastic = (
+        studentDetail &&
+        studentDetail.coScholasticGrades &&
+        studentDetail.coScholasticGrades.length > 0
+      )
+        ? studentDetail.coScholasticGrades
+        : defaultCoScholastic;
+      const teacherRemarks = studentDetail?.teacherRemarks || '';
+      const firstMark = marksRecords[0];
+
+      return {
+        institute: {
+          schoolName: 'Little Flower English School',
+          address: 'School Address, Main Road',
+          affiliation: 'CBSE / State Board',
+          academicSession: exam.session,
+        },
+        student: {
+          id: student._id,
+          studentCustomId: student.studentId,
+          fullName: student.fullName,
+          fatherName: student.fatherName,
+          motherName: student.motherName,
+          rollNumber: firstMark?.rollNumber || student.rollNumber,
+          admissionNumber: student.admissionNumber,
+          class: exam.class?.name || student.className || '',
+          section: firstMark?.section || exam.class?.section || student.section || 'A',
+          address: student.address || '',
+          dob: student.dob,
+          photoUrl: student.studentPhoto || student.photoUrl || '',
+        },
+        exam: {
+          id: exam._id,
+          name: exam.name,
+          examType: exam.examType,
+          session: exam.session,
+          startDate: exam.startDate,
+          endDate: exam.endDate,
+        },
+        subjects: subjectBreakdown,
+        aggregate: aggregateSummary,
+        teacherRemarks,
+        coScholastic,
+        attendance: {
+          ...attendanceStats,
+          attendancePercentage: `${attendancePercentage}%`,
+        },
+        signatures: {
+          classTeacher: classTeacherName,
+          director: instituteSettings?.directorName || 'Chandra Mohan Tiwari',
+          principal: instituteSettings?.principalName || 'Chandra Mohan Tiwari',
+          dateGenerated: new Date().toISOString(),
+        },
+      };
+    });
   }
 
   /**

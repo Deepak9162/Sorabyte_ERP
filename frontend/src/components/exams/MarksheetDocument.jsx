@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, memo } from 'react';
 import schoolLogo from '../../assets/schoollogo.png';
 import './MarksheetDocument.css';
 
@@ -322,4 +322,4 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
 
 MarksheetDocument.displayName = 'MarksheetDocument';
 
-export default MarksheetDocument;
+export default memo(MarksheetDocument);
