@@ -212,6 +212,25 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ──────────────────────────────────────────────
+// URL Rewrite & API Route Normalization Middleware
+// Handles requests sent with or without '/api' prefix seamlessly
+// ──────────────────────────────────────────────
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads') && !req.path.startsWith('/api-docs')) {
+    const apiRoutePrefixes = [
+      '/health', '/auth', '/admin', '/timetable', '/attendance', '/fees',
+      '/students', '/teachers', '/announcements', '/admission-requests',
+      '/notifications', '/settings', '/holidays', '/leaves', '/homework', '/exams', '/dashboard'
+    ];
+    const isApiMatch = apiRoutePrefixes.some(prefix => req.path === prefix || req.path.startsWith(prefix + '/'));
+    if (isApiMatch) {
+      req.url = '/api' + req.url;
+    }
+  }
+  next();
+});
+
+// ──────────────────────────────────────────────
 // API Routes
 // ──────────────────────────────────────────────
 app.use('/api/health', healthRoutes);
