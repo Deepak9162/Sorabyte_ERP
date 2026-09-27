@@ -193,7 +193,7 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
         .replace(/\s+/g, '_')
         .replace(/[^a-zA-Z0-9_-]/g, '');
 
-      const fileName = `LFES_${examType}_Marksheet_${studentName}_${session}.pdf`;
+      const fileName = `Sorabyte_${examType}_Marksheet_${studentName}_${session}.pdf`;
       pdf.save(fileName);
       addToast('Official Marksheet PDF downloaded successfully!', 'success');
     } catch (err) {
@@ -339,7 +339,7 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
       <div className={onClose ? "fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4" : "p-12 text-center"}>
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xl text-center space-y-3 max-w-sm w-full">
           <div className="w-9 h-9 border-3 border-[#0F2552] border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm font-black text-[#0F2552]">Loading Official LFES Marksheet...</p>
+          <p className="text-sm font-black text-[#0F2552]">Loading Official Sorabyte Marksheet...</p>
         </div>
       </div>
     );
@@ -414,8 +414,8 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
               <Award className="w-5 h-5 text-amber-400 shrink-0" />
               <div className="min-w-0">
                 <h2 className="text-xs sm:text-sm font-black text-white tracking-wide uppercase truncate">
-                  <span className="sm:hidden">LFES • Marksheet Preview</span>
-                  <span className="hidden sm:inline">LITTLE FLOWER ENGLISH SCHOOL • MARKSHEET PREVIEW</span>
+                  <span className="sm:hidden">Sorabyte • Marksheet Preview</span>
+                  <span className="hidden sm:inline">SORABYTE • MARKSHEET PREVIEW</span>
                 </h2>
                 <p className="text-[10px] sm:text-[11px] text-slate-300 font-medium truncate">
                   Official Report Card • Session {activeData?.exam?.session || '2026-2027'}

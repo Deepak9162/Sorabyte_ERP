@@ -112,7 +112,7 @@ const Login = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                Little Flower English School
+                Sorabyte
               </h1>
               <p className="text-xs sm:text-sm font-bold bg-gradient-to-r from-[#FF6B35] to-indigo-900 bg-clip-text text-transparent mt-0.5">
                 Nurturing Knowledge, Building Character
@@ -229,7 +229,7 @@ const Login = () => {
             {/* Footer Links inside Login Box */}
             <div className="mt-6 pt-5 border-t border-slate-100 space-y-2.5">
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <span>© 2026 Little Flower School</span>
+                <span>© 2026 Sorabyte</span>
               </div>
 
               {/* Sorabyte Branding */}
@@ -263,7 +263,7 @@ const Login = () => {
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-                  Little Flower English School
+                  Sorabyte
                 </h1>
                 <p className="text-sm sm:text-base font-bold bg-gradient-to-r from-[#FF6B35] to-indigo-900 bg-clip-text text-transparent mt-0.5">
                   Nurturing Knowledge, Building Character
@@ -305,7 +305,7 @@ const Login = () => {
 
       {/* Global Page Footer Branding */}
       <div className="w-full max-w-6xl relative z-10 text-center mt-4 sm:mt-6 text-xs font-semibold text-slate-400">
-        <span>© 2026 Little Flower English School • Powered & Developed by </span>
+        <span>© 2026 Sorabyte • Powered & Developed by </span>
         <a
           href="https://www.sorabyte.in"
           target="_blank"

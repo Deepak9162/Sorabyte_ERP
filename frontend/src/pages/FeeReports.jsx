@@ -20,7 +20,7 @@ import { formatToINR } from "../utils/format";
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 
-const SCHOOL_NAME = "LITTLE FLOWER ENGLISH SCHOOL";
+const SCHOOL_NAME = "SORABYTE";
 const SCHOOL_ADDRESS = "Siwan, Bihar";
 const SCHOOL_TAGLINE = "Nurturing Minds, Building Futures";
 

@@ -108,7 +108,7 @@ const ClassGroupedHomeworkCard = ({
   const handleCopyAllWhatsApp = (e) => {
     e?.stopPropagation();
     let msg =
-      `📚 *LITTLE FLOWER ENGLISH SCHOOL*\n` +
+      `📚 *SORABYTE*\n` +
       `🏫 *Class:* ${classLabel}\n` +
       `📅 *Date:* ${formattedHwDate} (Due: ${formattedDueDate})\n\n` +
       `----------------------------------------\n`;

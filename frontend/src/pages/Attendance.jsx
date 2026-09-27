@@ -842,7 +842,7 @@ const Attendance = () => {
   // ─────────────────────────────────────────────────────────
   // EXPORT CONSTANTS
   // ─────────────────────────────────────────────────────────
-  const SCHOOL_NAME = "Little Flower English School";
+  const SCHOOL_NAME = "Sorabyte";
   const SCHOOL_ADDRESS = "Siwan, Bihar";
   const SCHOOL_TAGLINE = "Nurturing Minds, Building Futures";
 

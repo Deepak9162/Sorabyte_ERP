@@ -159,7 +159,7 @@ const MonthlyResults = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Class_Monthly_Result_Matrix_LFES.pdf`);
+      link.setAttribute('download', `Class_Monthly_Result_Matrix_Sorabyte.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();

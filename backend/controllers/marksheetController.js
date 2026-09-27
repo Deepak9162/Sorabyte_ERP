@@ -103,7 +103,7 @@ exports.generateStudentMarksheetPdf = async (req, res, next) => {
     const session = data.exam?.session || '2026-2027';
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="LFES_${examType}_Marksheet_${studentName}_${session}.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="Sorabyte_${examType}_Marksheet_${studentName}_${session}.pdf"`);
 
     await compileStudentMarksheetPdf(data, res);
   } catch (error) {

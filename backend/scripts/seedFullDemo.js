@@ -24,7 +24,7 @@ const seedFullDemo = async () => {
 
     // 1. Admin
     const adminUser = await User.create({
-      name: 'Little Flower Administrator',
+      name: 'Sorabyte Administrator',
       email: 'admin@lfes.com',
       password: 'password123',
       role: 'admin',

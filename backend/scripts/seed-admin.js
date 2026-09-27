@@ -12,7 +12,7 @@ const seedAdmin = async () => {
     await User.deleteOne({ email: 'admin@lfes.com' });
     
     const admin = await User.create({
-      name: 'Little Flower School Administrator',
+      name: 'Sorabyte Administrator',
       email: 'admin@lfes.com',
       password: 'password123',
       role: 'admin',

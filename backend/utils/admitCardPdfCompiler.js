@@ -24,7 +24,7 @@ const drawSingleAdmitCard = (doc, { institute, student, exam, schedule, instruct
   doc.fillColor('#0f172a')
      .fontSize(16)
      .font('Helvetica-Bold')
-     .text(institute?.schoolName || 'LITTLE FLOWER ENGLISH SCHOOL', 30, 30, { align: 'center' });
+     .text(institute?.schoolName || 'SORABYTE', 30, 30, { align: 'center' });
 
   doc.fillColor('#64748b')
      .fontSize(8)
@@ -136,7 +136,7 @@ const drawSingleAdmitCard = (doc, { institute, student, exam, schedule, instruct
   doc.text('Class Teacher Signature', 215, y + 29, { width: 130, align: 'center' });
   doc.text('Director / Principal Signature', 395, y + 29, { width: 140, align: 'center' });
 
-  doc.fillColor('#94a3b8').fontSize(7).font('Helvetica').text(`Issued by LFES School ERP • Date: ${new Date().toLocaleDateString()}`, 30, y + 42, { width: 535, align: 'center' });
+  doc.fillColor('#94a3b8').fontSize(7).font('Helvetica').text(`Issued by Sorabyte ERP • Date: ${new Date().toLocaleDateString()}`, 30, y + 42, { width: 535, align: 'center' });
 };
 
 /**
@@ -155,7 +155,7 @@ const compileDateSheetPdf = async (data, outStream) => {
 
       // School Branding Header
       doc.rect(30, 20, 535, 4).fill('#ea580c');
-      doc.fillColor('#0f172a').fontSize(18).font('Helvetica-Bold').text(institute?.schoolName || 'LITTLE FLOWER ENGLISH SCHOOL', 30, 32, { align: 'center' });
+      doc.fillColor('#0f172a').fontSize(18).font('Helvetica-Bold').text(institute?.schoolName || 'SORABYTE', 30, 32, { align: 'center' });
       doc.fillColor('#64748b').fontSize(8).font('Helvetica-Oblique').text(`${institute?.address || 'Main Road, Siwan, Bihar'} • Affiliation: ${institute?.affiliation || 'CBSE'}`, 30, 53, { align: 'center' });
 
       // Title Banner
@@ -228,7 +228,7 @@ const compileBulkAdmitCardsPdf = async ({ examId, classId, section, studentId },
 
       let institute = await InstituteSettings.findOne().lean();
       if (!institute) {
-        institute = { schoolName: 'LITTLE FLOWER ENGLISH SCHOOL', address: 'Main Road, Siwan, Bihar', affiliation: 'CBSE' };
+        institute = { schoolName: 'SORABYTE', address: 'Main Road, Siwan, Bihar', affiliation: 'CBSE' };
       }
 
       const targetClassId = classId || exam.class._id;

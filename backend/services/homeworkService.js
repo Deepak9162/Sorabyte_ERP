@@ -608,7 +608,7 @@ class HomeworkService {
     if (homeworks.length > 0) {
       const lineSeparator = `━━━━━━━━━━━━━━━━━━━━━━`;
       formattedText += `${lineSeparator}\n`;
-      formattedText += `📚 *LITTLE FLOWER ENGLISH SCHOOL*\n`;
+      formattedText += `📚 *SORABYTE*\n`;
       formattedText += `🏫 *Class:* *${fullClassName}*\n`;
       formattedText += `📅 *Date:* *${dateFormatted}*\n`;
       formattedText += `${lineSeparator}\n\n`;
@@ -626,7 +626,7 @@ class HomeworkService {
 
       formattedText += `${lineSeparator}\n`;
       formattedText += `🙏 *Regards*\n`;
-      formattedText += `*Little Flower English School*\n`;
+      formattedText += `*Sorabyte*\n`;
       formattedText += `${lineSeparator}`;
     }
 

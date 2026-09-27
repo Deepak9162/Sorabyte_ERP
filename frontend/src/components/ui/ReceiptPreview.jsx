@@ -397,7 +397,7 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
             <SchoolLogo className="w-12 h-12 md:w-16 md:h-16 shrink-0" />
             <div className="min-w-0">
               <h1 className="text-sm md:text-xl font-black text-indigo-900 tracking-tight leading-tight truncate">
-                LITTLE FLOWER ENGLISH SCHOOL
+                SORABYTE
               </h1>
               <p className="text-[9px] md:text-xs font-bold text-gray-500 mt-0.5 leading-snug">
                 Dindayalpur, Siwan, Bihar
@@ -721,7 +721,7 @@ const ReceiptPreview = forwardRef(({ transaction, student, className }, ref) => 
                 Principal
               </p>
               <p className="text-[7px] md:text-[8px] font-bold text-gray-400 mt-0.5 leading-none">
-                Little Flower English School
+                Sorabyte
               </p>
             </div>
           </div>

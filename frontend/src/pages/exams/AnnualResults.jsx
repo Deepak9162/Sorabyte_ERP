@@ -223,7 +223,7 @@ const AnnualResults = () => {
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalHeight, undefined, 'FAST');
       }
 
-      const fileName = `Class_Annual_Marksheets_LFES.pdf`;
+      const fileName = `Class_Annual_Marksheets_Sorabyte.pdf`;
       pdf.save(fileName);
       addToast(`All ${studentsData.length} Class Marksheets PDF downloaded successfully!`, 'success');
     } catch (err) {
@@ -436,7 +436,7 @@ const AnnualResults = () => {
           <div class="report-header">
             <img class="header-logo" src="${MARKSHEET_LOGO_BASE64}" alt="Logo" />
             <div class="header-center">
-              <div class="school-title">Little Flower English School</div>
+              <div class="school-title">Sorabyte</div>
               <div class="school-subtitle">Tarwara Road, Dindayalpur - 841506</div>
               <div class="report-badge">${examName.toUpperCase()} — CLASS TABULATION SHEET</div>
             </div>

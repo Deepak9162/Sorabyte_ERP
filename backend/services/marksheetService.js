@@ -616,7 +616,7 @@ class MarksheetService {
 
     return {
       institute: {
-        schoolName: 'Little Flower English School',
+        schoolName: 'Sorabyte',
         address: 'School Address, Main Road',
         affiliation: 'CBSE / State Board',
         academicSession: exam.session,
@@ -930,7 +930,7 @@ class MarksheetService {
     });
 
     const rows = [
-      ['LITTLE FLOWER ENGLISH SCHOOL (LFES)'],
+      ['SORABYTE'],
       [`EXAMINATION: ${exam.name} (${exam.session})`],
       [`CLASS: ${cls.name} (${section || cls.section || 'A'}) • SUBJECT: ${subject.name}`],
       [`MAXIMUM MARKS: ${maxMarks} • PASS MARKS: ${passMarks}`],
@@ -956,7 +956,7 @@ class MarksheetService {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Marks Template');
 
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    const filename = `LFES_${exam.name.replace(/\s+/g, '_')}_${cls.name.replace(/\s+/g, '_')}_${subject.name.replace(/\s+/g, '_')}_MarksTemplate.xlsx`;
+    const filename = `Sorabyte_${exam.name.replace(/\s+/g, '_')}_${cls.name.replace(/\s+/g, '_')}_${subject.name.replace(/\s+/g, '_')}_MarksTemplate.xlsx`;
 
     return { buffer, filename };
   }
@@ -1461,7 +1461,7 @@ class MarksheetService {
 
     // Render header
     doc.rect(30, 30, 535, 780).strokeColor('#0f172a').lineWidth(2).stroke();
-    doc.fillColor('#0f172a').fontSize(16).font('Helvetica-Bold').text('LITTLE FLOWER ENGLISH SCHOOL', 30, 45, { align: 'center' });
+    doc.fillColor('#0f172a').fontSize(16).font('Helvetica-Bold').text('SORABYTE', 30, 45, { align: 'center' });
     doc.fillColor('#475569').fontSize(9).font('Helvetica').text('Official Academic Record — Historical Version Snapshot', 30, 65, { align: 'center' });
     doc.fillColor('#dc2626').fontSize(10).font('Helvetica-Bold').text(`HISTORICAL VERSION v${versionData.version} (${versionData.isCurrent ? 'CURRENT' : 'SUPERSEDED'})`, 30, 80, { align: 'center' });
 

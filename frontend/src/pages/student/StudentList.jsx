@@ -168,7 +168,7 @@ const StudentList = () => {
 
       // Top Headers (Template style)
       csvRows.push([
-        csvEscape("LITTLE FLOWER ENGLISH SCHOOL"),
+        csvEscape("SORABYTE"),
         "",
         "",
         "",
@@ -256,7 +256,7 @@ const StudentList = () => {
       link.setAttribute("href", url);
       link.setAttribute(
         "download",
-        `LFES_${filterClass.replace(/\s+/g, "_")}_Roster_${Date.now()}.csv`,
+        `Sorabyte_${filterClass.replace(/\s+/g, "_")}_Roster_${Date.now()}.csv`,
       );
       document.body.appendChild(link);
       link.click();
@@ -348,7 +348,7 @@ const StudentList = () => {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(16);
         doc.setTextColor(43, 27, 23); // #2b1b17
-        doc.text("LITTLE FLOWER ENGLISH SCHOOL", 105, 18, { align: "center" });
+        doc.text("SORABYTE", 105, 18, { align: "center" });
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
@@ -562,7 +562,7 @@ const StudentList = () => {
       }
 
       doc.save(
-        `LFES_${filterClass.replace(/\s+/g, "_")}_Roster_${Date.now()}.pdf`,
+        `Sorabyte_${filterClass.replace(/\s+/g, "_")}_Roster_${Date.now()}.pdf`,
       );
       addToast("PDF export completed successfully!", "success");
     } catch (err) {

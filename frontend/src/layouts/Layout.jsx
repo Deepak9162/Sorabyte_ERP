@@ -252,7 +252,7 @@ const getRouteHeader = (path, getPageTitle) => {
 
   return (
     routeHeaderConfig[path] || {
-      category: "Little Flower Educational Enterprise",
+      category: "Sorabyte",
       title: getPageTitle(),
       description: "School ERP Management Hub",
     }

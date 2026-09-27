@@ -32,7 +32,7 @@ async function seedProductionExams() {
     let adminUser = await User.findOne({ role: 'admin' });
     if (!adminUser) {
       adminUser = await User.create({
-        name: 'Little Flower Administrator',
+        name: 'Sorabyte Administrator',
         email: 'admin@lfes.com',
         password: 'password123',
         role: 'admin',

@@ -23,8 +23,8 @@ import { resolveStudentPhotoUrl } from "../../utils/imageUtils";
 import schoolLogoImg from "../../assets/schoollogo.png";
 
 // ─── Constants ─────────────────────────────────────────────────────────
-const SCHOOL_NAME = "LITTLE FLOWER";
-const SCHOOL_SUBTITLE = "ENGLISH SCHOOL";
+const SCHOOL_NAME = "SORABYTE";
+const SCHOOL_SUBTITLE = "";
 const SCHOOL_PHONE = "82946 80282";
 const SCHOOL_ADDRESS = "DINDAYALPUR, SIWAN, BIHAR – 841506";
 const PRINCIPAL_SIGNATURE_IMG = "/assets/official/principal-signature.png";

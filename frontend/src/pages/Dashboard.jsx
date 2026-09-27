@@ -393,7 +393,7 @@ const AdminDashboard = () => {
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-gray-300 font-medium max-w-2xl">
-              Welcome back to Little Flower School ERP. Here is your real-time
+              Welcome back to Sorabyte ERP. Here is your real-time
               performance summary and campus command metrics.
             </p>
           </div>

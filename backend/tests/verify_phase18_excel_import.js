@@ -157,7 +157,7 @@ async function runPhase18Diagnostics() {
     // --- TEST 3: Validate Row Rejection on Invalid Marks (> maxMarks) ---
     const XLSX = require('xlsx');
     const customRows = [
-      ['LITTLE FLOWER ENGLISH SCHOOL (LFES)'],
+      ['SORABYTE'],
       [`EXAMINATION: ${p18Exam.name}`],
       ['S.No.', 'Student ID', 'Roll No.', 'Student Name', 'Marks Obtained', 'Remarks'],
       [1, s1.studentId, '1', s1.fullName, 120, 'Exceeds max'], // Invalid (> 100)

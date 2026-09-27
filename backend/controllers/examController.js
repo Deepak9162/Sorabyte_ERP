@@ -174,7 +174,7 @@ exports.generateDateSheetPdf = async (req, res, next) => {
     const admitCardPdfCompiler = require('../utils/admitCardPdfCompiler');
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="LFES_${scheduleData.name}_DateSheet.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="Sorabyte_${scheduleData.name}_DateSheet.pdf"`);
 
     await admitCardPdfCompiler.compileDateSheetPdf(scheduleData, res);
   } catch (error) {
@@ -189,7 +189,7 @@ exports.generateBulkAdmitCardsPdf = async (req, res, next) => {
     const admitCardPdfCompiler = require('../utils/admitCardPdfCompiler');
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="LFES_AdmitCards.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="Sorabyte_AdmitCards.pdf"`);
 
     await admitCardPdfCompiler.compileBulkAdmitCardsPdf(
       { examId: id, classId, section, studentId },

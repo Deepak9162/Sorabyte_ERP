@@ -59,7 +59,7 @@ const drawSingleMarksheet = (doc, data) => {
   doc.fillColor('#0F2552')
      .fontSize(24)
      .font('Times-Bold')
-     .text(institute?.schoolName || 'LITTLE FLOWER ENGLISH SCHOOL', 35, 82, { align: 'center' });
+     .text(institute?.schoolName || 'SORABYTE', 35, 82, { align: 'center' });
 
   doc.fillColor('#0F2552')
      .fontSize(10.5)
@@ -273,7 +273,7 @@ const compileClassMonthlyResultPdf = (data, outStream) => {
 
       // Header Banner
       doc.rect(25, 20, 792, 45).fill('#0F2552');
-      doc.fillColor('#ffffff').fontSize(16).font('Times-Bold').text('LITTLE FLOWER ENGLISH SCHOOL', 35, 28);
+      doc.fillColor('#ffffff').fontSize(16).font('Times-Bold').text('SORABYTE', 35, 28);
       doc.fontSize(10).font('Helvetica-Bold').text(`CLASS RESULTS MATRIX — ${examInfo?.name || 'EXAMINATION'} (${examInfo?.session || '2026-2027'})`, 35, 47);
 
       doc.fontSize(9).font('Helvetica').text(`Class: ${classInfo?.name || '-'} (${classInfo?.section || 'A'}) | Total Students: ${studentRows?.length || 0}`, 500, 35, { width: 300, align: 'right' });

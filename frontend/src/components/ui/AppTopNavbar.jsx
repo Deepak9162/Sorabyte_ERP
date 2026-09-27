@@ -12,7 +12,7 @@ import AppIconButton from "./AppIconButton";
  * Integrates Institute branding, Session selector, Global search, Notifications, Profile dropdown, & Quick action controls.
  */
 export const AppTopNavbar = ({
-  instituteName = "Little Flower School",
+  instituteName = "Sorabyte",
   sessionList = [
     { value: "2025-2026", label: "2025-2026" },
     { value: "2024-2025", label: "2024-2025" },

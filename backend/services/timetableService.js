@@ -241,7 +241,7 @@ exports.generateTimetablePDF = async (classId, outStream, filterTeacherUserId = 
     doc.fillColor('#0f172a')
        .fontSize(20)
        .font('Helvetica-Bold')
-       .text('LITTLE FLOWER ENGLISH SCHOOL', 40, 36, { align: 'center' });
+       .text('SORABYTE', 40, 36, { align: 'center' });
 
     // Subtitle & Contact Info
     doc.fillColor('#64748b')
@@ -376,7 +376,7 @@ exports.generateTimetablePDF = async (classId, outStream, filterTeacherUserId = 
 
   // Footer at bottom of document
   doc.fillColor('#94a3b8').fontSize(7.5).font('Helvetica-Oblique').text(
-    'This is an official computer-generated academic document. | Little Flower English School',
+    'This is an official computer-generated academic document. | Sorabyte',
     40, 800, { align: 'center', width: 515 }
   );
 

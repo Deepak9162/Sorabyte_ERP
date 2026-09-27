@@ -341,7 +341,7 @@ const AdmissionRequestDetails = () => {
 
   <!-- SCHOOL HEADER -->
   <div class="school-header">
-    <div class="school-name">Little Flower English School</div>
+    <div class="school-name">Sorabyte</div>
     <div class="school-tagline">Dindayalpur Siwan Bihar 841506</div>
     <div class="school-contact"> Phone: +91 82946 80282 &nbsp;|&nbsp; Email: tiwarichandramohan50@gmail.com</div>
     <div class="form-title-box">Admission Application Form</div>
@@ -462,7 +462,7 @@ const AdmissionRequestDetails = () => {
 
   <!-- FOOTER -->
   <div class="footer">
-    This form is computer-generated via Little Flower English School ERP System &nbsp;|&nbsp; Application ID: ${request._id} &nbsp;|&nbsp; Printed on: ${new Date().toLocaleDateString("en-IN")}
+    This form is computer-generated via Sorabyte ERP System &nbsp;|&nbsp; Application ID: ${request._id} &nbsp;|&nbsp; Printed on: ${new Date().toLocaleDateString("en-IN")}
   </div>
 
   <script>
@@ -586,7 +586,7 @@ const AdmissionRequestDetails = () => {
             {/* Stamp decoration */}
             <div className="absolute right-6 top-6 w-24 h-24 border-4 border-dashed border-indigo-100 rounded-full flex items-center justify-center -rotate-12 select-none pointer-events-none">
               <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">
-                LFES ERP
+                Sorabyte ERP
               </span>
             </div>
 

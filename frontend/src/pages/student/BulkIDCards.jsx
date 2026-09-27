@@ -97,7 +97,7 @@ const BulkIDCards = () => {
         pdf.setFont("Helvetica", "bold");
         pdf.setFontSize(11);
         pdf.setTextColor(26, 44, 91);
-        pdf.text("LITTLE FLOWER ENGLISH SCHOOL — Student ID Cards", 105, 18, { align: "center" });
+        pdf.text("SORABYTE — Student ID Cards", 105, 18, { align: "center" });
         pdf.setFont("Helvetica", "normal");
         pdf.setFontSize(7);
         pdf.setTextColor(150, 150, 150);
@@ -254,7 +254,7 @@ const BulkIDCards = () => {
 
           const photoUrl = resolveStudentPhotoUrl(student, apiHost);
 
-          const qrPayload = `Name: ${personalDetails?.name || 'N/A'}\nID: ${personalDetails?.studentId || 'N/A'}\nClass: ${academicDetails?.className || ""}${academicDetails?.section ? ` (${academicDetails.section})` : ""}\nPhone: ${contactDetails?.parentMobile || contactDetails?.phone || "N/A"}\nSchool: Little Flower English School`;
+          const qrPayload = `Name: ${personalDetails?.name || 'N/A'}\nID: ${personalDetails?.studentId || 'N/A'}\nClass: ${academicDetails?.className || ""}${academicDetails?.section ? ` (${academicDetails.section})` : ""}\nPhone: ${contactDetails?.parentMobile || contactDetails?.phone || "N/A"}\nSchool: Sorabyte`;
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrPayload)}`;
 
           return (

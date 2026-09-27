@@ -236,7 +236,7 @@ studentSchema.pre('save', async function () {
       studentId: this.studentId,
       fullName: this.fullName,
       class: this.className,
-      schoolName: 'Little Flower English School'
+      schoolName: 'Sorabyte'
     });
 
     // Write QR to file using qrcode npm package

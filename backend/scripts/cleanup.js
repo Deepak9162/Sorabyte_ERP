@@ -74,7 +74,7 @@ const cleanupData = async () => {
     // 4. Recreate Default Admin
     // This ensures the user can still log in after cleanup
     const adminUser = await User.create({
-      name: 'Little Flower Administrator',
+      name: 'Sorabyte Administrator',
       email: 'admin@lfes.com',
       password: 'password123',
       role: 'admin',

@@ -578,7 +578,7 @@ const StudentProfile = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest block">
-                  Little Flower English School
+                  Sorabyte
                 </span>
                 <span className="text-[9px] text-gray-400 font-semibold">• CBSE Affiliated</span>
               </div>

@@ -55,7 +55,7 @@ const FeeReceiptScreen = ({ data }) => {
             <View style={styles.logoBox}>
               <Home size={24} color="#FFF" />
             </View>
-            <Text style={styles.schoolName}>Little Flower English School</Text>
+            <Text style={styles.schoolName}>Sorabyte</Text>
           </View>
           <Text style={styles.receiptTitle}>Fee Payment Receipt</Text>
         </View>

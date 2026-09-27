@@ -100,7 +100,7 @@ export const SidebarFooter = ({ children }) => {
  */
 export const AppSidebar = ({
   logo,
-  brandTitle = "Little Flower School",
+  brandTitle = "Sorabyte",
   brandSubtitle = "ERP Management System",
   children,
   footer,

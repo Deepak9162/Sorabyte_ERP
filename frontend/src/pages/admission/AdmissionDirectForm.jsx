@@ -427,7 +427,7 @@ const AdmissionDirectForm = () => {
 </head>
 <body>
   <div class="school-header">
-    <div class="school-name">Little Flower English School</div>
+    <div class="school-name">Sorabyte</div>
     <div class="school-tagline">Dindayalpur Siwan Bihar 841506</div>
     <div class="school-contact">Phone: +91 82946 80282 &nbsp;|&nbsp; Email: tiwarichandramohan50@gmail.com</div>
     <div class="form-title-box">Admission Application Form</div>
@@ -501,7 +501,7 @@ const AdmissionDirectForm = () => {
     <div class="sig-item"><div style="height:40px;"></div><div class="sig-line">Principal Signature &amp; Stamp</div></div>
   </div>
   <div class="footer">
-    This form is computer-generated via Little Flower English School ERP System &nbsp;|&nbsp; Student ID: ${student.studentId} &nbsp;|&nbsp; Printed on: ${new Date().toLocaleDateString("en-IN")}
+    This form is computer-generated via Sorabyte ERP System &nbsp;|&nbsp; Student ID: ${student.studentId} &nbsp;|&nbsp; Printed on: ${new Date().toLocaleDateString("en-IN")}
   </div>
   <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};</script>
 </body>
@@ -593,7 +593,7 @@ const AdmissionDirectForm = () => {
           <div className="flex justify-between items-start border-b-4 border-gray-900 pb-4">
             <div>
               <h1 className="text-2xl font-black tracking-tight text-gray-900 uppercase">
-                Little Flower English School
+                Sorabyte
               </h1>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1">
                 Student Admission Form &amp; Registration Record

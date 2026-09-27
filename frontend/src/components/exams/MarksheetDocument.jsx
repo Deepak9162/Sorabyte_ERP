@@ -100,7 +100,7 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
 
   const registrationNo = schoolData.registrationNo || schoolData.regdNo || '21812312026441431503';
   const udiseCode = schoolData.udiseCode || schoolData.udise || '10164102145';
-  const schoolName = schoolData.schoolName || 'Little Flower English School';
+  const schoolName = schoolData.schoolName || 'Sorabyte';
   const schoolLocation = schoolData.location || schoolData.cityLine || 'Tarwara Road, Dindayalpur - 841506';
   const classTeacherName = signatures.classTeacher || '';
   const directorName = signatures.director || schoolData.directorName || 'Chandra Mohan Tiwari';
@@ -136,7 +136,7 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
           <img
             className="marksheet-logo"
             src={MARKSHEET_LOGO_BASE64}
-            alt="Little Flower English School logo"
+            alt="Sorabyte logo"
             loading="eager"
             decoding="sync"
           />

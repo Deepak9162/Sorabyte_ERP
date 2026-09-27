@@ -635,12 +635,12 @@ class FeeService {
       doc.image(logoPath, 40, 35, { width: 45, height: 45 });
       doc.restore();
       
-      doc.fillColor('#1e3a8a').fontSize(18).text('LITTLE FLOWER ENGLISH SCHOOL', 100, 40, { weight: 'bold' });
+      doc.fillColor('#1e3a8a').fontSize(18).text('SORABYTE', 100, 40, { weight: 'bold' });
       doc.fontSize(9).fillColor('#4b5563').text('Dindayalpur, Siwan, Bihar', 100, 58);
       doc.fontSize(8).text('Website: www.lfessiwan.in | Phone: +91 82946 80282', 100, 70);
       doc.y = 85;
     } else {
-      doc.fillColor('#1e3a8a').fontSize(24).text('LITTLE FLOWER ENGLISH SCHOOL', { align: 'center', weight: 'bold' });
+      doc.fillColor('#1e3a8a').fontSize(24).text('SORABYTE', { align: 'center', weight: 'bold' });
       doc.fontSize(10).fillColor('#4b5563').text('Dindayalpur, Siwan, Bihar', { align: 'center' });
       doc.text('Website: www.lfessiwan.in | Phone: +91 82946 80282', { align: 'center' });
     }
@@ -814,11 +814,11 @@ class FeeService {
     }
 
     doc.fillColor('#111827').fontSize(9).text('Principal', 400, verifyY + 50, { align: 'center', width: 120 });
-    doc.fontSize(7.5).fillColor('#6b7280').text('Little Flower English School', 400, verifyY + 60, { align: 'center', width: 120 });
+    doc.fontSize(7.5).fillColor('#6b7280').text('Sorabyte', 400, verifyY + 60, { align: 'center', width: 120 });
 
     // 6. Footer
     doc.fontSize(7.5).fillColor('#9ca3af').text(
-      'This is a system-generated receipt for Little Flower English School and does not require a physical signature.',
+      'This is a system-generated receipt for Sorabyte and does not require a physical signature.',
       40, 780, { align: 'center' }
     );
 
