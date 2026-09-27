@@ -252,7 +252,7 @@ exports.generateTimetablePDF = async (classId, outStream, filterTeacherUserId = 
     doc.fillColor('#1e293b')
        .fontSize(8.5)
        .font('Helvetica-Bold')
-       .text('Contact: +91 82946 80282 (Dir: Chandramohan Tiwari)  |  Email: lfes@gmail.com', 40, 73, { align: 'center' });
+       .text('Contact: +91 9876543210 (Dir: Sorabyte Solutions pvt. Ltd.)  |  Email: [EMAIL_ADDRESS]', 40, 73, { align: 'center' });
 
     // Divider Line
     doc.moveTo(40, 88).lineTo(555, 88).strokeColor('#e2e8f0').lineWidth(1).stroke();

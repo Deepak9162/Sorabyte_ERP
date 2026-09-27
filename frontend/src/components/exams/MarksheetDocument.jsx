@@ -101,11 +101,11 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
   const registrationNo = schoolData.registrationNo || schoolData.regdNo || '21812312026441431503';
   const udiseCode = schoolData.udiseCode || schoolData.udise || '10164102145';
   const schoolName = schoolData.schoolName || 'Sorabyte';
-  const schoolLocation = schoolData.location || schoolData.cityLine || 'Tarwara Road, Dindayalpur - 841506';
+  const schoolLocation = schoolData.location || schoolData.cityLine || 'Address Here - 000000';
   const classTeacherName = signatures.classTeacher || '';
-  const directorName = signatures.director || schoolData.directorName || 'Chandra Mohan Tiwari';
-  const principalName = signatures.principal || schoolData.principalName || 'Chandra Mohan Tiwari';
-  const website = schoolData.website || 'www.lfessiwan.in';
+  const directorName = signatures.director || schoolData.directorName || 'Sorabyte Solution';
+  const principalName = signatures.principal || schoolData.principalName || 'Sorabyte Solution';
+  const website = schoolData.website || 'www.sorabyte.in';
   const slogan = schoolData.slogan || 'A STEP TOWARDS A BRIGHTER FUTURE';
   const session = normalizeSession(exam.session || schoolData.academicSession);
   const attendanceText = attendance.attendancePercentage ?? '';

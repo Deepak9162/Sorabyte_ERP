@@ -343,7 +343,7 @@ const AdmissionRequestDetails = () => {
   <div class="school-header">
     <div class="school-name">Sorabyte</div>
     <div class="school-tagline">Dindayalpur Siwan Bihar 841506</div>
-    <div class="school-contact"> Phone: +91 82946 80282 &nbsp;|&nbsp; Email: tiwarichandramohan50@gmail.com</div>
+    <div class="school-contact"> Phone: +91 82946 80282 &nbsp;|&nbsp; Email: [EMAIL_ADDRESS]</div>
     <div class="form-title-box">Admission Application Form</div>
   </div>
 

@@ -656,8 +656,8 @@ class MarksheetService {
       },
       signatures: {
         classTeacher: classTeacherName,
-        director: instituteSettings?.directorName || 'Chandra Mohan Tiwari',
-        principal: instituteSettings?.principalName || 'Chandra Mohan Tiwari',
+        director: instituteSettings?.directorName || 'Sorabyte Solution',
+        principal: instituteSettings?.principalName || 'Sorabyte Solution',
         dateGenerated: new Date().toISOString(),
       },
     };

@@ -223,12 +223,12 @@ const drawSingleMarksheet = (doc, data) => {
   doc.fillColor('#0F2552').fontSize(10).font('Times-Bold').text('Class Teacher', tableX, y + 23, { width: sigColWidth, align: 'center' });
 
   // Director
-  doc.fillColor('#000000').fontSize(10).font('Times-Italic').text(signatures?.director || 'Chandra Mohan Tiwari', tableX + sigColWidth, y, { width: sigColWidth, align: 'center' });
+  doc.fillColor('#000000').fontSize(10).font('Times-Italic').text(signatures?.director || 'Sorabyte Solution', tableX + sigColWidth, y, { width: sigColWidth, align: 'center' });
   doc.moveTo(tableX + sigColWidth + 25, y + 18).lineTo(tableX + sigColWidth * 2 - 25, y + 18).strokeColor('#000000').lineWidth(0.8).stroke();
   doc.fillColor('#0F2552').fontSize(10).font('Times-Bold').text('Director', tableX + sigColWidth, y + 23, { width: sigColWidth, align: 'center' });
 
   // Principal
-  doc.fillColor('#000000').fontSize(10).font('Times-Italic').text(signatures?.principal || 'Chandra Mohan Tiwari', tableX + sigColWidth * 2, y, { width: sigColWidth, align: 'center' });
+  doc.fillColor('#000000').fontSize(10).font('Times-Italic').text(signatures?.principal || 'Sorabyte Solution', tableX + sigColWidth * 2, y, { width: sigColWidth, align: 'center' });
   doc.moveTo(tableX + sigColWidth * 2 + 25, y + 18).lineTo(tableX + tableWidth - 25, y + 18).strokeColor('#000000').lineWidth(0.8).stroke();
   doc.fillColor('#0F2552').fontSize(10).font('Times-Bold').text('Principal', tableX + sigColWidth * 2, y + 23, { width: sigColWidth, align: 'center' });
 
@@ -236,7 +236,7 @@ const drawSingleMarksheet = (doc, data) => {
 
   // 12. Footer Bottom Separator & Website
   doc.fillColor('#C5A059').fontSize(11).font('Times-Bold').text('❖  ◆  ❖', tableX, y, { width: tableWidth, align: 'center' });
-  doc.fillColor('#444444').fontSize(9.5).font('Helvetica').text('www.lfessiwan.in', tableX, y + 15, { width: tableWidth, align: 'center' });
+  doc.fillColor('#444444').fontSize(9.5).font('Helvetica').text('www.sorabyte.in', tableX, y + 15, { width: tableWidth, align: 'center' });
 };
 
 /**

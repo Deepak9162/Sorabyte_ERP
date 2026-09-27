@@ -14,12 +14,12 @@ const instituteSettingsSchema = new mongoose.Schema({
   principalName: {
     type: String,
     trim: true,
-    default: 'Chandra Mohan Tiwari',
+    default: 'Sorabyte Solution',
   },
   directorName: {
     type: String,
     trim: true,
-    default: 'Chandra Mohan Tiwari',
+    default: 'Sorabyte Solution',
   }
 }, { timestamps: true });
 
