@@ -118,7 +118,12 @@ app.use(cors({
       origin.startsWith('http://127.0.0.1:')
     );
     
-    if (!origin || isLocal || allowedOrigins.includes(origin)) {
+    const isVercel = origin && (
+      origin.endsWith('.vercel.app') || 
+      origin.includes('vercel.app')
+    );
+    
+    if (!origin || isLocal || isVercel || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`CORS not allowed for origin: ${origin}`));

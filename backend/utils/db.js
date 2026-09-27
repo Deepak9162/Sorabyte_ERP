@@ -6,7 +6,17 @@
  */
 
 const mongoose = require('mongoose');
+const dns = require('dns');
 const logger = require('./logger');
+
+// Set public DNS fallback for MongoDB Atlas SRV resolution if on Atlas
+if (process.env.MONGO_URI && process.env.MONGO_URI.includes('mongodb+srv://')) {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+  } catch (dnsErr) {
+    // Ignore if not supported
+  }
+}
 
 let signalsBound = false;
 
@@ -14,7 +24,7 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       autoIndex: false,                 // Disable auto-indexing in production
-      serverSelectionTimeoutMS: 5000,   // Fail fast if MongoDB is unreachable
+      serverSelectionTimeoutMS: 10000,  // Connect timeout
     });
 
     logger.info(`MongoDB Connected: ${conn.connection.host}`);

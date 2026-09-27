@@ -3,7 +3,7 @@ import axios from 'axios';
 let abortController = new AbortController();
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://api.lfessiwan.in/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://sorabyte-erp.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
