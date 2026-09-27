@@ -1,5 +1,9 @@
 import React, { forwardRef } from 'react';
-import schoolLogo from '../../assets/schoollogo.png';
+import {
+  MARKSHEET_BORDER_BASE64,
+  MARKSHEET_SCHOOL_NAME_BASE64,
+  MARKSHEET_LOGO_BASE64,
+} from '../../assets/marksheetAssets';
 import './MarksheetDocument.css';
 
 const NAVY = '#08295B';
@@ -7,10 +11,9 @@ const NAVY = '#08295B';
 const CertificateBorder = () => (
   <img
     className="certificate-border"
-    src="/assets/marksheet_Border.png"
+    src={MARKSHEET_BORDER_BASE64}
     alt=""
     aria-hidden="true"
-    crossOrigin="anonymous"
     loading="eager"
     decoding="sync"
   />
@@ -132,9 +135,8 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
         <div className="marksheet-logo-row">
           <img
             className="marksheet-logo"
-            src={schoolLogo}
+            src={MARKSHEET_LOGO_BASE64}
             alt="Little Flower English School logo"
-            crossOrigin="anonymous"
             loading="eager"
             decoding="sync"
           />
@@ -143,9 +145,8 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
         <div className="marksheet-school-name-wrap" aria-label={schoolName}>
           <img
             className="marksheet-school-name-image"
-            src="/school_name.png"
+            src={MARKSHEET_SCHOOL_NAME_BASE64}
             alt={schoolName}
-            crossOrigin="anonymous"
             loading="eager"
             decoding="sync"
           />

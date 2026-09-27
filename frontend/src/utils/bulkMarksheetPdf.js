@@ -31,6 +31,10 @@ const preloadSharedImages = async (elements) => {
     [...sources].map(
       (src) =>
         new Promise((resolve) => {
+          if (!src || src.startsWith('data:')) {
+            resolve();
+            return;
+          }
           const image = new Image();
           image.crossOrigin = 'anonymous';
           image.onload = async () => {
@@ -143,6 +147,26 @@ export const generateBulkMarksheetPdf = async ({
           scrollX: 0,
           scrollY: 0,
           imageTimeout: 0,
+          onclone: (clonedDoc, clonedElement) => {
+            if (clonedElement) {
+              const parent = clonedElement.parentElement;
+              if (parent) {
+                parent.style.position = 'absolute';
+                parent.style.left = '0px';
+                parent.style.top = '0px';
+                parent.style.opacity = '1';
+                parent.style.visibility = 'visible';
+                parent.style.display = 'block';
+                parent.style.zIndex = '99999';
+              }
+              clonedElement.style.position = 'relative';
+              clonedElement.style.left = '0px';
+              clonedElement.style.top = '0px';
+              clonedElement.style.opacity = '1';
+              clonedElement.style.visibility = 'visible';
+              clonedElement.style.transform = 'none';
+            }
+          },
         });
         return {
           index,

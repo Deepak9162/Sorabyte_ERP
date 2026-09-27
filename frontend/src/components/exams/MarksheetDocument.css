@@ -661,10 +661,7 @@
   min-height: 297mm;
   overflow: visible;
   pointer-events: none;
-  transform: none !important;
-  zoom: 1 !important;
   background: #fff;
-  z-index: -1;
 }
 
 .marksheet-pdf-render-host .marksheet-document {

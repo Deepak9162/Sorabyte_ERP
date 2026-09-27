@@ -119,23 +119,18 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
    * - Deterministic A4 portrait dimensions (210mm x 297mm)
    */
   const generateMarksheetPdf = async () => {
-    // IMPORTANT: never capture the responsive preview tree. On phones that tree
-    // lives under a transform: scale(...) wrapper. Capture the dedicated,
-    // unscaled A4 render source instead so viewport width/orientation cannot
-    // influence the PDF layout.
-    const element = pdfDocumentRef.current;
-    if (!element) {
+    const docElement = document.getElementById('marksheet-pdf-source') || pdfDocumentRef.current;
+    if (!docElement) {
       throw new Error('Fixed A4 marksheet PDF source not found');
     }
 
-    // Let React/layout settle, then wait deterministically for fonts + images.
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
+    // Wait for layout and fonts
+    await new Promise((resolve) => setTimeout(resolve, 250));
     if (document.fonts && document.fonts.ready) {
       await document.fonts.ready;
     }
 
-    const images = Array.from(element.querySelectorAll('img'));
+    const images = Array.from(docElement.querySelectorAll('img'));
     await Promise.all(
       images.map(async (img) => {
         if (img.complete && img.naturalWidth > 0) return;
@@ -144,7 +139,7 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
             await img.decode();
             return;
           } catch {
-            // Fall through to load/error listeners for older/cross-origin browsers.
+            // Fall through to load/error listeners
           }
         }
         await new Promise((resolve) => {
@@ -155,27 +150,16 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
       })
     );
 
-    // The source is always the original fixed 210mm × 297mm node.
-    // Explicit capture dimensions + a desktop-sized virtual viewport prevent
-    // mobile media/viewport geometry from compressing the A4 layout.
-    const logicalWidth = element.offsetWidth;
-    const logicalHeight = element.offsetHeight;
-
-    const canvas = await html2canvas(element, {
+    const canvas = await html2canvas(docElement, {
       scale: 2.5,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
       allowTaint: true,
-      width: logicalWidth,
-      height: logicalHeight,
       windowWidth: 1024,
-      windowHeight: 1400,
-      scrollX: 0,
-      scrollY: 0,
-      imageTimeout: 0,
     });
 
+    const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -187,13 +171,7 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
     const finalHeight = Math.min(pdfHeight, 297);
 
-    // Pass the canvas directly to jsPDF. This avoids a second large base64
-    // allocation on memory-constrained mobile browsers without changing layout.
-    pdf.addImage(canvas, 'PNG', 0, 0, pdfWidth, finalHeight, undefined, 'FAST');
-
-    // Release the backing store after jsPDF has embedded the page.
-    canvas.width = 1;
-    canvas.height = 1;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalHeight, undefined, 'FAST');
 
     return pdf;
   };
@@ -226,14 +204,52 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
     }
   };
 
-  // Print Official PDF using high-resolution PDF iframe or native browser print
+  // Print Official PDF using isolated high-resolution A4 print iframe
   const handlePrintPdf = async () => {
     if (printingPdf) return;
     try {
       setPrintingPdf(true);
-      const pdf = await generateMarksheetPdf();
-      const pdfBlob = pdf.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
+      
+      const docElement = document.getElementById('marksheet-pdf-source') || pdfDocumentRef.current;
+      if (!docElement) {
+        throw new Error('Fixed A4 marksheet source not found');
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+
+      const images = Array.from(docElement.querySelectorAll('img'));
+      await Promise.all(
+        images.map(async (img) => {
+          if (img.complete && img.naturalWidth > 0) return;
+          if (typeof img.decode === 'function') {
+            try {
+              await img.decode();
+              return;
+            } catch {
+              // Fall through
+            }
+          }
+          await new Promise((resolve) => {
+            const done = () => resolve();
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+          });
+        })
+      );
+
+      const canvas = await html2canvas(docElement, {
+        scale: 2.5,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        allowTaint: true,
+        windowWidth: 1024,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
 
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
@@ -242,26 +258,77 @@ const MarksheetPreview = ({ studentId, examId, initialData = null, onClose = nul
       iframe.style.width = '0';
       iframe.style.height = '0';
       iframe.style.border = '0';
-      iframe.src = pdfUrl;
 
       document.body.appendChild(iframe);
-      iframe.onload = () => {
+
+      const iframeDoc = iframe.contentWindow.document;
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Official Marksheet Print</title>
+            <style>
+              @page {
+                size: A4 portrait;
+                margin: 0;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                background: #fff;
+              }
+              .print-page {
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
+              img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                display: block;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="print-page">
+              <img src="${imgData}" />
+            </div>
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+
+      const printImg = iframeDoc.querySelector('img');
+      const startPrint = () => {
         setTimeout(() => {
           try {
             iframe.contentWindow.focus();
             iframe.contentWindow.print();
-          } catch {
-            window.print();
+          } catch (e) {
+            console.error('Iframe print error:', e);
           }
           setTimeout(() => {
             iframe.remove();
-            URL.revokeObjectURL(pdfUrl);
           }, 3000);
         }, 300);
       };
+
+      if (printImg && printImg.complete) {
+        startPrint();
+      } else if (printImg) {
+        printImg.onload = startPrint;
+      } else {
+        startPrint();
+      }
     } catch (err) {
       console.error('Failed to print PDF:', err);
-      window.print();
+      addToast('Failed to open print preview. Please try downloading the PDF instead.', 'error');
     } finally {
       setPrintingPdf(false);
     }

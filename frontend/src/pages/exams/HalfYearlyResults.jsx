@@ -17,6 +17,7 @@ import {
 import api from '../../services/api';
 import MarksheetPreview from '../../components/exams/MarksheetPreview';
 import MarksheetDocument from '../../components/exams/MarksheetDocument';
+import { MARKSHEET_LOGO_BASE64 } from '../../assets/marksheetAssets';
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { useToast } from '../../context/ToastContext';
@@ -110,8 +111,6 @@ const HalfYearlyResults = () => {
 
   // ─────────────────────────────────────────────────────
   // ROLL NUMBER SORT HELPER
-  // Converts a roll number value (may be String, Number, null, empty)
-  // to a finite integer for numeric comparison, or null for invalid values.
   // ─────────────────────────────────────────────────────
   const getNumericRoll = (value) => {
     if (value === null || value === undefined || value === '') return null;
@@ -119,9 +118,6 @@ const HalfYearlyResults = () => {
     return Number.isFinite(n) ? n : null;
   };
 
-  // Filter student rows by search query & sort by roll number ascending.
-  // Rank is assigned by the BACKEND (by percentage desc) and is preserved here —
-  // we only change DISPLAY ORDER to roll-number ascending.
   const filteredStudentRows = useMemo(() => {
     if (!report || !report.studentRows) return [];
     let list = [...report.studentRows];
@@ -136,9 +132,6 @@ const HalfYearlyResults = () => {
       );
     }
 
-    // Sort by ROLL NUMBER ASCENDING (numeric-aware to prevent '1,10,11,2' ordering).
-    // Invalid / missing rolls are placed at the end.
-    // Duplicate rolls are given a stable secondary sort by name.
     list.sort((a, b) => {
       const rollA = getNumericRoll(a.rollNumber);
       const rollB = getNumericRoll(b.rollNumber);
@@ -149,7 +142,6 @@ const HalfYearlyResults = () => {
       return (a.fullName || '').localeCompare(b.fullName || '');
     });
 
-    // Rank values come from the backend (percentage-based). Preserve them.
     return list;
   }, [report, searchQuery]);
 
@@ -245,7 +237,275 @@ const HalfYearlyResults = () => {
   };
 
   const handlePrintClassReport = () => {
-    window.print();
+    if (!report || filteredStudentRows.length === 0) return;
+
+    const examName = report.exam?.name || 'Half Yearly Examination';
+    const session = report.exam?.session || selectedSession || '2026-2027';
+    const className = report.exam?.class?.name || 'Class';
+    const subjects = report.subjects || [];
+    const totalStudents = filteredStudentRows.length;
+    const passedCount = filteredStudentRows.filter((s) => s.summary?.overallStatus === 'Pass').length;
+    const failedCount = totalStudents - passedCount;
+    const avgPercentage = (
+      filteredStudentRows.reduce((sum, s) => sum + (Number(s.summary?.percentage) || 0), 0) / (totalStudents || 1)
+    ).toFixed(1);
+
+    const subjectHeadersHtml = subjects
+      .map(
+        (sub) => `
+          <th style="min-width: 60px;">
+            <div>${sub.name}</div>
+            <div style="font-size: 8px; font-weight: normal; opacity: 0.85;">Max: ${sub.maxMarks}</div>
+          </th>`
+      )
+      .join('');
+
+    const rowsHtml = filteredStudentRows
+      .map((s) => {
+        const isPass = s.summary?.overallStatus === 'Pass';
+        const subjectCellsHtml = s.subjectMarks
+          .map((sm) => {
+            const val = sm.marksObtained === null ? '-' : sm.isAbsent ? 'ABS' : sm.marksObtained;
+            const isSubFail = sm.status !== 'Pass' || sm.isAbsent;
+            return `<td style="${isSubFail ? 'color: #dc2626; font-weight: 800;' : ''}">${val}</td>`;
+          })
+          .join('');
+
+        return `
+          <tr>
+            <td style="font-weight: 800; color: #475569;">#${s.rank}</td>
+            <td style="font-weight: 800;">${s.rollNumber}</td>
+            <td class="td-name" style="font-weight: 700;">${s.fullName}</td>
+            ${subjectCellsHtml}
+            <td style="font-weight: 800;">${s.summary?.totalMarksObtained ?? '-'} / ${s.summary?.totalMaxMarks ?? '-'}</td>
+            <td style="font-weight: 800; color: #d97706;">${s.summary?.percentage ?? '-'}%</td>
+            <td style="font-weight: 800; color: #08295b;">${s.summary?.grade ?? '-'}</td>
+            <td class="${isPass ? 'status-pass' : 'status-fail'}">${s.summary?.overallStatus || '-'}</td>
+          </tr>`;
+      })
+      .join('');
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${className} - ${examName} Result Summary Report</title>
+          <style>
+            @page {
+              size: A4 landscape;
+              margin: 7mm;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              font-family: 'Segoe UI', Arial, sans-serif;
+              color: #0f172a;
+              background: #fff;
+              padding: 2mm;
+              font-size: 11px;
+            }
+            .report-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid #08295b;
+              padding-bottom: 6px;
+              margin-bottom: 8px;
+            }
+            .header-logo {
+              width: 50px;
+              height: 50px;
+              object-fit: contain;
+            }
+            .header-center {
+              text-align: center;
+              flex: 1;
+              padding: 0 10px;
+            }
+            .school-title {
+              font-size: 18px;
+              font-weight: 900;
+              color: #08295b;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .school-subtitle {
+              font-size: 10px;
+              font-weight: 600;
+              color: #475569;
+              margin-top: 1px;
+            }
+            .report-badge {
+              display: inline-block;
+              margin-top: 4px;
+              padding: 2px 10px;
+              background: #08295b;
+              color: #fff;
+              font-size: 11px;
+              font-weight: 800;
+              border-radius: 4px;
+              letter-spacing: 0.5px;
+            }
+            .header-meta {
+              text-align: right;
+              font-size: 9.5px;
+              color: #475569;
+              font-weight: 600;
+              line-height: 1.35;
+            }
+            .info-bar {
+              display: flex;
+              justify-content: space-between;
+              background: #f8fafc;
+              padding: 5px 10px;
+              border-radius: 6px;
+              font-size: 10.5px;
+              font-weight: 700;
+              margin-bottom: 8px;
+              border: 1px solid #e2e8f0;
+            }
+            .info-bar span {
+              color: #08295b;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 10px;
+              margin-bottom: 10px;
+            }
+            th, td {
+              border: 1px solid #cbd5e1;
+              padding: 4px 5px;
+              text-align: center;
+            }
+            th {
+              background: #08295b;
+              color: #ffffff;
+              font-weight: 800;
+              font-size: 9.5px;
+              text-transform: uppercase;
+            }
+            th.th-name, td.td-name {
+              text-align: left;
+              padding-left: 6px;
+            }
+            tr:nth-child(even) {
+              background: #f8fafc;
+            }
+            .status-pass {
+              color: #15803d;
+              font-weight: 800;
+            }
+            .status-fail {
+              color: #b91c1c;
+              font-weight: 800;
+            }
+            .signatures {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 25px;
+              padding-top: 6px;
+            }
+            .sign-block {
+              text-align: center;
+              width: 140px;
+              border-top: 1.5px dashed #64748b;
+              padding-top: 3px;
+              font-size: 9.5px;
+              font-weight: 700;
+              color: #1e293b;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="report-header">
+            <img class="header-logo" src="${MARKSHEET_LOGO_BASE64}" alt="Logo" />
+            <div class="header-center">
+              <div class="school-title">Little Flower English School</div>
+              <div class="school-subtitle">Tarwara Road, Dindayalpur - 841506</div>
+              <div class="report-badge">${examName.toUpperCase()} — CLASS TABULATION SHEET</div>
+            </div>
+            <div class="header-meta">
+              <div><strong>Regd No:</strong> 21812312026441431503</div>
+              <div><strong>Udise:</strong> 10164102145</div>
+              <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</div>
+            </div>
+          </div>
+
+          <div class="info-bar">
+            <div>Class: <span>${className}</span></div>
+            <div>Academic Session: <span>${session}</span></div>
+            <div>Total Enrolled: <span>${totalStudents}</span></div>
+            <div>Passed: <span style="color: #15803d;">${passedCount}</span></div>
+            <div>Failed: <span style="color: #b91c1c;">${failedCount}</span></div>
+            <div>Class Average: <span>${avgPercentage}%</span></div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 35px;">Rank</th>
+                <th style="width: 40px;">Roll</th>
+                <th class="th-name" style="width: 150px;">Student Name</th>
+                ${subjectHeadersHtml}
+                <th style="width: 75px;">Total</th>
+                <th style="width: 45px;">%</th>
+                <th style="width: 45px;">Grade</th>
+                <th style="width: 55px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+
+          <div class="signatures">
+            <div class="sign-block">Class Teacher</div>
+            <div class="sign-block">Exam Controller</div>
+            <div class="sign-block">Principal</div>
+          </div>
+        </body>
+      </html>
+    `);
+    iframeDoc.close();
+
+    const logoImg = iframeDoc.querySelector('img');
+    const startPrint = () => {
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (e) {
+          console.error('Print error:', e);
+        }
+        setTimeout(() => {
+          iframe.remove();
+        }, 3000);
+      }, 300);
+    };
+
+    if (logoImg && logoImg.complete) {
+      startPrint();
+    } else if (logoImg) {
+      logoImg.onload = startPrint;
+    } else {
+      startPrint();
+    }
   };
 
   return (
@@ -669,8 +929,8 @@ const HalfYearlyResults = () => {
       ────────────────────────────────────────────── */}
       {bulkRenderList && bulkRenderList.length > 0 && (
         <div
-          className="fixed top-0 pointer-events-none bg-white"
-          style={{ left: '-10000px', width: '210mm' }}
+          className="fixed top-0 pointer-events-none bg-white opacity-0"
+          style={{ left: '0px', width: '210mm', zIndex: -99999 }}
           aria-hidden="true"
         >
           {bulkRenderList.map((stData, idx) => (
