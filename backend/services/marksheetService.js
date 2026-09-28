@@ -14,6 +14,10 @@ const Attendance = require('../models/Attendance');
 const ExamStudentDetail = require('../models/ExamStudentDetail');
 const InstituteSettings = require('../models/InstituteSettings');
 const { calculateSubjectResult, calculateOverallResult } = require('../utils/resultCalculator');
+const {
+  createSubjectApplicabilityResolver,
+  getSubjectApplicabilityMode,
+} = require('../utils/subjectApplicability');
 
 // ─────────────────────────────────────────────────────────────────
 // ROLL NUMBER ORDERING UTILITY
@@ -112,8 +116,12 @@ class MarksheetService {
       marksMap.set(m.student.toString(), m);
     });
 
+    const applicabilityResolver = createSubjectApplicabilityResolver(exam, existingMarks);
+
     const roster = students.map((s) => {
-      const markDoc = marksMap.get(s._id.toString());
+      const studentId = s._id.toString();
+      const markDoc = marksMap.get(studentId);
+      const isApplicable = applicabilityResolver.isApplicable(studentId, subjectId);
       return {
         studentId: s._id,
         fullName: s.fullName,
@@ -121,10 +129,11 @@ class MarksheetService {
         admissionNumber: s.admissionNumber,
         section: s.section,
         fatherName: s.fatherName,
-        marksObtained: markDoc ? (markDoc.isAbsent ? '' : markDoc.marksObtained) : '',
-        isAbsent: markDoc ? markDoc.isAbsent : false,
-        status: markDoc ? markDoc.status : '',
-        remarks: markDoc ? markDoc.remarks : '',
+        isApplicable,
+        marksObtained: !isApplicable ? '' : (markDoc ? (markDoc.isAbsent ? '' : markDoc.marksObtained) : ''),
+        isAbsent: isApplicable && markDoc ? markDoc.isAbsent : false,
+        status: !isApplicable ? 'N/A' : (markDoc ? markDoc.status : ''),
+        remarks: isApplicable && markDoc ? markDoc.remarks : '',
         isSaved: !!markDoc,
       };
     });
@@ -144,9 +153,188 @@ class MarksheetService {
         subjectType: subjectConfigItem.subject.type,
         maxMarks: subjectConfigItem.maxMarks,
         passMarks: subjectConfigItem.passMarks,
+        applicability: getSubjectApplicabilityMode(subjectConfigItem),
       },
       totalStudents: roster.length,
       students: roster,
+    };
+  }
+
+  /**
+   * Update one student's applicability for one configured subject.
+   * The authoritative write goes back to Exam.subjectsConfig; no marks override
+   * field is created and no ExamMarks record is deleted or rewritten.
+   */
+  async updateStudentSubjectApplicability(payload, userId) {
+    const {
+      examId,
+      classId,
+      subjectId,
+      studentId,
+      section,
+      isApplicable,
+      confirmExistingMarkImpact = false,
+    } = payload || {};
+
+    if (!examId || !classId || !subjectId || !studentId || typeof isApplicable !== 'boolean') {
+      const err = new Error('examId, classId, subjectId, studentId, and boolean isApplicable are required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const exam = await Exam.findById(examId);
+    if (!exam) {
+      const err = new Error('Exam not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (exam.status === 'Finalized' || exam.status === 'Published') {
+      const err = new Error(
+        "Subject applicability cannot be modified because the exam result is currently '" +
+          exam.status +
+          "'. Use the existing Reopen/Correction workflow first."
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (exam.class.toString() !== classId.toString()) {
+      const err = new Error('Exam does not belong to the provided class');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const subjectConfig = (exam.subjectsConfig || []).find(
+      (sc) => sc.subject.toString() === subjectId.toString()
+    );
+    if (!subjectConfig) {
+      const err = new Error('Selected subject is not configured for this exam');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const student = await Student.findById(studentId)
+      .select('_id fullName class section status')
+      .lean();
+    if (!student) {
+      const err = new Error('Student not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (student.status !== 'Active') {
+      const err = new Error('Student is not active in the exam roster');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!student.class || student.class.toString() !== exam.class.toString()) {
+      const err = new Error('Student does not belong to the exam class');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (
+      section &&
+      section !== 'All' &&
+      String(student.section || '') !== String(section)
+    ) {
+      const err = new Error('Student does not belong to the authorized exam section');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const existingMark = await ExamMarks.findOne({
+      exam: examId,
+      student: studentId,
+      subject: subjectId,
+    }).lean();
+
+    const resolver = createSubjectApplicabilityResolver(
+      exam.toObject(),
+      existingMark ? [existingMark] : []
+    );
+    const currentApplicable = resolver.isApplicable(studentId, subjectId);
+
+    if (currentApplicable === isApplicable) {
+      return {
+        examId: exam._id,
+        studentId: student._id,
+        subjectId,
+        isApplicable: currentApplicable,
+        unchanged: true,
+        existingMark: existingMark
+          ? {
+              marksObtained: existingMark.marksObtained,
+              isAbsent: !!existingMark.isAbsent,
+              status: existingMark.status,
+              remarks: existingMark.remarks || '',
+            }
+          : null,
+      };
+    }
+
+    if (currentApplicable && !isApplicable && existingMark && !confirmExistingMarkImpact) {
+      const err = new Error(
+        'Marks (' + existingMark.marksObtained + '/' + subjectConfig.maxMarks +
+          ') already exist for this student in this subject. Changing this subject to N/A would remove it from result calculations. Existing marks will NOT be deleted. Continue only if this assignment was incorrect.'
+      );
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const currentMode = getSubjectApplicabilityMode(subjectConfig);
+    const currentIds = new Set(
+      (subjectConfig.applicableStudents || []).map((id) => id.toString())
+    );
+
+    if (isApplicable) {
+      if (currentMode === 'OPTIONAL') {
+        currentIds.add(studentId.toString());
+        subjectConfig.applicableStudents = [...currentIds];
+      }
+      // COMPULSORY is already universally applicable, so no metadata change is needed.
+    } else if (currentMode === 'OPTIONAL') {
+      currentIds.delete(studentId.toString());
+      subjectConfig.applicableStudents = [...currentIds];
+    } else {
+      // To express one N/A student without inventing a second override system,
+      // convert the subject to OPTIONAL and explicitly preserve all other known
+      // class/marked students as applicable.
+      const [classStudents, markedStudentIds] = await Promise.all([
+        Student.find({ class: exam.class }).select('_id').lean(),
+        ExamMarks.distinct('student', { exam: examId, subject: subjectId }),
+      ]);
+
+      const applicableIds = new Set([
+        ...classStudents.map((item) => item._id.toString()),
+        ...markedStudentIds.map((id) => id.toString()),
+      ]);
+      applicableIds.delete(studentId.toString());
+
+      subjectConfig.applicability = 'OPTIONAL';
+      subjectConfig.applicableStudents = [...applicableIds];
+    }
+
+    exam.updatedBy = userId;
+    await exam.save();
+
+    return {
+      examId: exam._id,
+      studentId: student._id,
+      subjectId,
+      isApplicable,
+      previousValue: currentApplicable,
+      marksPreserved: !!existingMark,
+      existingMark: existingMark
+        ? {
+            marksObtained: existingMark.marksObtained,
+            isAbsent: !!existingMark.isAbsent,
+            status: existingMark.status,
+            remarks: existingMark.remarks || '',
+          }
+        : null,
     };
   }
 
@@ -199,6 +387,23 @@ class MarksheetService {
     // Verify student class matches exam class
     if (student.class && student.class.toString() !== exam.class.toString()) {
       throw new Error(`Student '${student.fullName}' does not belong to the exam class`);
+    }
+
+    const existingMark = await ExamMarks.findOne({
+      exam: examId,
+      student: studentId,
+      subject: subjectId,
+    }).lean();
+    const applicabilityResolver = createSubjectApplicabilityResolver(
+      exam,
+      existingMark ? [existingMark] : []
+    );
+    if (!applicabilityResolver.isApplicable(studentId, subjectId)) {
+      const err = new Error(
+        "Subject is not applicable to student '" + student.fullName + "'. Marks cannot be entered for an N/A subject."
+      );
+      err.statusCode = 400;
+      throw err;
     }
 
     const status = calculateSubjectResult(obtainedNum, passMarks, !!isAbsent);
@@ -270,6 +475,14 @@ class MarksheetService {
 
     const studentMap = new Map(classStudents.map((s) => [s._id.toString(), s]));
 
+    // Fetch all existing marks once. Existing valid marks remain authoritative
+    // when optional applicability is introduced to a legacy exam.
+    const existingMarks = await ExamMarks.find({
+      exam: examId,
+      student: { $in: classStudents.map((student) => student._id) },
+    }).select('student subject').lean();
+    const applicabilityResolver = createSubjectApplicabilityResolver(exam, existingMarks);
+
     // 3. Prepare bulk operations & validate each record in memory
     const bulkOps = [];
     const errors = [];
@@ -288,6 +501,13 @@ class MarksheetService {
       const subjectConfig = configMap.get(targetSubjectId ? targetSubjectId.toString() : '');
       if (!subjectConfig) {
         errors.push(`Row ${index + 1}: Subject ID '${targetSubjectId}' is not configured in this exam`);
+        continue;
+      }
+
+      if (!applicabilityResolver.isApplicable(student._id, targetSubjectId)) {
+        errors.push(
+          "Row " + (index + 1) + " (" + student.fullName + "): Subject is N/A for this student"
+        );
         continue;
       }
 
@@ -387,22 +607,18 @@ class MarksheetService {
       throw new Error('Exam does not belong to the requested class');
     }
 
-    // Fetch active students in class
     const students = await Student.find({ class: classId, status: 'Active' })
       .select('fullName rollNumber admissionNumber studentId section')
-      .sort({ rollNumber: 1, fullName: 1 })
       .lean();
+    students.sort(rollNumberComparator);
 
-    // Fetch marks records for exam & class
     const marksRecords = await ExamMarks.find({ exam: examId, class: classId }).lean();
+    const applicabilityResolver = createSubjectApplicabilityResolver(exam, marksRecords);
 
-    // Create lookup matrix: studentId -> subjectId -> mark
     const marksLookup = new Map();
     marksRecords.forEach((m) => {
       const sId = m.student.toString();
-      if (!marksLookup.has(sId)) {
-        marksLookup.set(sId, new Map());
-      }
+      if (!marksLookup.has(sId)) marksLookup.set(sId, new Map());
       marksLookup.get(sId).set(m.subject.toString(), m);
     });
 
@@ -412,50 +628,83 @@ class MarksheetService {
       type: sc.subject.type,
       maxMarks: sc.maxMarks,
       passMarks: sc.passMarks,
+      applicability: getSubjectApplicabilityMode(sc),
     }));
 
-    // Build student rows
-    const studentRows = students.map((s) => {
-      const sId = s._id.toString();
-      const sMarksMap = marksLookup.get(sId) || new Map();
-      const subjectMarks = [];
+    const studentRows = students.map((student) => {
+      const studentId = student._id.toString();
+      const studentMarks = marksLookup.get(studentId) || new Map();
 
-      subjectsList.forEach((sub) => {
-        const markDoc = sMarksMap.get(sub.subjectId.toString());
-        subjectMarks.push({
-          subjectId: sub.subjectId,
-          subjectName: sub.name,
-          maxMarks: sub.maxMarks,
-          passMarks: sub.passMarks,
-          marksObtained: markDoc ? markDoc.marksObtained : null,
-          isAbsent: markDoc ? markDoc.isAbsent : false,
-          status: markDoc ? markDoc.status : 'N/A',
-        });
+      const subjectMarks = subjectsList.map((subject) => {
+        const subjectId = subject.subjectId.toString();
+        const markDoc = studentMarks.get(subjectId);
+        const isApplicable = applicabilityResolver.isApplicable(studentId, subjectId);
+
+        if (!isApplicable) {
+          return {
+            subjectId: subject.subjectId,
+            subjectName: subject.name,
+            subjectType: subject.type,
+            maxMarks: subject.maxMarks,
+            passMarks: subject.passMarks,
+            marksObtained: null,
+            isAbsent: false,
+            isApplicable: false,
+            isPending: false,
+            status: 'N/A',
+          };
+        }
+
+        if (!markDoc) {
+          return {
+            subjectId: subject.subjectId,
+            subjectName: subject.name,
+            subjectType: subject.type,
+            maxMarks: subject.maxMarks,
+            passMarks: subject.passMarks,
+            marksObtained: null,
+            isAbsent: false,
+            isApplicable: true,
+            isPending: true,
+            status: 'Pending',
+          };
+        }
+
+        return {
+          subjectId: subject.subjectId,
+          subjectName: subject.name,
+          subjectType: subject.type,
+          maxMarks: subject.maxMarks,
+          passMarks: subject.passMarks,
+          marksObtained: markDoc.marksObtained,
+          isAbsent: !!markDoc.isAbsent,
+          isApplicable: true,
+          isPending: false,
+          status: markDoc.status,
+        };
       });
 
-      // Calculate summary for this student
-      const validMarks = subjectMarks.filter((sm) => sm.marksObtained !== null || sm.isAbsent);
-      const summary = calculateOverallResult(validMarks);
+      const summary = calculateOverallResult(subjectMarks);
 
       return {
-        studentId: s._id,
-        fullName: s.fullName,
-        rollNumber: s.rollNumber,
-        admissionNumber: s.admissionNumber,
+        studentId: student._id,
+        fullName: student.fullName,
+        rollNumber: student.rollNumber,
+        admissionNumber: student.admissionNumber,
+        section: student.section,
         subjectMarks,
         summary,
       };
     });
 
-    // ── Step 1: Assign academic rank by percentage descending (DO NOT change this logic) ──
-    studentRows.sort((a, b) => b.summary.percentage - a.summary.percentage);
+    studentRows.sort((a, b) => {
+      const pctDiff = (b.summary?.percentage || 0) - (a.summary?.percentage || 0);
+      if (pctDiff !== 0) return pctDiff;
+      return rollNumberComparator(a, b);
+    });
     studentRows.forEach((row, idx) => {
       row.rank = idx + 1;
     });
-
-    // ── Step 2: Re-sort by ROLL NUMBER ASCENDING for display / download order ──
-    // Rank values are already embedded in each row, so ordering by roll does NOT
-    // change academic ranks — only the presentation order changes.
     studentRows.sort(rollNumberComparator);
 
     return {
@@ -498,26 +747,93 @@ class MarksheetService {
 
     if (!exam) throw new Error('Exam not found');
 
-    // Fetch student marks for this exam
-    const marksRecords = await ExamMarks.find({ student: studentId, exam: examId })
-      .populate('subject', 'name type')
-      .lean();
+    const marksRecords = await ExamMarks.find({ student: studentId, exam: examId }).lean();
 
-    // Map subject details
+    const [attendanceStats, studentDetail, instituteSettings] = await Promise.all([
+      Attendance.aggregate([
+        { $match: { student: student._id } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+      ExamStudentDetail.findOne({ exam: examId, student: studentId }).lean(),
+      InstituteSettings.findOne().select('principalName directorName').lean(),
+    ]);
+
+    return this.buildStudentResultPayload({
+      student,
+      exam,
+      marksRecords,
+      attendanceStats,
+      studentDetail,
+      instituteSettings,
+    });
+  }
+
+  buildStudentResultPayload({
+    student,
+    exam,
+    marksRecords = [],
+    attendanceStats = [],
+    studentDetail = null,
+    instituteSettings = null,
+  }) {
+    const applicabilityResolver = createSubjectApplicabilityResolver(exam, marksRecords);
+    const marksBySubject = new Map(
+      marksRecords.map((mark) => [
+        (mark.subject?._id || mark.subject).toString(),
+        mark,
+      ])
+    );
+
     const subjectBreakdown = exam.subjectsConfig.map((sc) => {
-      const subId = sc.subject._id.toString();
-      const markDoc = marksRecords.find((m) => m.subject._id.toString() === subId);
+      const subjectId = sc.subject._id.toString();
+      const markDoc = marksBySubject.get(subjectId);
+      const isApplicable = applicabilityResolver.isApplicable(student._id, subjectId);
 
-      const obtained = markDoc ? markDoc.marksObtained : 0;
-      const isAbsent = markDoc ? markDoc.isAbsent : false;
-      const status = markDoc
-        ? markDoc.status
-        : calculateSubjectResult(obtained, sc.passMarks, isAbsent);
+      if (!isApplicable) {
+        return {
+          subjectId: sc.subject._id,
+          subjectName: sc.subject.name,
+          subjectType: sc.subject.type,
+          maxMarks: sc.maxMarks,
+          passMarks: sc.passMarks,
+          marksObtained: 'N/A',
+          isAbsent: false,
+          isApplicable: false,
+          isPending: false,
+          status: 'N/A',
+          grade: 'N/A',
+          remarks: '',
+        };
+      }
 
-      const subjectPercentage = sc.maxMarks > 0 ? (obtained / sc.maxMarks) * 100 : 0;
-      const grade = calculateOverallResult([
-        { maxMarks: sc.maxMarks, passMarks: sc.passMarks, marksObtained: obtained, isAbsent, status },
-      ]).grade;
+      if (!markDoc) {
+        return {
+          subjectId: sc.subject._id,
+          subjectName: sc.subject.name,
+          subjectType: sc.subject.type,
+          maxMarks: sc.maxMarks,
+          passMarks: sc.passMarks,
+          marksObtained: null,
+          isAbsent: false,
+          isApplicable: true,
+          isPending: true,
+          status: 'Pending',
+          grade: '',
+          remarks: '',
+        };
+      }
+
+      const obtained = Number(markDoc.marksObtained) || 0;
+      const isAbsent = !!markDoc.isAbsent;
+      const status = markDoc.status || calculateSubjectResult(obtained, sc.passMarks, isAbsent);
+      const grade = calculateOverallResult([{
+        maxMarks: sc.maxMarks,
+        passMarks: sc.passMarks,
+        marksObtained: obtained,
+        isAbsent,
+        isApplicable: true,
+        status,
+      }]).grade;
 
       return {
         subjectId: sc.subject._id,
@@ -525,77 +841,45 @@ class MarksheetService {
         subjectType: sc.subject.type,
         maxMarks: sc.maxMarks,
         passMarks: sc.passMarks,
-        marksObtained: markDoc ? (isAbsent ? 'ABSENT' : obtained) : 'N/A',
+        marksObtained: isAbsent ? 'ABSENT' : obtained,
         isAbsent,
+        isApplicable: true,
+        isPending: false,
         status,
         grade,
-        remarks: markDoc ? markDoc.remarks : '',
+        remarks: markDoc.remarks || '',
       };
     });
 
-    // Calculate aggregate result
-    const validMarksForCalc = exam.subjectsConfig.map((sc) => {
-      const subId = sc.subject._id.toString();
-      const markDoc = marksRecords.find((m) => m.subject._id.toString() === subId);
-      const obtained = markDoc ? markDoc.marksObtained : 0;
-      const isAbsent = markDoc ? markDoc.isAbsent : false;
-      const status = markDoc
-        ? markDoc.status
-        : calculateSubjectResult(obtained, sc.passMarks, isAbsent);
-
-      return {
-        maxMarks: sc.maxMarks,
-        passMarks: sc.passMarks,
-        marksObtained: obtained,
-        isAbsent,
-        status,
-      };
-    });
-    const aggregateSummary = calculateOverallResult(validMarksForCalc);
-
-    // Query Attendance summary from existing Attendance model (Read-only integration)
-    const attendanceStats = await Attendance.aggregate([
-      { $match: { student: student._id } },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-        },
-      },
-    ]);
+    const aggregateInput = subjectBreakdown.map((subject) => ({
+      maxMarks: subject.maxMarks,
+      passMarks: subject.passMarks,
+      marksObtained:
+        subject.isApplicable === false || subject.isPending
+          ? null
+          : (subject.isAbsent ? 0 : Number(subject.marksObtained)),
+      isAbsent: !!subject.isAbsent,
+      isApplicable: subject.isApplicable !== false,
+      isPending: !!subject.isPending,
+      status: subject.status,
+    }));
+    const aggregateSummary = calculateOverallResult(aggregateInput);
 
     let daysPresent = 0;
     let daysAbsent = 0;
     let daysLeave = 0;
     let totalWorkingDays = 0;
-
     attendanceStats.forEach((stat) => {
       totalWorkingDays += stat.count;
       if (stat._id === 'Present' || stat._id === 'Late') daysPresent += stat.count;
       else if (stat._id === 'Absent') daysAbsent += stat.count;
       else if (stat._id === 'Leave') daysLeave += stat.count;
     });
-
     const attendancePercentage =
-      totalWorkingDays > 0 ? Math.round((daysPresent / totalWorkingDays) * 10000) / 100 : 0;
+      totalWorkingDays > 0
+        ? Math.round((daysPresent / totalWorkingDays) * 10000) / 100
+        : 0;
 
-    // Fetch student-level detail (remarks & co-scholastic grades)
-    const studentDetail = await ExamStudentDetail.findOne({ exam: examId, student: studentId }).lean();
-
-    const instituteSettings = await InstituteSettings.findOne()
-      .select('principalName directorName')
-      .lean();
-
-    const classTeacher =
-      exam?.class?.teacher ||
-      student?.class?.teacher ||
-      null;
-
-    const classTeacherName = classTeacher
-      ? [classTeacher.firstName, classTeacher.lastName].filter(Boolean).join(' ').trim()
-      : '';
-
-    // Default co-scholastic categories if none saved
     const defaultCoScholastic = [
       { category: 'Discipline & Conduct', grade: 'A+' },
       { category: 'Regularity & Punctuality', grade: 'A' },
@@ -603,16 +887,18 @@ class MarksheetService {
       { category: 'Art & Craft Education', grade: 'A+' },
       { category: 'Health & Physical Education', grade: 'A' },
     ];
+    const coScholastic =
+      studentDetail?.coScholasticGrades?.length > 0
+        ? studentDetail.coScholasticGrades
+        : defaultCoScholastic;
+    const teacherRemarks = studentDetail?.teacherRemarks || '';
 
-    const coScholastic = (studentDetail && studentDetail.coScholasticGrades && studentDetail.coScholasticGrades.length > 0)
-      ? studentDetail.coScholasticGrades
-      : defaultCoScholastic;
-
-    // Official marksheet remarks must only contain an explicitly saved teacher remark.
-    // Leave the printable line blank when no authoritative remark exists.
-    const teacherRemarks = (studentDetail && studentDetail.teacherRemarks)
-      ? studentDetail.teacherRemarks
+    const classTeacher = exam?.class?.teacher || student?.class?.teacher || null;
+    const classTeacherName = classTeacher
+      ? [classTeacher.firstName, classTeacher.lastName].filter(Boolean).join(' ').trim()
       : '';
+
+    const firstMark = marksRecords[0];
 
     return {
       institute: {
@@ -627,10 +913,10 @@ class MarksheetService {
         fullName: student.fullName,
         fatherName: student.fatherName,
         motherName: student.motherName,
-        rollNumber: (marksRecords[0] && marksRecords[0].rollNumber) ? marksRecords[0].rollNumber : student.rollNumber,
+        rollNumber: firstMark?.rollNumber || student.rollNumber,
         admissionNumber: student.admissionNumber,
-        class: (exam.class && exam.class.name) ? exam.class.name : (student.className || ''),
-        section: (marksRecords[0] && marksRecords[0].section) ? marksRecords[0].section : (exam.class && exam.class.section ? exam.class.section : (student.section || 'A')),
+        class: exam.class?.name || student.className || '',
+        section: firstMark?.section || exam.class?.section || student.section || 'A',
         address: student.address || '',
         dob: student.dob,
         photoUrl: student.studentPhoto || student.photoUrl || '',
@@ -652,7 +938,7 @@ class MarksheetService {
         daysPresent,
         daysAbsent,
         daysLeave,
-        attendancePercentage: `${attendancePercentage}%`,
+        attendancePercentage: attendancePercentage + '%',
       },
       signatures: {
         classTeacher: classTeacherName,
@@ -667,23 +953,71 @@ class MarksheetService {
    * Bulk Fetch All Student Marksheet Payload Data for an entire Class
    */
   async getBulkClassMarksheetData(classId, examId) {
-    // Fetch students with rollNumber & fullName so we can sort numerically.
-    // NOTE: MongoDB .sort({ rollNumber: 1 }) on a String field produces lexicographic
-    // order ("1","10","11","2"…) which is WRONG for numeric rolls. We therefore
-    // fetch all and apply numeric sort in JavaScript.
-    const students = await Student.find({ class: classId, status: 'Active' })
-      .select('_id rollNumber fullName')
-      .lean();
+    const [exam, students, instituteSettings] = await Promise.all([
+      Exam.findById(examId)
+        .populate({
+          path: 'class',
+          select: 'name section teacher',
+          populate: { path: 'teacher', select: 'firstName lastName' },
+        })
+        .populate('subjectsConfig.subject', 'name type')
+        .lean(),
+      Student.find({ class: classId, status: 'Active' })
+        .populate({
+          path: 'class',
+          select: 'name section teacher',
+          populate: { path: 'teacher', select: 'firstName lastName' },
+        })
+        .lean(),
+      InstituteSettings.findOne().select('principalName directorName').lean(),
+    ]);
 
-    if (!students || students.length === 0) {
-      throw new Error('No active students found in this class');
+    if (!exam) throw new Error('Exam not found');
+    if (exam.class?._id?.toString() !== classId.toString()) {
+      throw new Error('Exam does not belong to the requested class');
     }
+    if (!students.length) throw new Error('No active students found in this class');
 
-    // Sort by numeric roll ascending; invalid/missing rolls go to the end
     students.sort(rollNumberComparator);
+    const studentIds = students.map((student) => student._id);
 
-    const marksheetPromises = students.map((s) => this.getStudentResult(s._id, examId));
-    return await Promise.all(marksheetPromises);
+    const [marksRecords, attendanceRows, details] = await Promise.all([
+      ExamMarks.find({ exam: examId, student: { $in: studentIds } }).lean(),
+      Attendance.aggregate([
+        { $match: { student: { $in: studentIds } } },
+        { $group: { _id: { student: '$student', status: '$status' }, count: { $sum: 1 } } },
+      ]),
+      ExamStudentDetail.find({ exam: examId, student: { $in: studentIds } }).lean(),
+    ]);
+
+    const marksByStudent = new Map();
+    marksRecords.forEach((mark) => {
+      const key = mark.student.toString();
+      if (!marksByStudent.has(key)) marksByStudent.set(key, []);
+      marksByStudent.get(key).push(mark);
+    });
+
+    const attendanceByStudent = new Map();
+    attendanceRows.forEach((row) => {
+      const key = row._id.student.toString();
+      if (!attendanceByStudent.has(key)) attendanceByStudent.set(key, []);
+      attendanceByStudent.get(key).push({ _id: row._id.status, count: row.count });
+    });
+
+    const detailByStudent = new Map(
+      details.map((detail) => [detail.student.toString(), detail])
+    );
+
+    return students.map((student) =>
+      this.buildStudentResultPayload({
+        student,
+        exam,
+        marksRecords: marksByStudent.get(student._id.toString()) || [],
+        attendanceStats: attendanceByStudent.get(student._id.toString()) || [],
+        studentDetail: detailByStudent.get(student._id.toString()) || null,
+        instituteSettings,
+      })
+    );
   }
 
   /**
@@ -928,6 +1262,10 @@ class MarksheetService {
     existingMarks.forEach((m) => {
       existingMarksMap[m.student.toString()] = m.marksObtained;
     });
+    const applicabilityResolver = createSubjectApplicabilityResolver(exam, existingMarks);
+    const applicableStudents = activeStudents.filter((student) =>
+      applicabilityResolver.isApplicable(student._id, subjectId)
+    );
 
     const rows = [
       ['SORABYTE'],
@@ -938,7 +1276,7 @@ class MarksheetService {
       ['S.No.', 'Student ID', 'Roll No.', 'Student Name', 'Marks Obtained', 'Remarks'],
     ];
 
-    activeStudents.forEach((st, idx) => {
+    applicableStudents.forEach((st, idx) => {
       const studentCustomId = st.studentId || st.admissionNumber || st._id.toString();
       const existingVal = existingMarksMap[st._id.toString()];
       rows.push([
@@ -1052,6 +1390,7 @@ class MarksheetService {
     existingMarks.forEach((m) => {
       existingMarksMap[m.student.toString()] = m.marksObtained;
     });
+    const applicabilityResolver = createSubjectApplicabilityResolver(exam, existingMarks);
 
     const seenStudentIdsInFile = new Set();
     const validatedRows = [];
@@ -1089,12 +1428,22 @@ class MarksheetService {
         rowStatus = 'INVALID';
       } else {
         seenStudentIdsInFile.add(rawStudentId);
+        if (!applicabilityResolver.isApplicable(matchedStudent._id, subjectId)) {
+          if (rawMarks === '') {
+            rowStatus = 'N/A';
+          } else {
+            issues.push('Subject is N/A for this student; marks must not be imported');
+            rowStatus = 'INVALID';
+          }
+        }
       }
 
       let numericMarks = null;
       if (rawMarks === '') {
-        rowStatus = rowStatus === 'INVALID' ? 'INVALID' : 'EMPTY';
-        countEmpty++;
+        if (rowStatus !== 'N/A') {
+          rowStatus = rowStatus === 'INVALID' ? 'INVALID' : 'EMPTY';
+          countEmpty++;
+        }
       } else {
         numericMarks = Number(rawMarks);
         if (isNaN(numericMarks)) {
@@ -1201,6 +1550,14 @@ class MarksheetService {
       student: studentId,
       subject: subjectId,
     }).lean();
+
+    const applicabilityResolver = createSubjectApplicabilityResolver(
+      exam,
+      currentMarkDoc ? [currentMarkDoc] : []
+    );
+    if (!applicabilityResolver.isApplicable(studentId, subjectId)) {
+      throw new Error('Marks correction cannot be requested for a subject that is N/A for this student.');
+    }
 
     const baselineValue = currentMarkDoc ? currentMarkDoc.marksObtained : null;
 

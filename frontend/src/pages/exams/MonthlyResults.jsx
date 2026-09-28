@@ -400,7 +400,9 @@ const MonthlyResults = () => {
                           >
                             <span className="font-bold text-slate-700 truncate pr-1">{sm.subjectName}</span>
                             <span className="font-black shrink-0">
-                              {sm.marksObtained === null ? (
+                              {sm.isApplicable === false || sm.status === 'N/A' ? (
+                                <span className="text-slate-500">N/A</span>
+                              ) : sm.marksObtained === null ? (
                                 <span className="text-slate-400">-</span>
                               ) : sm.isAbsent ? (
                                 <span className="text-rose-600">ABS</span>
@@ -460,7 +462,9 @@ const MonthlyResults = () => {
                         {/* Dynamic Subject Scores */}
                         {s.subjectMarks.map((sm) => (
                           <td key={sm.subjectId} className="py-3 px-3 text-center font-black border-r border-slate-200 whitespace-nowrap">
-                            {sm.marksObtained === null ? (
+                            {sm.isApplicable === false || sm.status === 'N/A' ? (
+                              <span className="text-slate-500">N/A</span>
+                            ) : sm.marksObtained === null ? (
                               <span className="text-slate-300">-</span>
                             ) : sm.isAbsent ? (
                               <span className="text-rose-600">ABS</span>

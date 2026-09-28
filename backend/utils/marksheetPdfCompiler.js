@@ -144,19 +144,39 @@ const drawSingleMarksheet = (doc, data) => {
   y += 26;
 
   // 8. Subject Score Rows
-  const totalMax = subjects ? subjects.reduce((sum, s) => sum + (s.maxMarks || 100), 0) : 0;
-  const totalPass = subjects ? subjects.reduce((sum, s) => sum + (s.passMarks || 33), 0) : 0;
+  const totalMax = aggregate?.totalMaxMarks ?? (
+    subjects
+      ? subjects.reduce(
+          (sum, s) => sum + (s.isApplicable === false || s.status === 'N/A' ? 0 : (s.maxMarks || 100)),
+          0
+        )
+      : 0
+  );
+  const totalPass = subjects
+    ? subjects.reduce(
+        (sum, s) => sum + (s.isApplicable === false || s.status === 'N/A' ? 0 : (s.passMarks || 33)),
+        0
+      )
+    : 0;
   let totalHalfObtained = 0;
   let totalAnnualObtained = 0;
 
   if (subjects && subjects.length > 0) {
     subjects.forEach((sub, idx) => {
-      const halfObtained = sub.halfYearlyMarks !== undefined ? sub.halfYearlyMarks : (sub.isAbsent ? 0 : Math.round((sub.marksObtained || 0) * 0.9));
-      const annualObtained = sub.isAbsent ? 0 : (sub.marksObtained || 0);
-      const grandTotal = sub.grandTotal !== undefined ? sub.grandTotal : (halfObtained + annualObtained);
+      const isNA = sub.isApplicable === false || sub.status === 'N/A';
+      const rawObtained = typeof sub.marksObtained === 'number' ? sub.marksObtained : 0;
+      const halfObtained = isNA
+        ? 0
+        : (sub.halfYearlyMarks !== undefined ? sub.halfYearlyMarks : (sub.isAbsent ? 0 : Math.round(rawObtained * 0.9)));
+      const annualObtained = isNA ? 0 : (sub.isAbsent ? 0 : rawObtained);
+      const grandTotal = isNA
+        ? 0
+        : (sub.grandTotal !== undefined ? sub.grandTotal : (halfObtained + annualObtained));
 
-      totalHalfObtained += halfObtained;
-      totalAnnualObtained += annualObtained;
+      if (!isNA) {
+        totalHalfObtained += halfObtained;
+        totalAnnualObtained += annualObtained;
+      }
 
       const rowBg = idx % 2 === 0 ? '#ffffff' : '#fafafa';
       doc.rect(tableX, y, tableWidth, 22).fillAndStroke(rowBg, '#CBD5E1');
@@ -169,10 +189,10 @@ const drawSingleMarksheet = (doc, data) => {
       doc.text((sub.passMarks || 33).toString(), tableX + 235, y + 6, { width: 55, align: 'center' });
 
       doc.font('Helvetica-Bold').fillColor('#000000').fontSize(10);
-      doc.text(sub.isAbsent ? 'ABS' : halfObtained.toString(), tableX + 295, y + 6, { width: 75, align: 'center' });
-      doc.text(sub.isAbsent ? 'ABSENT' : annualObtained.toString(), tableX + 375, y + 6, { width: 75, align: 'center' });
+      doc.text(isNA ? 'N/A' : (sub.isAbsent ? 'ABS' : halfObtained.toString()), tableX + 295, y + 6, { width: 75, align: 'center' });
+      doc.text(isNA ? 'N/A' : (sub.isAbsent ? 'ABSENT' : annualObtained.toString()), tableX + 375, y + 6, { width: 75, align: 'center' });
 
-      doc.fillColor('#0F2552').text(grandTotal.toString(), tableX + 455, y + 6, { width: 65, align: 'center' });
+      doc.fillColor('#0F2552').text(isNA ? 'N/A' : grandTotal.toString(), tableX + 455, y + 6, { width: 65, align: 'center' });
 
       y += 22;
     });
@@ -186,7 +206,7 @@ const drawSingleMarksheet = (doc, data) => {
   doc.text(totalMax.toString(), tableX + 175, y + 7, { width: 55, align: 'center' });
   doc.text(totalPass.toString(), tableX + 235, y + 7, { width: 55, align: 'center' });
   doc.text(totalHalfObtained.toString(), tableX + 295, y + 7, { width: 75, align: 'center' });
-  doc.text(totalAnnualObtained.toString(), tableX + 375, y + 7, { width: 75, align: 'center' });
+  doc.text((aggregate?.totalMarksObtained ?? totalAnnualObtained).toString(), tableX + 375, y + 7, { width: 75, align: 'center' });
   doc.text((totalHalfObtained + totalAnnualObtained).toString(), tableX + 455, y + 7, { width: 65, align: 'center' });
 
   y += 34;

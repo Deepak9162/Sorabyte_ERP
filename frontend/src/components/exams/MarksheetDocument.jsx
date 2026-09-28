@@ -58,12 +58,14 @@ const normalizeSession = (value) => {
 };
 
 const displayMark = (subject) => {
+  if (subject?.isApplicable === false || subject?.status === 'N/A') return 'N/A';
   if (subject?.isAbsent) return 'ABS';
   const value = subject?.marksObtained;
   return value === null || value === undefined || value === '' ? '—' : value;
 };
 
 const numericMark = (subject) => {
+  if (subject?.isApplicable === false || subject?.status === 'N/A') return 0;
   if (subject?.isAbsent) return 0;
   const n = Number(subject?.marksObtained);
   return Number.isFinite(n) ? n : 0;
@@ -93,8 +95,14 @@ const MarksheetDocument = forwardRef(({ data, className = '', id = 'marksheet-do
   const examTitle = examType === 'ANNUAL' ? 'ANNUAL EXAMINATION' : 'HALF YEARLY EXAMINATION';
 
   const totalMax = aggregate.totalMaxMarks ?? aggregate.totalMaximumMarks ??
-    subjects.reduce((sum, s) => sum + (Number(s.maxMarks) || 0), 0);
-  const totalPass = subjects.reduce((sum, s) => sum + (Number(s.passMarks) || 0), 0);
+    subjects.reduce(
+      (sum, s) => sum + (s?.isApplicable === false || s?.status === 'N/A' ? 0 : (Number(s.maxMarks) || 0)),
+      0
+    );
+  const totalPass = subjects.reduce(
+    (sum, s) => sum + (s?.isApplicable === false || s?.status === 'N/A' ? 0 : (Number(s.passMarks) || 0)),
+    0
+  );
   const totalObtained = aggregate.totalMarksObtained ?? aggregate.totalObtainedMarks ??
     subjects.reduce((sum, s) => sum + numericMark(s), 0);
 

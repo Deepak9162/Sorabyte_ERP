@@ -245,7 +245,7 @@ const HalfYearlyResults = () => {
     const subjects = report.subjects || [];
     const totalStudents = filteredStudentRows.length;
     const passedCount = filteredStudentRows.filter((s) => s.summary?.overallStatus === 'Pass').length;
-    const failedCount = totalStudents - passedCount;
+    const failedCount = filteredStudentRows.filter((s) => s.summary?.overallStatus === 'Fail').length;
     const avgPercentage = (
       filteredStudentRows.reduce((sum, s) => sum + (Number(s.summary?.percentage) || 0), 0) / (totalStudents || 1)
     ).toFixed(1);
@@ -265,8 +265,9 @@ const HalfYearlyResults = () => {
         const isPass = s.summary?.overallStatus === 'Pass';
         const subjectCellsHtml = s.subjectMarks
           .map((sm) => {
-            const val = sm.marksObtained === null ? '-' : sm.isAbsent ? 'ABS' : sm.marksObtained;
-            const isSubFail = sm.status !== 'Pass' || sm.isAbsent;
+            const isNA = sm.isApplicable === false || sm.status === 'N/A';
+            const val = isNA ? 'N/A' : sm.marksObtained === null ? '-' : sm.isAbsent ? 'ABS' : sm.marksObtained;
+            const isSubFail = !isNA && (sm.status === 'Fail' || sm.isAbsent);
             return `<td style="${isSubFail ? 'color: #dc2626; font-weight: 800;' : ''}">${val}</td>`;
           })
           .join('');
@@ -739,7 +740,9 @@ const HalfYearlyResults = () => {
                             >
                               <span className="font-bold text-slate-700 truncate pr-1">{sm.subjectName}</span>
                               <span className="font-black shrink-0">
-                                {sm.marksObtained === null ? (
+                                {sm.isApplicable === false || sm.status === 'N/A' ? (
+                                  <span className="text-slate-500">N/A</span>
+                                ) : sm.marksObtained === null ? (
                                   <span className="text-slate-400">-</span>
                                 ) : sm.isAbsent ? (
                                   <span className="text-rose-600">ABS</span>
@@ -811,7 +814,9 @@ const HalfYearlyResults = () => {
 
                           {s.subjectMarks.map((sm) => (
                             <td key={sm.subjectId} className="py-3 px-3 text-center font-black border-r border-slate-200 whitespace-nowrap">
-                              {sm.marksObtained === null ? (
+                              {sm.isApplicable === false || sm.status === 'N/A' ? (
+                                <span className="text-slate-500">N/A</span>
+                              ) : sm.marksObtained === null ? (
                                 <span className="text-slate-300">-</span>
                               ) : sm.isAbsent ? (
                                 <span className="text-rose-600">ABS</span>

@@ -12,6 +12,10 @@ const Subject = require('../models/Subject');
 const Teacher = require('../models/Teacher');
 const ClassSubject = require('../models/ClassSubject');
 const Student = require('../models/Student');
+const ExamResultVersion = require('../models/ExamResultVersion');
+const ExamStudentDetail = require('../models/ExamStudentDetail');
+const MarksCorrectionRequest = require('../models/MarksCorrectionRequest');
+const { countExpectedMarkRecords } = require('../utils/subjectApplicability');
 
 class ExamService {
   /**
@@ -87,9 +91,11 @@ class ExamService {
       });
 
       if (existingExam) {
-        throw new Error(
+        const err = new Error(
           `A ${examType} exam already exists for class '${cls.name}' in session '${session}'`
         );
+        err.statusCode = 409;
+        throw err;
       }
     }
 
@@ -143,64 +149,366 @@ class ExamService {
   }
 
   /**
-   * Update exam basic details
+   * Inspect persisted dependencies only when an Admin opens management actions.
+   * The dashboard list itself stays a single exam query (no N+1 dependency checks).
    */
-  async updateExam(examId, updateData, userId) {
-    const exam = await Exam.findById(examId);
+  async getExamManagementInfo(examId) {
+    const exam = await Exam.findById(examId)
+      .populate('class', 'name section')
+      .populate('subjectsConfig.subject', 'name type')
+      .lean();
+
     if (!exam) {
-      throw new Error('Exam not found');
+      const err = new Error('Exam not found');
+      err.statusCode = 404;
+      throw err;
     }
 
-    const allowedFields = ['name', 'startDate', 'endDate', 'status', 'section'];
-    allowedFields.forEach((field) => {
-      if (updateData[field] !== undefined) {
-        exam[field] = updateData[field];
-      }
-    });
+    const [marksCount, resultVersionsCount, studentDetailsCount, correctionRequestsCount] =
+      await Promise.all([
+        ExamMarks.countDocuments({ exam: examId }),
+        ExamResultVersion.countDocuments({ exam: examId }),
+        ExamStudentDetail.countDocuments({ exam: examId }),
+        MarksCorrectionRequest.countDocuments({ exam: examId }),
+      ]);
 
-    exam.updatedBy = userId;
-    await exam.save();
+    const scheduleEntriesCount = Array.isArray(exam.schedule) ? exam.schedule.length : 0;
+    const schedulePublished = exam.scheduleStatus === 'Published';
+    const structuralLocked =
+      exam.status === 'Published' || exam.status === 'Finalized';
+    const hasOfficialRecords = structuralLocked || resultVersionsCount > 0;
+    const hasDependentData =
+      marksCount > 0 ||
+      resultVersionsCount > 0 ||
+      studentDetailsCount > 0 ||
+      correctionRequestsCount > 0 ||
+      scheduleEntriesCount > 0 ||
+      schedulePublished;
 
-    return await Exam.findById(exam._id)
-      .populate('class', 'name section')
-      .populate('subjectsConfig.subject', 'name type');
+    const canDelete =
+      !hasOfficialRecords &&
+      marksCount === 0 &&
+      resultVersionsCount === 0 &&
+      studentDetailsCount === 0 &&
+      correctionRequestsCount === 0 &&
+      scheduleEntriesCount === 0 &&
+      !schedulePublished;
+
+    return {
+      exam,
+      dependencies: {
+        marksCount,
+        resultVersionsCount,
+        studentDetailsCount,
+        correctionRequestsCount,
+        scheduleEntriesCount,
+        schedulePublished,
+      },
+      locks: {
+        structuralLocked,
+        identityLocked: hasDependentData || hasOfficialRecords,
+        hasMarks: marksCount > 0,
+        hasDependentData,
+      },
+      canDelete,
+      deleteMessage: canDelete
+        ? 'This exam has no academic records and can be safely deleted.'
+        : hasOfficialRecords
+        ? 'This exam contains official academic records and cannot be deleted.'
+        : marksCount > 0
+        ? 'Cannot delete this exam because marks have already been entered.'
+        : 'Cannot delete this exam because dependent academic or schedule records already exist.',
+    };
   }
 
   /**
-   * Configure exam subjects with Max Marks and Passing Marks
+   * Validate one complete embedded subject configuration before saving.
+   * Existing marks are never deleted, reset, hidden, or rewritten.
    */
-  async configureExamSubjects(examId, subjectsConfig = [], userId) {
-    const exam = await Exam.findById(examId);
-    if (!exam) {
-      throw new Error('Exam not found');
-    }
-
+  async validateSubjectConfigurationChange(exam, subjectsConfig = [], options = {}) {
     if (!Array.isArray(subjectsConfig) || subjectsConfig.length === 0) {
       throw new Error('subjectsConfig must be a non-empty array');
     }
 
-    const validatedConfigs = [];
-    for (const item of subjectsConfig) {
+    const normalized = subjectsConfig.map((item) => {
       const subjectId = item.subjectId || item.subject;
       const maxMarks = Number(item.maxMarks);
       const passMarks = Number(item.passMarks);
+      const applicability = item.applicability === 'OPTIONAL' ? 'OPTIONAL' : 'COMPULSORY';
+      const applicableStudents = Array.isArray(item.applicableStudents)
+        ? [...new Set(item.applicableStudents.map(String))]
+        : [];
 
       if (!subjectId) throw new Error('Each subject configuration must include a valid subject ID');
-      if (isNaN(maxMarks) || maxMarks <= 0) throw new Error('Maximum marks must be greater than 0');
-      if (isNaN(passMarks) || passMarks < 0) throw new Error('Passing marks cannot be negative');
+      if (!Number.isFinite(maxMarks) || maxMarks <= 0) throw new Error('Maximum marks must be greater than 0');
+      if (!Number.isFinite(passMarks) || passMarks < 0) throw new Error('Passing marks cannot be negative');
       if (passMarks > maxMarks) throw new Error('Passing marks cannot exceed maximum marks');
 
-      const subjectExists = await Subject.findById(subjectId);
-      if (!subjectExists) throw new Error(`Subject with ID '${subjectId}' does not exist`);
-
-      validatedConfigs.push({
-        subject: subjectId,
+      return {
+        subject: String(subjectId),
         maxMarks,
         passMarks,
-      });
+        applicability,
+        applicableStudents,
+      };
+    });
+
+    const subjectIds = normalized.map((item) => item.subject);
+    if (new Set(subjectIds).size !== subjectIds.length) {
+      throw new Error('Duplicate subjects are not allowed in an exam configuration');
     }
 
-    exam.subjectsConfig = validatedConfigs;
+    const subjectDocs = await Subject.find({ _id: { $in: subjectIds } }).select('_id').lean();
+    if (subjectDocs.length !== subjectIds.length) {
+      throw new Error('One or more configured subjects do not exist');
+    }
+
+    const [classStudents, existingMarks] = await Promise.all([
+      Student.find({ class: exam.class, status: 'Active' }).select('_id fullName').lean(),
+      ExamMarks.find({ exam: exam._id }).select('student subject marksObtained isAbsent').lean(),
+    ]);
+    const classStudentIds = new Set(classStudents.map((student) => student._id.toString()));
+
+    const marksBySubject = new Map();
+    existingMarks.forEach((mark) => {
+      const subjectId = mark.subject.toString();
+      if (!marksBySubject.has(subjectId)) marksBySubject.set(subjectId, []);
+      marksBySubject.get(subjectId).push(mark);
+    });
+
+    const oldConfigBySubject = new Map(
+      (exam.subjectsConfig || []).map((config) => [config.subject.toString(), config])
+    );
+    const newSubjectIds = new Set(subjectIds);
+
+    for (const oldConfig of exam.subjectsConfig || []) {
+      const oldSubjectId = oldConfig.subject.toString();
+      if (
+        !newSubjectIds.has(oldSubjectId) &&
+        (marksBySubject.get(oldSubjectId) || []).length > 0
+      ) {
+        const err = new Error(
+          'Cannot remove this subject because marks have already been entered. Remove/correct the related marks through the approved workflow first.'
+        );
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+
+    let applicabilityChangedWithMarks = false;
+
+    for (const item of normalized) {
+      const oldConfig = oldConfigBySubject.get(item.subject);
+      if (!oldConfig) continue;
+
+      const subjectMarks = marksBySubject.get(item.subject) || [];
+      if (
+        subjectMarks.length > 0 &&
+        (Number(oldConfig.maxMarks) !== item.maxMarks ||
+          Number(oldConfig.passMarks) !== item.passMarks)
+      ) {
+        const err = new Error(
+          'Marks already exist for this subject. Changing Max/Pass Marks may affect existing results and is blocked.'
+        );
+        err.statusCode = 409;
+        throw err;
+      }
+
+      if (subjectMarks.length > 0) {
+        const oldMode =
+          oldConfig.applicability === 'OPTIONAL' ? 'OPTIONAL' : 'COMPULSORY';
+        const oldIds = new Set((oldConfig.applicableStudents || []).map(String));
+        const newIds = new Set(item.applicableStudents);
+        const assignmentsChanged =
+          oldIds.size !== newIds.size ||
+          [...oldIds].some((id) => !newIds.has(id));
+
+        if (oldMode !== item.applicability || assignmentsChanged) {
+          applicabilityChangedWithMarks = true;
+        }
+      }
+    }
+
+    if (
+      applicabilityChangedWithMarks &&
+      options.confirmExistingMarksImpact !== true
+    ) {
+      const err = new Error(
+        'Marks already exist for one or more affected students. Changing subject applicability may affect current result calculations. Existing marks will not be deleted. Confirm to continue.'
+      );
+      err.statusCode = 409;
+      err.code = 'EXISTING_MARKS_APPLICABILITY_CONFIRMATION';
+      throw err;
+    }
+
+    return normalized.map((item) => {
+      if (item.applicability === 'OPTIONAL') {
+        for (const studentId of item.applicableStudents) {
+          if (!classStudentIds.has(studentId)) {
+            const err = new Error(
+              "Student '" + studentId + "' is not an active student of the exam class"
+            );
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+
+        // Once the authorized user confirms an applicability change, the
+        // Exam subject configuration is authoritative. Existing ExamMarks are
+        // preserved in the database but are not silently re-added here.
+      } else {
+        item.applicableStudents = [];
+      }
+
+      return item;
+    });
+  }
+
+  /**
+   * Update the SAME Exam document. Basic fields + subject config are saved
+   * together; the exam _id is never recreated.
+   */
+  async updateExam(examId, updateData, userId) {
+    const exam = await Exam.findById(examId);
+    if (!exam) {
+      const err = new Error('Exam not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (exam.status === 'Finalized' || exam.status === 'Published') {
+      const err = new Error(
+        "Exam is '" + exam.status + "'. Reopen the result before making structural exam changes."
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const managementInfo = await this.getExamManagementInfo(examId);
+    const hasDependentData = managementInfo.locks.hasDependentData;
+
+    const normalizeValue = (value) => String(value ?? '').trim();
+
+    const incomingClassId =
+      updateData.classId !== undefined
+        ? updateData.classId
+        : updateData.class !== undefined
+        ? updateData.class
+        : undefined;
+
+    const examTypeChanged =
+      updateData.examType !== undefined &&
+      normalizeValue(updateData.examType) !== normalizeValue(exam.examType);
+
+    const sessionChanged =
+      updateData.session !== undefined &&
+      normalizeValue(updateData.session) !== normalizeValue(exam.session);
+
+    const classChanged =
+      incomingClassId !== undefined &&
+      normalizeValue(incomingClassId) !== normalizeValue(exam.class);
+
+    const sectionChanged =
+      updateData.section !== undefined &&
+      normalizeValue(updateData.section) !== normalizeValue(exam.section);
+
+    const identityChanged =
+      examTypeChanged || sessionChanged || classChanged || sectionChanged;
+
+    if (identityChanged && hasDependentData) {
+      const err = new Error(
+        'Exam Type, Class Group, Academic Session, or Section cannot be changed after dependent academic/schedule data exists.'
+      );
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const nextExamType =
+      updateData.examType !== undefined ? normalizeValue(updateData.examType) : exam.examType;
+    const nextSession =
+      updateData.session !== undefined ? normalizeValue(updateData.session) : exam.session;
+    const nextClassId =
+      incomingClassId !== undefined ? incomingClassId : exam.class.toString();
+    const nextSection =
+      updateData.section !== undefined
+        ? normalizeValue(updateData.section)
+        : normalizeValue(exam.section);
+
+    const validTypes = ['MONTHLY', 'HALF_YEARLY', 'ANNUAL'];
+    if (!validTypes.includes(nextExamType)) {
+      const err = new Error("Invalid examType '" + nextExamType + "'");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!nextSession) {
+      const err = new Error('Academic session is required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const targetClass = await Class.findById(nextClassId);
+    if (!targetClass) {
+      const err = new Error('Class not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (nextExamType === 'HALF_YEARLY' || nextExamType === 'ANNUAL') {
+      const duplicate = await Exam.findOne({
+        _id: { $ne: exam._id },
+        class: nextClassId,
+        session: nextSession,
+        examType: nextExamType,
+      }).select('_id');
+
+      if (duplicate) {
+        const err = new Error(
+          'A ' + nextExamType + " exam already exists for class '" +
+          targetClass.name + "' in session '" + nextSession + "'"
+        );
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+
+    if (updateData.name !== undefined) {
+      const name = String(updateData.name).trim();
+      if (!name) {
+        const err = new Error('Exam name is required');
+        err.statusCode = 400;
+        throw err;
+      }
+      exam.name = name;
+    }
+
+    exam.examType = nextExamType;
+    exam.session = nextSession;
+    exam.class = nextClassId;
+
+    if (updateData.section !== undefined) {
+      exam.section = nextSection;
+    } else if (identityChanged) {
+      exam.section = targetClass.section || '';
+    }
+
+    if (updateData.startDate !== undefined) exam.startDate = updateData.startDate || undefined;
+    if (updateData.endDate !== undefined) exam.endDate = updateData.endDate || undefined;
+
+    const incomingSubjectsConfig =
+      updateData.subjectsConfig || updateData.subjects || null;
+
+    if (incomingSubjectsConfig) {
+      exam.subjectsConfig = await this.validateSubjectConfigurationChange(
+        exam,
+        incomingSubjectsConfig,
+        {
+          confirmExistingMarksImpact:
+            updateData.confirmExistingMarksImpact === true,
+        }
+      );
+    }
+
     exam.updatedBy = userId;
     await exam.save();
 
@@ -210,23 +518,92 @@ class ExamService {
   }
 
   /**
-   * Delete exam with safety checks against deleting active marks records
+   * Configure exam subjects with Max Marks and Passing Marks.
+   * Reuses the same safe validator used by Edit Exam.
    */
-  async deleteExam(examId) {
+  async configureExamSubjects(examId, subjectsConfig = [], userId, options = {}) {
     const exam = await Exam.findById(examId);
     if (!exam) {
-      throw new Error('Exam not found');
+      const err = new Error('Exam not found');
+      err.statusCode = 404;
+      throw err;
     }
 
-    // Check if marks records exist for this exam
-    const marksCount = await ExamMarks.countDocuments({ exam: examId });
-    if (marksCount > 0) {
-      throw new Error(
-        `Cannot delete exam '${exam.name}' as it already has ${marksCount} marks record(s) associated with it. Controlled deletion is enforced to prevent academic data loss.`
+    if (exam.status === 'Finalized' || exam.status === 'Published') {
+      const err = new Error(
+        "Subject configuration cannot be changed while the exam is '" +
+          exam.status +
+          "'. Reopen the result first."
       );
+      err.statusCode = 403;
+      throw err;
     }
 
-    await Exam.findByIdAndDelete(examId);
+    exam.subjectsConfig = await this.validateSubjectConfigurationChange(
+      exam,
+      subjectsConfig,
+      options
+    );
+    exam.updatedBy = userId;
+    await exam.save();
+
+    return await Exam.findById(exam._id)
+      .populate('class', 'name section')
+      .populate('subjectsConfig.subject', 'name type');
+  }
+
+  async getApplicabilityStudents(classId) {
+    if (!classId) throw new Error('classId is required');
+
+    const students = await Student.find({ class: classId, status: 'Active' })
+      .select('_id fullName rollNumber section fatherName')
+      .lean();
+
+    students.sort((a, b) => {
+      const aRoll = Number(a.rollNumber);
+      const bRoll = Number(b.rollNumber);
+      const aValid = Number.isFinite(aRoll);
+      const bValid = Number.isFinite(bRoll);
+      if (aValid && bValid && aRoll !== bRoll) return aRoll - bRoll;
+      if (aValid !== bValid) return aValid ? -1 : 1;
+      return (a.fullName || '').localeCompare(b.fullName || '');
+    });
+
+    return students;
+  }
+
+  /**
+   * Delete only an empty accidental exam. No cascade delete is performed.
+   */
+  async deleteExam(examId) {
+    const info = await this.getExamManagementInfo(examId);
+    const { exam, dependencies } = info;
+
+    if (!info.canDelete) {
+      let message = info.deleteMessage;
+
+      if (
+        exam.status === 'Published' ||
+        exam.status === 'Finalized' ||
+        dependencies.resultVersionsCount > 0
+      ) {
+        message = 'This exam contains official academic records and cannot be deleted.';
+      } else if (dependencies.marksCount > 0) {
+        message = 'Cannot delete this exam because marks have already been entered.';
+      }
+
+      const err = new Error(message);
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const deleted = await Exam.findOneAndDelete({ _id: examId });
+    if (!deleted) {
+      const err = new Error('Exam not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
     return { id: examId, message: 'Exam deleted successfully' };
   }
 
@@ -241,14 +618,17 @@ class ExamService {
       throw new Error(`Exam result is already '${exam.status}'`);
     }
 
-    // Completeness validation: Check active students in class vs entered marks
-    const activeStudents = await Student.find({ class: exam.class, status: 'Active' }).select('_id');
-    const configuredSubjectCount = exam.subjectsConfig ? exam.subjectsConfig.length : 0;
-    const totalExpectedRecords = activeStudents.length * configuredSubjectCount;
+    // Completeness is student-specific because OPTIONAL subjects may be N/A.
+    const activeStudents = await Student.find({ class: exam.class, status: 'Active' }).select('_id').lean();
+    const activeStudentIds = activeStudents.map((student) => student._id);
+    const existingMarks = await ExamMarks.find({
+      exam: examId,
+      student: { $in: activeStudentIds },
+    }).select('student subject').lean();
+    const totalExpectedRecords = countExpectedMarkRecords(exam, activeStudents, existingMarks);
+    const actualEnteredRecords = existingMarks.length;
 
-    const actualEnteredRecords = await ExamMarks.countDocuments({ exam: examId });
-
-    if (actualEnteredRecords < totalExpectedRecords && configuredSubjectCount > 0) {
+    if (actualEnteredRecords < totalExpectedRecords && (exam.subjectsConfig || []).length > 0) {
       const missingCount = totalExpectedRecords - actualEnteredRecords;
       throw new Error(
         `Cannot finalize result: Exam has incomplete marks entries. ${missingCount} mark entry record(s) missing out of ${totalExpectedRecords} total expected records across ${activeStudents.length} student(s).`
@@ -284,12 +664,15 @@ class ExamService {
     const activeStudents = await Student.find({ class: exam.class, status: 'Active' })
       .select('_id fullName rollNumber studentId section')
       .lean();
-    const configuredSubjectCount = exam.subjectsConfig ? exam.subjectsConfig.length : 0;
-    const totalExpectedRecords = activeStudents.length * configuredSubjectCount;
+    const activeStudentIds = activeStudents.map((student) => student._id);
+    const existingMarks = await ExamMarks.find({
+      exam: examId,
+      student: { $in: activeStudentIds },
+    }).select('student subject').lean();
+    const totalExpectedRecords = countExpectedMarkRecords(exam, activeStudents, existingMarks);
+    const actualEnteredRecords = existingMarks.length;
 
-    const actualEnteredRecords = await ExamMarks.countDocuments({ exam: examId });
-
-    if (actualEnteredRecords < totalExpectedRecords && configuredSubjectCount > 0) {
+    if (actualEnteredRecords < totalExpectedRecords && (exam.subjectsConfig || []).length > 0) {
       const missingCount = totalExpectedRecords - actualEnteredRecords;
       throw new Error(
         `Cannot publish result: Exam has incomplete marks entries. ${missingCount} mark entry record(s) missing out of ${totalExpectedRecords} total expected records across ${activeStudents.length} student(s).`
@@ -341,10 +724,11 @@ class ExamService {
             subjectType: sub.subjectType || 'Theoretical',
             maxMarks: sub.maxMarks,
             passMarks: sub.passMarks,
-            marksObtained: sub.marksObtained ?? 0,
+            marksObtained: sub.isApplicable === false ? null : (sub.marksObtained ?? 0),
             isAbsent: !!sub.isAbsent,
+            isApplicable: sub.isApplicable !== false,
             status: sub.status,
-            grade: sub.grade || 'F',
+            grade: sub.grade || (sub.isApplicable === false ? 'N/A' : 'F'),
             gradePoint: sub.gradePoint || 0,
             remarks: sub.remarks || '',
           })),
@@ -468,6 +852,8 @@ class ExamService {
           lowestMarks: 9999,
           passCount: 0,
           failCount: 0,
+          absentCount: 0,
+          applicableCount: 0,
           totalEntered: 0,
         };
       }
@@ -476,7 +862,36 @@ class ExamService {
     studentRows.forEach((row) => {
       const { studentId, fullName, rollNumber, subjectMarks = [], summary } = row;
 
-      if (!summary || summary.totalMarksObtained === null || summary.percentage === undefined) {
+      // Subject analytics use every student's applicability independently of
+      // whether the student's overall result is complete. N/A rows never
+      // enter the denominator; applicable pending rows still count as expected
+      // candidates without being counted as entered/pass/fail.
+      subjectMarks.forEach((sub) => {
+        const sKey = sub.subjectId.toString();
+        const sObj = subjectMap[sKey];
+        if (!sObj || sub.isApplicable === false || sub.status === 'N/A') return;
+
+        sObj.applicableCount++;
+
+        if (typeof sub.marksObtained === 'number') {
+          const m = sub.marksObtained;
+          sObj.totalEntered++;
+          sObj.totalObtainedSum += m;
+          if (m > sObj.highestMarks) sObj.highestMarks = m;
+          if (m < sObj.lowestMarks) sObj.lowestMarks = m;
+          if (sub.isAbsent) sObj.absentCount++;
+          if (sub.status === 'Pass') sObj.passCount++;
+          else if (sub.status === 'Fail') sObj.failCount++;
+        }
+      });
+
+      if (
+        !summary ||
+        summary.totalMarksObtained === null ||
+        summary.percentage === undefined ||
+        summary.overallStatus === 'Incomplete' ||
+        (summary.pendingSubjects || 0) > 0
+      ) {
         pending++;
         attentionRequired.push({
           studentId,
@@ -527,24 +942,13 @@ class ExamService {
         });
       }
 
-      subjectMarks.forEach((sub) => {
-        const sKey = sub.subjectId.toString();
-        if (subjectMap[sKey] && typeof sub.marksObtained === 'number') {
-          const sObj = subjectMap[sKey];
-          const m = sub.marksObtained;
-          sObj.totalEntered++;
-          sObj.totalObtainedSum += m;
-          if (m > sObj.highestMarks) sObj.highestMarks = m;
-          if (m < sObj.lowestMarks) sObj.lowestMarks = m;
-          if (sub.status === 'Pass') sObj.passCount++;
-          else if (sub.status === 'Fail') sObj.failCount++;
-        }
-      });
     });
 
     const subjectPerformance = Object.values(subjectMap).map((sObj) => {
       const avg = sObj.totalEntered > 0 ? Math.round((sObj.totalObtainedSum / sObj.totalEntered) * 100) / 100 : 0;
-      const passPct = sObj.totalEntered > 0 ? Math.round((sObj.passCount / sObj.totalEntered) * 10000) / 100 : 0;
+      const passPct = sObj.applicableCount > 0
+        ? Math.round((sObj.passCount / sObj.applicableCount) * 10000) / 100
+        : 0;
       return {
         subjectId: sObj.subjectId,
         subjectName: sObj.subjectName,
@@ -555,6 +959,8 @@ class ExamService {
         lowestMarks: sObj.lowestMarks === 9999 ? 0 : sObj.lowestMarks,
         passCount: sObj.passCount,
         failCount: sObj.failCount,
+        absentCount: sObj.absentCount,
+        applicableStudents: sObj.applicableCount,
         passPercentage: `${passPct}%`,
       };
     });
@@ -644,10 +1050,16 @@ class ExamService {
       throw new Error('Source exam has no subject configuration to copy');
     }
 
+    const sameClass = sourceExam.class.toString() === targetExam.class.toString();
     targetExam.subjectsConfig = sourceExam.subjectsConfig.map((sc) => ({
       subject: sc.subject._id || sc.subject,
       maxMarks: sc.maxMarks,
       passMarks: sc.passMarks,
+      applicability: sc.applicability === 'OPTIONAL' ? 'OPTIONAL' : 'COMPULSORY',
+      applicableStudents:
+        sameClass && sc.applicability === 'OPTIONAL'
+          ? (sc.applicableStudents || [])
+          : [],
     }));
 
     targetExam.updatedBy = userId;

@@ -52,16 +52,29 @@ const calculateDivision = (percentage, isOverallPass) => {
  * @returns {Object} { totalMaxMarks, totalMarksObtained, percentage, grade, division, overallStatus, passedSubjects, failedSubjects }
  */
 const calculateOverallResult = (marksList = []) => {
-  if (!marksList || marksList.length === 0) {
+  const applicableMarks = (marksList || []).filter(
+    (mark) =>
+      mark?.isApplicable !== false &&
+      mark?.status !== 'N/A' &&
+      mark?.status !== 'NOT_APPLICABLE'
+  );
+
+  if (applicableMarks.length === 0) {
     return {
       totalMaxMarks: 0,
+      totalMaximumMarks: 0,
       totalMarksObtained: 0,
+      totalObtainedMarks: 0,
       percentage: 0,
       grade: 'F',
+      overallGrade: 'F',
       division: 'Fail',
       overallStatus: 'Fail',
+      resultStatus: 'Fail',
       passedSubjects: 0,
       failedSubjects: 0,
+      pendingSubjects: 0,
+      applicableSubjects: 0,
     };
   }
 
@@ -69,10 +82,22 @@ const calculateOverallResult = (marksList = []) => {
   let totalMarksObtained = 0;
   let passedSubjects = 0;
   let failedSubjects = 0;
+  let pendingSubjects = 0;
   let hasFailedSubject = false;
 
-  marksList.forEach((mark) => {
+  applicableMarks.forEach((mark) => {
     totalMaxMarks += Number(mark.maxMarks) || 0;
+
+    const isPending =
+      mark?.isPending === true ||
+      mark?.status === 'Pending' ||
+      (!mark?.isAbsent && (mark?.marksObtained === null || mark?.marksObtained === undefined || mark?.marksObtained === ''));
+
+    if (isPending) {
+      pendingSubjects += 1;
+      return;
+    }
+
     const obtained = mark.isAbsent ? 0 : (Number(mark.marksObtained) || 0);
     totalMarksObtained += obtained;
 
@@ -86,11 +111,16 @@ const calculateOverallResult = (marksList = []) => {
   });
 
   const rawPercentage = totalMaxMarks > 0 ? (totalMarksObtained / totalMaxMarks) * 100 : 0;
-  const percentage = Math.round(rawPercentage * 100) / 100; // Round to 2 decimals
+  const percentage = Math.round(rawPercentage * 100) / 100;
+  const isIncomplete = pendingSubjects > 0;
 
-  const overallStatus = !hasFailedSubject && percentage >= 33 ? 'Pass' : 'Fail';
+  const overallStatus = isIncomplete
+    ? 'Incomplete'
+    : (!hasFailedSubject && percentage >= 33 ? 'Pass' : 'Fail');
   const grade = calculateGrade(percentage);
-  const division = calculateDivision(percentage, overallStatus === 'Pass');
+  const division = isIncomplete
+    ? 'N/A'
+    : calculateDivision(percentage, overallStatus === 'Pass');
 
   return {
     totalMaxMarks,
@@ -105,6 +135,8 @@ const calculateOverallResult = (marksList = []) => {
     resultStatus: overallStatus,
     passedSubjects,
     failedSubjects,
+    pendingSubjects,
+    applicableSubjects: applicableMarks.length,
   };
 };
 

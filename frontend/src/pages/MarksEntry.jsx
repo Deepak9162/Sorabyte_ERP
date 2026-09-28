@@ -72,6 +72,10 @@ const MarksEntry = () => {
   const [adminConfigList, setAdminConfigList] = useState([]);
   const [adminSubjectsLoading, setAdminSubjectsLoading] = useState(false);
   const [isCreatingExam, setIsCreatingExam] = useState(false);
+  const [adminAssignmentIndex, setAdminAssignmentIndex] = useState(null);
+  const [adminAssignmentStudents, setAdminAssignmentStudents] = useState([]);
+  const [adminAssignmentSearch, setAdminAssignmentSearch] = useState('');
+  const [adminAssignmentLoading, setAdminAssignmentLoading] = useState(false);
 
   // Phase 18: Excel Import & Export States
   const [showImportModal, setShowImportModal] = useState(false);
@@ -86,6 +90,8 @@ const MarksEntry = () => {
   const [requestedMarks, setRequestedMarks] = useState('');
   const [correctionReason, setCorrectionReason] = useState('');
   const [submittingCorrection, setSubmittingCorrection] = useState(false);
+  const [applicabilitySavingId, setApplicabilitySavingId] = useState('');
+  const [applicabilityConfirm, setApplicabilityConfirm] = useState(null);
 
   const openCorrectionModal = (studentRow) => {
     setCorrectionStudent(studentRow);
@@ -471,11 +477,18 @@ const MarksEntry = () => {
     [studentRows]
   );
   const hasUnpersistedRows = useMemo(
-    () => studentRows.some((row) => !row.isSaved),
+    () => studentRows.some((row) => row.isApplicable !== false && !row.isSaved),
     [studentRows]
   );
 
-  const canEditRow = (row) => !isReadOnly && (!row.isSaved || isModifyMode);
+  const canEditRow = (row) =>
+    row.isApplicable !== false &&
+    !isReadOnly &&
+    (!row.isSaved || isModifyMode);
+
+  const canEditApplicability = (row) =>
+    !isReadOnly &&
+    (!row.isSaved || isModifyMode);
 
   useEffect(() => {
     setHasUnsavedChanges(studentRows.some((row) => row.isDirty));
@@ -599,6 +612,89 @@ const MarksEntry = () => {
     );
   };
 
+  const applyApplicabilityResult = (studentId, result) => {
+    const existingMark = result?.existingMark || null;
+    const nextApplicable = result?.isApplicable !== false;
+
+    setStudentRows((prev) =>
+      prev.map((row) => {
+        if (String(row.studentId) !== String(studentId)) return row;
+
+        const savedMarks = existingMark
+          ? (existingMark.isAbsent ? '' : String(existingMark.marksObtained))
+          : '';
+
+        return {
+          ...row,
+          isApplicable: nextApplicable,
+          marksObtained: nextApplicable ? savedMarks : '',
+          isAbsent: nextApplicable && existingMark ? !!existingMark.isAbsent : false,
+          status: nextApplicable ? (existingMark?.status || '') : 'N/A',
+          remarks: nextApplicable ? (existingMark?.remarks || '') : '',
+          isSaved: !!existingMark,
+          originalMarks: existingMark
+            ? (existingMark.isAbsent ? '' : existingMark.marksObtained)
+            : '',
+          originalAbsent: existingMark ? !!existingMark.isAbsent : false,
+          originalRemarks: existingMark?.remarks || '',
+          isDirty: false,
+          isInvalid: false,
+          errorMessage: '',
+        };
+      })
+    );
+  };
+
+  const persistApplicabilityChange = async (row, nextApplicable, confirmed = false) => {
+    if (!row || isReadOnly || applicabilitySavingId || !canEditApplicability(row)) {
+      return;
+    }
+
+    try {
+      setApplicabilitySavingId(String(row.studentId));
+      const res = await api.patch('/exams/marks/applicability', {
+        examId: selectedExamId,
+        classId: selectedClassId,
+        subjectId: selectedSubjectId,
+        studentId: row.studentId,
+        section: selectedSection || undefined,
+        isApplicable: nextApplicable,
+        confirmExistingMarkImpact: confirmed,
+      });
+
+      const result = res.data?.data;
+      if (result) {
+        applyApplicabilityResult(row.studentId, result);
+        setApplicabilityConfirm(null);
+        addToast(
+          nextApplicable
+            ? 'Subject marked Applicable for this student'
+            : 'Subject marked N/A. Existing marks, if any, were preserved.',
+          'success'
+        );
+      }
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        'Failed to update student subject applicability';
+
+      if (err.response?.status === 409 && !confirmed) {
+        setApplicabilityConfirm({ row, nextApplicable, message });
+      } else {
+        console.error('Applicability update failed:', err);
+        addToast(message, 'error');
+      }
+    } finally {
+      setApplicabilitySavingId('');
+    }
+  };
+
+  const handleApplicabilityChange = (row, value) => {
+    const nextApplicable = value === 'APPLICABLE';
+    if (nextApplicable === (row.isApplicable !== false)) return;
+    persistApplicabilityChange(row, nextApplicable, false);
+  };
+
   // ──────────────────────────────────────────────
   // 5. Keyboard Navigation (Enter, Up, Down Arrows)
   // ──────────────────────────────────────────────
@@ -636,7 +732,8 @@ const MarksEntry = () => {
   }, [studentRows, searchQuery]);
 
   const summaryMetrics = useMemo(() => {
-    const total = studentRows.length;
+    const applicableRows = studentRows.filter((row) => row.isApplicable !== false);
+    const total = applicableRows.length;
     let entered = 0;
     let passed = 0;
     let failed = 0;
@@ -644,7 +741,7 @@ const MarksEntry = () => {
     let highest = null;
     let lowest = null;
 
-    studentRows.forEach((r) => {
+    applicableRows.forEach((r) => {
       if (r.isAbsent) {
         entered++;
         failed++;
@@ -663,7 +760,8 @@ const MarksEntry = () => {
     });
 
     const pending = total - entered;
-    const avg = entered > 0 ? (sumObtained / (entered - (studentRows.filter(r => r.isAbsent).length))).toFixed(1) : 0;
+    const presentEnteredCount = entered - applicableRows.filter((r) => r.isAbsent).length;
+    const avg = presentEnteredCount > 0 ? (sumObtained / presentEnteredCount).toFixed(1) : 0;
     const progressPercent = total > 0 ? Math.round((entered / total) * 100) : 0;
 
     return {
@@ -695,6 +793,7 @@ const MarksEntry = () => {
     // - MODIFY mode: only rows that actually changed from the last persisted snapshot.
     const marksToSubmit = studentRows
       .filter((r) => {
+        if (r.isApplicable === false) return false;
         const hasEntry = r.isAbsent || (r.marksObtained !== '' && !r.isInvalid);
         if (!hasEntry) return false;
         return isModifyMode ? r.isDirty : !r.isSaved;
@@ -772,6 +871,8 @@ const MarksEntry = () => {
             subjectName: (m.subject && m.subject.name) ? m.subject.name : m.name,
             maxMarks: m.maxMarks || 100,
             passMarks: m.passMarks || 33,
+            applicability: 'COMPULSORY',
+            applicableStudents: [],
             selected: true,
           }));
         }
@@ -788,6 +889,8 @@ const MarksEntry = () => {
           subjectName: s.name,
           maxMarks: 100,
           passMarks: 33,
+          applicability: 'COMPULSORY',
+          applicableStudents: [],
           selected: true,
         }));
       }
@@ -808,6 +911,50 @@ const MarksEntry = () => {
     }
   }, [adminClassId, showAdminModal]);
 
+  const openAdminAssignment = async (index) => {
+    if (!adminClassId) return;
+    try {
+      setAdminAssignmentLoading(true);
+      setAdminAssignmentIndex(index);
+      setAdminAssignmentSearch('');
+      const res = await api.get('/exams/applicability/students', {
+        params: { classId: adminClassId },
+      });
+      setAdminAssignmentStudents(res.data?.data || []);
+    } catch (err) {
+      console.error('Failed to load optional subject students:', err);
+      addToast(err.response?.data?.message || 'Failed to load class students', 'error');
+      setAdminAssignmentIndex(null);
+    } finally {
+      setAdminAssignmentLoading(false);
+    }
+  };
+
+  const toggleAdminAssignedStudent = (studentId) => {
+    if (adminAssignmentIndex === null) return;
+    setAdminConfigList((prev) =>
+      prev.map((config, index) => {
+        if (index !== adminAssignmentIndex) return config;
+        const ids = new Set(config.applicableStudents || []);
+        if (ids.has(studentId)) ids.delete(studentId);
+        else ids.add(studentId);
+        return { ...config, applicableStudents: [...ids] };
+      })
+    );
+  };
+
+  const setAllAdminAssignedStudents = (selected) => {
+    if (adminAssignmentIndex === null) return;
+    const ids = selected ? adminAssignmentStudents.map((student) => student._id) : [];
+    setAdminConfigList((prev) =>
+      prev.map((config, index) =>
+        index === adminAssignmentIndex
+          ? { ...config, applicableStudents: ids }
+          : config
+      )
+    );
+  };
+
   const handleAdminExamCreate = async (e) => {
     e.preventDefault();
     if (!adminExamName.trim() || !adminClassId) {
@@ -821,6 +968,9 @@ const MarksEntry = () => {
         subjectId: c.subjectId,
         maxMarks: Number(c.maxMarks),
         passMarks: Number(c.passMarks),
+        applicability: c.applicability === 'OPTIONAL' ? 'OPTIONAL' : 'COMPULSORY',
+        applicableStudents:
+          c.applicability === 'OPTIONAL' ? (c.applicableStudents || []) : [],
       }));
 
     if (selectedConfigs.length === 0) {
@@ -1312,15 +1462,46 @@ const MarksEntry = () => {
                           </span>
                         ) : null}
 
-                        <button
-                          type="button"
-                          onClick={() => openCorrectionModal(s)}
-                          className="p-1 text-slate-400 hover:text-orange-600 rounded cursor-pointer"
-                          title="Request Marks Correction"
-                        >
-                          <HelpCircle className="w-4 h-4" />
-                        </button>
+                        {s.isApplicable !== false && (
+                          <button
+                            type="button"
+                            onClick={() => openCorrectionModal(s)}
+                            className="p-1 text-slate-400 hover:text-orange-600 rounded cursor-pointer"
+                            title="Request Marks Correction"
+                          >
+                            <HelpCircle className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200/60">
+                      <div>
+                        <span className="block text-[9px] font-extrabold text-slate-400 uppercase">Applicability</span>
+                        <span className="text-[9px] text-slate-500">
+                          {s.isApplicable === false
+                            ? 'Not included in this student result.'
+                            : 'Included in this student examination.'}
+                        </span>
+                      </div>
+                      <select
+                        value={s.isApplicable === false ? 'NA' : 'APPLICABLE'}
+                        disabled={
+                          !canEditApplicability(s) ||
+                          isSaving ||
+                          applicabilitySavingId === String(s.studentId)
+                        }
+                        onChange={(e) => handleApplicabilityChange(s, e.target.value)}
+                        title={
+                          s.isApplicable === false
+                            ? 'This subject is not applicable to this student and will not affect total, percentage, grade, rank or pass/fail.'
+                            : 'This subject is included in this student examination.'
+                        }
+                        className="h-8 px-2 rounded-lg bg-white border border-slate-300 text-[10px] font-black text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        <option value="APPLICABLE">Applicable</option>
+                        <option value="NA">N/A</option>
+                      </select>
                     </div>
 
                     {/* Marks Input & Absent Toggle */}
@@ -1354,7 +1535,7 @@ const MarksEntry = () => {
                             className="w-full h-10 px-3 flex items-center justify-center text-center font-black rounded-xl border border-slate-200 bg-white text-slate-900 text-base select-none"
                             aria-label={s.isAbsent ? 'Absent' : `Saved marks ${s.marksObtained}`}
                           >
-                            {s.isAbsent ? 'ABSENT' : (s.marksObtained !== '' ? s.marksObtained : '—')}
+                            {s.isApplicable === false ? 'N/A' : (s.isAbsent ? 'ABSENT' : (s.marksObtained !== '' ? s.marksObtained : '—'))}
                           </div>
                         )}
                         {s.isInvalid && (
@@ -1379,7 +1560,7 @@ const MarksEntry = () => {
                                 : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
                             }`}
                           >
-                            {s.isAbsent ? 'ABSENT' : 'PRESENT'}
+                            {s.isApplicable === false ? 'N/A' : (s.isAbsent ? 'ABSENT' : 'PRESENT')}
                           </button>
                         ) : (
                           <div
@@ -1389,7 +1570,7 @@ const MarksEntry = () => {
                                 : 'bg-white text-slate-600 border border-slate-200'
                             }`}
                           >
-                            {s.isAbsent ? 'ABSENT' : 'PRESENT'}
+                            {s.isApplicable === false ? 'N/A' : (s.isAbsent ? 'ABSENT' : 'PRESENT')}
                           </div>
                         )}
                       </div>
@@ -1398,8 +1579,14 @@ const MarksEntry = () => {
                     {/* Status & Remarks Row */}
                     <div className="flex items-center gap-2">
                       <div className="shrink-0">
-                        {!isEntered ? (
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">-</span>
+                        {s.isApplicable === false ? (
+                          <span className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-slate-100 text-slate-600 border border-slate-200">
+                            N/A
+                          </span>
+                        ) : !isEntered ? (
+                          <span className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                            PENDING
+                          </span>
                         ) : s.isAbsent ? (
                           <span className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-rose-100 text-rose-700 border border-rose-200">
                             FAIL (ABS)
@@ -1447,6 +1634,7 @@ const MarksEntry = () => {
                     <th className="py-3 px-4 w-28 text-center">Max Marks</th>
                     <th className="py-3 px-4 w-28 text-center">Pass Marks</th>
                     <th className="py-3 px-4 w-36 text-center">Marks Obtained</th>
+                    <th className="py-3 px-4 w-32 text-center">Applicability</th>
                     <th className="py-3 px-4 w-24 text-center">Absent</th>
                     <th className="py-3 px-4 w-24 text-center">Status</th>
                     <th className="py-3 px-4">Remarks</th>
@@ -1523,7 +1711,7 @@ const MarksEntry = () => {
                                 className="w-28 h-9 mx-auto flex items-center justify-center text-center font-black rounded-xl border border-slate-200 bg-white text-slate-900 text-sm select-none"
                                 aria-label={s.isAbsent ? 'Absent' : `Saved marks ${s.marksObtained}`}
                               >
-                                {s.isAbsent ? 'ABSENT' : (s.marksObtained !== '' ? s.marksObtained : '—')}
+                                {s.isApplicable === false ? 'N/A' : (s.isAbsent ? 'ABSENT' : (s.marksObtained !== '' ? s.marksObtained : '—'))}
                               </div>
                             )}
                             {s.isInvalid && (
@@ -1532,6 +1720,33 @@ const MarksEntry = () => {
                               </span>
                             )}
                           </div>
+                        </td>
+
+                        {/* Student-specific Applicability */}
+                        <td className="py-3 px-4 text-center">
+                          <select
+                            value={s.isApplicable === false ? 'NA' : 'APPLICABLE'}
+                            disabled={
+                              !canEditApplicability(s) ||
+                              isSaving ||
+                              applicabilitySavingId === String(s.studentId)
+                            }
+                            onChange={(e) => handleApplicabilityChange(s, e.target.value)}
+                            title={
+                              s.isApplicable === false
+                                ? 'This subject is not applicable to this student and will not affect total, percentage, grade, rank or pass/fail.'
+                                : 'This subject is included in this student examination.'
+                            }
+                            className={
+                              'h-8 px-2 rounded-lg border text-[10px] font-black transition-all disabled:opacity-60 disabled:cursor-not-allowed ' +
+                              (s.isApplicable === false
+                                ? 'bg-slate-100 text-slate-600 border-slate-300'
+                                : 'bg-white text-slate-700 border-slate-300')
+                            }
+                          >
+                            <option value="APPLICABLE">Applicable</option>
+                            <option value="NA">N/A</option>
+                          </select>
                         </td>
 
                         {/* Absent Toggle */}
@@ -1547,7 +1762,7 @@ const MarksEntry = () => {
                                   : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
                               }`}
                             >
-                              {s.isAbsent ? 'ABSENT' : 'PRESENT'}
+                              {s.isApplicable === false ? 'N/A' : (s.isAbsent ? 'ABSENT' : 'PRESENT')}
                             </button>
                           ) : (
                             <span
@@ -1557,15 +1772,21 @@ const MarksEntry = () => {
                                   : 'bg-slate-100 text-slate-600 border border-slate-200'
                               }`}
                             >
-                              {s.isAbsent ? 'ABSENT' : 'PRESENT'}
+                              {s.isApplicable === false ? 'N/A' : (s.isAbsent ? 'ABSENT' : 'PRESENT')}
                             </span>
                           )}
                         </td>
 
                         {/* Status Preview Badge */}
                         <td className="py-3 px-4 text-center">
-                          {!isEntered ? (
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">-</span>
+                          {s.isApplicable === false ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-600 border border-slate-200">
+                              N/A
+                            </span>
+                          ) : !isEntered ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                              PENDING
+                            </span>
                           ) : s.isAbsent ? (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 border border-rose-200">
                               FAIL (ABS)
@@ -1618,14 +1839,16 @@ const MarksEntry = () => {
                               <span className="text-slate-300">-</span>
                             )}
 
-                            <button
-                              type="button"
-                              onClick={() => openCorrectionModal(s)}
-                              className="p-1 text-slate-400 hover:text-orange-600 rounded cursor-pointer transition-colors"
-                              title="Request Marks Correction / Rechecking"
-                            >
-                              <HelpCircle className="w-3.5 h-3.5" />
-                            </button>
+                            {s.isApplicable !== false && (
+                              <button
+                                type="button"
+                                onClick={() => openCorrectionModal(s)}
+                                className="p-1 text-slate-400 hover:text-orange-600 rounded cursor-pointer transition-colors"
+                                title="Request Marks Correction / Rechecking"
+                              >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1716,6 +1939,48 @@ const MarksEntry = () => {
           </div>
         )}
       </div>
+
+      {applicabilityConfirm && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900">Confirm Applicability Change</h3>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed mt-1">
+                  {applicabilityConfirm.message}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={!!applicabilitySavingId}
+                onClick={() => setApplicabilityConfirm(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!!applicabilitySavingId}
+                onClick={() =>
+                  persistApplicabilityChange(
+                    applicabilityConfirm.row,
+                    applicabilityConfirm.nextApplicable,
+                    true
+                  )
+                }
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black disabled:opacity-50"
+              >
+                {applicabilitySavingId ? 'Saving...' : 'Continue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ──────────────────────────────────────────────
           UNSAVED CHANGES WARNING MODAL
@@ -1840,7 +2105,41 @@ const MarksEntry = () => {
                           }}
                           className="w-4 h-4 text-orange-600 rounded"
                         />
-                        <span className="font-bold text-slate-900 flex-1">{cfg.subjectName}</span>
+                        <div className="font-bold text-slate-900 flex-1 min-w-[150px]">
+                          <span>{cfg.subjectName}</span>
+                          {cfg.selected && (
+                            <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                              <select
+                                value={cfg.applicability || 'COMPULSORY'}
+                                onChange={(e) => {
+                                  const next = [...adminConfigList];
+                                  next[idx] = {
+                                    ...next[idx],
+                                    applicability: e.target.value,
+                                    applicableStudents:
+                                      e.target.value === 'OPTIONAL'
+                                        ? (next[idx].applicableStudents || [])
+                                        : [],
+                                  };
+                                  setAdminConfigList(next);
+                                }}
+                                className="h-7 px-2 rounded-lg border border-slate-200 bg-white text-[10px] font-black"
+                              >
+                                <option value="COMPULSORY">Compulsory</option>
+                                <option value="OPTIONAL">Optional</option>
+                              </select>
+                              {cfg.applicability === 'OPTIONAL' && (
+                                <button
+                                  type="button"
+                                  onClick={() => openAdminAssignment(idx)}
+                                  className="h-7 px-2 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black"
+                                >
+                                  Assign ({(cfg.applicableStudents || []).length})
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-slate-500 font-bold">Max:</span>
                           <input
@@ -1890,6 +2189,77 @@ const MarksEntry = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {adminAssignmentIndex !== null && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 max-w-lg w-full shadow-2xl border border-slate-200 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-slate-900">Assign Optional Subject Students</h3>
+                <p className="text-[11px] text-slate-500 font-bold">
+                  {adminConfigList[adminAssignmentIndex]?.subjectName}
+                </p>
+              </div>
+              <button type="button" onClick={() => setAdminAssignmentIndex(null)} className="text-slate-400 hover:text-slate-700">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <input
+              type="text"
+              value={adminAssignmentSearch}
+              onChange={(e) => setAdminAssignmentSearch(e.target.value)}
+              placeholder="Search student name or roll number..."
+              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-orange-500"
+            />
+
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setAllAdminAssignedStudents(true)} className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black">
+                Select All
+              </button>
+              <button type="button" onClick={() => setAllAdminAssignedStudents(false)} className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-black">
+                Clear All
+              </button>
+            </div>
+
+            <div className="overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
+              {adminAssignmentLoading ? (
+                <p className="p-6 text-center text-xs font-bold text-slate-500">Loading students...</p>
+              ) : adminAssignmentStudents
+                  .filter((student) => {
+                    const q = adminAssignmentSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return (
+                      (student.fullName || '').toLowerCase().includes(q) ||
+                      String(student.rollNumber || '').toLowerCase().includes(q)
+                    );
+                  })
+                  .map((student) => {
+                    const selected = (adminConfigList[adminAssignmentIndex]?.applicableStudents || [])
+                      .includes(student._id);
+                    return (
+                      <label key={student._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleAdminAssignedStudent(student._id)}
+                          className="w-4 h-4 accent-orange-600"
+                        />
+                        <span className="w-12 text-[10px] font-black text-slate-500">Roll {student.rollNumber || '-'}</span>
+                        <span className="text-xs font-bold text-slate-900 flex-1">{student.fullName}</span>
+                      </label>
+                    );
+                  })}
+            </div>
+
+            <div className="flex justify-end">
+              <button type="button" onClick={() => setAdminAssignmentIndex(null)} className="px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-black">
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

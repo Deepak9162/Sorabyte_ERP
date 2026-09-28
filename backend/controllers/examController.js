@@ -17,6 +17,15 @@ exports.getMarksEntryOptions = async (req, res, next) => {
   }
 };
 
+exports.getApplicabilityStudents = async (req, res, next) => {
+  try {
+    const students = await examService.getApplicabilityStudents(req.query.classId);
+    return successResponse(res, students, 'Applicability students fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.createExam = async (req, res, next) => {
   try {
     const exam = await examService.createExam(req.body, req.user._id);
@@ -44,6 +53,15 @@ exports.getExamById = async (req, res, next) => {
   }
 };
 
+exports.getExamManagementInfo = async (req, res, next) => {
+  try {
+    const info = await examService.getExamManagementInfo(req.params.id);
+    return successResponse(res, info, 'Exam management information fetched successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.updateExam = async (req, res, next) => {
   try {
     const exam = await examService.updateExam(req.params.id, req.body, req.user._id);
@@ -56,7 +74,12 @@ exports.updateExam = async (req, res, next) => {
 exports.configureExamSubjects = async (req, res, next) => {
   try {
     const subjectsConfig = req.body.subjectsConfig || req.body.subjects;
-    const exam = await examService.configureExamSubjects(req.params.id, subjectsConfig, req.user._id);
+    const exam = await examService.configureExamSubjects(
+      req.params.id,
+      subjectsConfig,
+      req.user._id,
+      { confirmExistingMarksImpact: req.body.confirmExistingMarksImpact === true }
+    );
     return successResponse(res, exam, 'Exam subjects configured successfully');
   } catch (error) {
     next(error);

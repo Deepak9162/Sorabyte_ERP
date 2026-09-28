@@ -26,6 +26,7 @@ router.use(protect);
 // Filter Options & Roster Loading Routes (STATIC FIRST)
 // ──────────────────────────────────────────────
 router.get('/options', examController.getMarksEntryOptions);
+router.get('/applicability/students', isAdmin, examController.getApplicabilityStudents);
 router.get('/roster', verifyExamTeacherAccess('query', 'query'), marksheetController.getClassSubjectRoster);
 
 // ──────────────────────────────────────────────
@@ -40,6 +41,7 @@ router.post('/correction-requests/:id/cancel', marksheetController.cancelCorrect
 // ──────────────────────────────────────────────
 // Marks Entry & Management Routes (STATIC FIRST)
 // ──────────────────────────────────────────────
+router.patch('/marks/applicability', verifyExamTeacherAccess('body', 'body'), marksheetController.updateStudentSubjectApplicability);
 router.post('/marks', verifyExamTeacherAccess('body', 'body'), marksheetController.enterSingleMark);
 router.post('/marks/bulk', verifyExamTeacherAccess('body', null), marksheetController.bulkEnterMarks);
 router.get('/marks/template', verifyExamTeacherAccess('query', 'query'), marksheetController.generateMarksTemplate);
@@ -82,6 +84,7 @@ router.get('/', examController.getAllExams);
 // ──────────────────────────────────────────────
 // Exam Parameterized Routes (/:id AT THE END)
 // ──────────────────────────────────────────────
+router.get('/:id/management-info', isAdmin, examController.getExamManagementInfo);
 router.get('/:id', examController.getExamById);
 router.put('/:id', isAdmin, examController.updateExam);
 router.delete('/:id', isAdmin, examController.deleteExam);

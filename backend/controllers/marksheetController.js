@@ -23,6 +23,18 @@ exports.getClassSubjectRoster = async (req, res, next) => {
   }
 };
 
+exports.updateStudentSubjectApplicability = async (req, res, next) => {
+  try {
+    const result = await marksheetService.updateStudentSubjectApplicability(
+      req.body,
+      req.user._id
+    );
+    return successResponse(res, result, 'Student subject applicability updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.enterSingleMark = async (req, res, next) => {
   try {
     const markRecord = await marksheetService.enterSingleMark(req.body, req.user._id);

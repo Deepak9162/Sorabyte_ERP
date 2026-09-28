@@ -30,6 +30,22 @@ const subjectConfigSchema = new mongoose.Schema(
         message: 'Passing marks cannot exceed maximum marks',
       },
     },
+    // Backward-compatible subject applicability.
+    // Legacy exam configs without this field are treated as COMPULSORY at runtime.
+    applicability: {
+      type: String,
+      enum: ['COMPULSORY', 'OPTIONAL'],
+      default: 'COMPULSORY',
+    },
+    // Used only when applicability === OPTIONAL.
+    // Existing valid ExamMarks records remain authoritative even if a legacy
+    // student is not yet listed here.
+    applicableStudents: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Student',
+      },
+    ],
   },
   { _id: false }
 );

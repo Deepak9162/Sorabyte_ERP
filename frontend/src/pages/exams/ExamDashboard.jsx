@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -316,6 +317,24 @@ const ExamDashboard = () => {
                     >
                       <span>View Results</span>
                     </button>
+                    {user?.role === 'admin' && (
+                      <>
+                        <button
+                          onClick={() => navigate('/academic/exams/management', { state: { editExamId: e._id } })}
+                          className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit Exam</span>
+                        </button>
+                        <button
+                          onClick={() => navigate('/academic/exams/management', { state: { deleteExamId: e._id } })}
+                          className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete Exam</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -388,6 +407,23 @@ const ExamDashboard = () => {
                           >
                             View Results
                           </button>
+                          {user?.role === 'admin' && (
+                            <>
+                              <button
+                                onClick={() => navigate('/academic/exams/management', { state: { editExamId: e._id } })}
+                                className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg font-bold text-[11px] transition-all cursor-pointer shrink-0"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => navigate('/academic/exams/management', { state: { deleteExamId: e._id } })}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg transition-all cursor-pointer shrink-0"
+                                title="Delete Exam"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
